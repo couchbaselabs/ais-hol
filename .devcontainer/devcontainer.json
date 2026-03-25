@@ -15,5 +15,5 @@
             "version": "20"
         }
     },
-    "postCreateCommand": "cd frontend && npm install && cd ../backend && pip install -r requirements.txt && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && . $HOME/.cargo/env && cargo install --git https://github.com/couchbaselabs/couchbase-shell.git --locked"
+    "postCreateCommand": "cd frontend && npm install && cd ../backend && pip install -r requirements.txt && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && . $HOME/.cargo/env && cargo install --git https://github.com/couchbaselabs/couchbase-shell.git --tag v1.1.0 --locked"
 }
