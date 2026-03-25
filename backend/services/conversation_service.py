@@ -103,36 +103,13 @@ async def clear_conversation_history(session_id: str) -> None:
 
 
 async def summarize_conversation(session_id: str, max_words: int = 150) -> str:
-    """Summarize the conversation history for a session using Couchbase Capella AI Functions.
+    """Summarize the conversation history using Couchbase Capella AI Functions.
 
-    Capella's built-in `ai_summary` SQL++ function runs the summarization inside the
-    database — no extra API call from the backend is needed.
+    Calls default:ai_summary() as a SQL++ query — summarization runs inside
+    the database with no extra API call from the backend.
 
-    TODO (Exercise 4 — Step 6):
-      1. Get the cluster with _get_cluster()
-      2. Fetch the conversation history with get_conversation_history(session_id)
-         If there are fewer than 2 messages, return "No conversation to summarize." early.
-      3. Format the history into a single text block:
-           "User: ...\nAssistant: ...\nUser: ..."
-      4. Run a N1QL query that calls the Capella AI summarization function:
-
-           SELECT default:ai_summary({
-               "text": $text,
-               "max_words": $max_words,
-               "temperature": 0.3
-           }) AS summary
-
-         Use cluster.query(sql, QueryOptions(named_parameters={"text": ..., "max_words": ...}))
-      5. Extract and return the summary string:
-           result.rows()[0]["summary"][0]["response"]
-
-    Prerequisites:
-      - Capella AI Functions must be enabled on your cluster with the Summarization
-        function active. See: https://docs.couchbase.com/ai/build/ai-functions.html#summarization
-      - The LLM model (OpenAI, Bedrock, or Capella Model Service) must be configured
-        in your Capella AI Functions settings.
-
-    Docs: https://docs.couchbase.com/ai/build/ai-functions.html#summarization
+    Requires the Summarization AI Function to be enabled on the Capella cluster.
+    See: https://docs.couchbase.com/ai/build/ai-functions.html#summarization
     """
     cluster = _get_cluster()
 
