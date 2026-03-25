@@ -111,7 +111,7 @@ Before building the RAG app you need chunked documents stored in Couchbase and t
 3. Inside the cluster create:
    - Bucket: `shared`
    - Scope: `public`
-   - Collection: `ingestion`
+   - Collection: `documentation`
 4. Go to **Organization Settings → API Keys → Generate Key** and copy the access key and secret
 
 ### Step 2 — Configure Couchbase Shell
@@ -155,8 +155,7 @@ cb-env cluster <your-cluster-identifier>
 use scripts/couchbase.nu *
 use scripts/importers.nu *
 
-# Import raw chunks into the ingestion collection — no embedding step
-$env.CASH_DOCUMENTATION_COLLECTION = "ingestion"
+# Import raw chunks — no embedding step
 import_markdown_no_embed scripts/content/files/en-us/glossary1/ "glossary" "a glossary of IT terms"
 ```
 
@@ -189,7 +188,6 @@ See: [Vectorize Structured Data from Capella](https://docs.couchbase.com/ai/buil
 Add to `backend/.env`:
 
 ```env
-COUCHBASE_COLLECTION_NAME=ingestion
 COUCHBASE_SEARCH_INDEX_NAME=<index-name-created-by-the-workflow>
 ```
 
