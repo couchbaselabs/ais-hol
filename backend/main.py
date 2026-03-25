@@ -16,6 +16,7 @@ from services.conversation_service import (
     get_conversation_history,
     format_conversation_history,
     clear_conversation_history,
+    summarize_conversation,
 )
 from services.semantic_cache_service import cache_get, cache_put, create_llm_signature
 
@@ -91,10 +92,16 @@ async def query(body: QueryRequest):
       3. Build an augmented prompt from the docs and the query
       4. Return StreamingResponse(stream_completion(prompt), media_type="text/plain; charset=utf-8")
 
-    TODO (Exercise 4): after implementing conversation_service.py, also:
+    TODO (Exercise 4 — Steps 2-5): after implementing conversation_service.py, also:
       - Call add_message(session_id, body.q, "user") before generating
       - Call get_conversation_history(session_id) and prepend it to the prompt
       - Call add_message(session_id, full_response, "assistant") after streaming
+
+    TODO (Exercise 4 — Step 6): after implementing summarize_conversation(), use the
+      summary instead of raw history in the prompt:
+      - Call summary = await summarize_conversation(session_id) to get a compact summary
+      - Replace the raw formatted_history with summary in the prompt
+      This keeps the prompt compact as conversations grow long.
 
     TODO (Exercise 5): after implementing semantic_cache_service.py, also:
       - Call cache_get() before the RAG pipeline; return cached response if hit
