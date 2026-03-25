@@ -25,47 +25,136 @@ def _get_cluster() -> Cluster:
     return _cluster
 
 
+# ---------------------------------------------------------------------------
+# Exercise 4
+# ---------------------------------------------------------------------------
+
 async def add_message(session_id: str, content: str, role: str) -> None:
-    cluster = _get_cluster()
-    collection = cluster.bucket(BUCKET_NAME()).scope(SCOPE()).collection(COLLECTION())
-    doc = {
-        "session_id": session_id,
-        "role": role,
-        "content": content,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "type": "chat_message",
-    }
-    key = f"{session_id}_{int(datetime.now().timestamp() * 1000)}_{role}"
-    collection.insert(key, doc)
+    """Store a single chat message in Couchbase.
+
+    TODO (Exercise 4):
+      1. Get the cluster with _get_cluster()
+      2. Get the collection: cluster.bucket(BUCKET_NAME()).scope(SCOPE()).collection(COLLECTION())
+      3. Build a document dict:
+           {
+             "session_id": session_id,
+             "role": role,          # "user" or "assistant"
+             "content": content,
+             "timestamp": datetime.now(timezone.utc).isoformat(),
+             "type": "chat_message"
+           }
+      4. Insert with a unique key, e.g.:
+           f"{session_id}_{int(datetime.now().timestamp() * 1000)}_{role}"
+         Use collection.insert(key, doc)
+
+    Docs: https://docs.couchbase.com/python-sdk/current/howtos/kv-operations.html
+    """
+    # TODO: replace this placeholder with your implementation
+    raise NotImplementedError("Implement add_message in conversation_service.py")
 
 
 async def get_conversation_history(session_id: str, limit: int = 10) -> list[dict]:
-    cluster = _get_cluster()
-    sql = f"""
-        SELECT content, `role`, timestamp
-        FROM `{BUCKET_NAME()}`.`{SCOPE()}`.`{COLLECTION()}`
-        WHERE session_id = $session_id AND type = "chat_message"
-        ORDER BY timestamp DESC LIMIT $limit
+    """Retrieve the most recent messages for a session, in chronological order.
+
+    TODO (Exercise 4):
+      1. Get the cluster with _get_cluster()
+      2. Run a N1QL query:
+           SELECT content, `role`, timestamp
+           FROM `<bucket>`.`<scope>`.`<collection>`
+           WHERE session_id = $session_id AND type = "chat_message"
+           ORDER BY timestamp DESC
+           LIMIT $limit
+         Use cluster.query(sql, QueryOptions(named_parameters={...}))
+      3. Map result.rows() to dicts with keys: role, content, timestamp
+      4. Reverse the list so it is in chronological order and return it
+
+    Docs: https://docs.couchbase.com/python-sdk/current/howtos/n1ql-queries-with-sdk.html
     """
-    result = cluster.query(sql, QueryOptions(named_parameters={"session_id": session_id, "limit": limit}))
-    messages = [{"role": r["role"], "content": r["content"], "timestamp": r["timestamp"]} for r in result.rows()]
-    messages.reverse()
-    return messages
+    # TODO: replace this placeholder with your implementation
+    raise NotImplementedError("Implement get_conversation_history in conversation_service.py")
 
 
 def format_conversation_history(messages: list[dict]) -> str:
-    if not messages:
-        return "No previous conversation history."
-    return "\n".join(
-        f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content']}"
-        for m in messages
-    )
+    """Format a list of message dicts into a prompt-ready string.
+
+    TODO (Exercise 4):
+      - If messages is empty, return "No previous conversation history."
+      - Otherwise join each message as:
+          "User: <content>"  or  "Assistant: <content>"
+        separated by newlines.
+    """
+    # TODO: replace this placeholder with your implementation
+    raise NotImplementedError("Implement format_conversation_history in conversation_service.py")
 
 
 async def clear_conversation_history(session_id: str) -> None:
-    cluster = _get_cluster()
-    sql = f"""
-        DELETE FROM `{BUCKET_NAME()}`.`{SCOPE()}`.`{COLLECTION()}`
-        WHERE session_id = $session_id AND type = "chat_message"
+    """Delete all messages for a session.
+
+    TODO (Exercise 4):
+      1. Get the cluster with _get_cluster()
+      2. Run a N1QL DELETE:
+           DELETE FROM `<bucket>`.`<scope>`.`<collection>`
+           WHERE session_id = $session_id AND type = "chat_message"
+
+    Docs: https://docs.couchbase.com/python-sdk/current/howtos/n1ql-queries-with-sdk.html
     """
-    cluster.query(sql, QueryOptions(named_parameters={"session_id": session_id}))
+    # TODO: replace this placeholder with your implementation
+    raise NotImplementedError("Implement clear_conversation_history in conversation_service.py")
+
+
+async def summarize_conversation(session_id: str, max_words: int = 150) -> str:
+    """Summarize the conversation history for a session using Couchbase Capella AI Functions.
+
+    Capella's built-in `ai_summary` SQL++ function runs the summarization inside the
+    database — no extra API call from the backend is needed.
+
+    TODO (Exercise 4 — Step 6):
+      1. Get the cluster with _get_cluster()
+      2. Fetch the conversation history with get_conversation_history(session_id)
+         If there are fewer than 2 messages, return "No conversation to summarize." early.
+      3. Format the history into a single text block:
+           "User: ...\nAssistant: ...\nUser: ..."
+      4. Run a N1QL query that calls the Capella AI summarization function:
+
+           SELECT default:ai_summary({
+               "text": $text,
+               "max_words": $max_words,
+               "temperature": 0.3
+           }) AS summary
+
+         Use cluster.query(sql, QueryOptions(named_parameters={"text": ..., "max_words": ...}))
+      5. Extract and return the summary string:
+           result.rows()[0]["summary"][0]["response"]
+
+    Prerequisites:
+      - Capella AI Functions must be enabled on your cluster with the Summarization
+        function active. See: https://docs.couchbase.com/ai/build/ai-functions.html#summarization
+      - The LLM model (OpenAI, Bedrock, or Capella Model Service) must be configured
+        in your Capella AI Functions settings.
+
+    Docs: https://docs.couchbase.com/ai/build/ai-functions.html#summarization
+    """
+    cluster = _get_cluster()
+
+    history = await get_conversation_history(session_id)
+    if len(history) < 2:
+        return "No conversation to summarize."
+
+    text = "\n".join(
+        f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content']}"
+        for m in history
+    )
+
+    sql = """
+        SELECT default:ai_summary({
+            "text": $text,
+            "max_words": $max_words,
+            "temperature": 0.3
+        }) AS summary
+    """
+    result = cluster.query(
+        sql,
+        QueryOptions(named_parameters={"text": text, "max_words": max_words})
+    )
+    rows = list(result.rows())
+    return rows[0]["summary"][0]["response"]

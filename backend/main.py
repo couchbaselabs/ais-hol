@@ -9,13 +9,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from services.openai_service import generate_response, get_embedding, stream_completion, COMPLETION_MODEL
+from services.openai_service import generate_response, get_embedding, stream_completion
 from services.couchbase_service import get_relevant_documents
 from services.conversation_service import (
     add_message,
     get_conversation_history,
     format_conversation_history,
     clear_conversation_history,
+    summarize_conversation,
 )
 from services.semantic_cache_service import cache_get, cache_put, create_llm_signature
 
@@ -29,6 +30,10 @@ app.add_middleware(
     allow_credentials=True,
 )
 
+
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
 
 @app.get("/health")
 async def health():
@@ -46,23 +51,38 @@ class ChatRequest(BaseModel):
 
 @app.post("/api/chat")
 async def chat(body: ChatRequest):
+    """Simple chatbot endpoint — calls OpenAI and returns a JSON response.
+
+    TODO (Exercise 1):
+      This route is already wired up. Your task is to implement
+      generate_response() in services/openai_service.py.
+
+      Once done, this endpoint will:
+        1. Call generate_response(body.message, body.systemPrompt)
+        2. Return { "response": <text>, "timestamp": <iso string> }
+    """
     if not body.message or not body.message.strip():
         raise HTTPException(status_code=400, detail="Message is required.")
+
     response = await generate_response(body.message, body.systemPrompt)
     return {"response": response, "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
 # ---------------------------------------------------------------------------
-# Exercises 3–5 — RAG + conversation history + semantic cache
+# Exercise 3 — RAG query
 # ---------------------------------------------------------------------------
 
 class QueryRequest(BaseModel):
     q: str
-    session_id: str | None = None
+    session_id: str | None = None  # used in Exercise 4
 
 
 @app.post("/api/query")
 async def query(body: QueryRequest):
+    """RAG endpoint — embeds the query, retrieves docs, streams the response.
+
+    TODO (Exercise 3 — step 1): implement get_embedding() in openai_service.py
+    """
     if not body.q or not body.q.strip():
         raise HTTPException(status_code=400, detail="Query is required.")
 
@@ -79,10 +99,9 @@ async def query(body: QueryRequest):
             yield cached
         return StreamingResponse(from_cache(), media_type="text/plain; charset=utf-8")
 
-    # Exercise 4: store user message and retrieve history
+    # Exercise 4: store user message and summarize history via Capella AI Functions
     await add_message(session_id, body.q, "user")
-    history = await get_conversation_history(session_id, limit=10)
-    formatted_history = format_conversation_history(history)
+    formatted_history = await summarize_conversation(session_id)
 
     # Exercise 3: retrieve relevant documents
     documents = await get_relevant_documents(embedding)
@@ -93,7 +112,7 @@ async def query(body: QueryRequest):
     )
     prompt = (
         "You are a Web MDN Documentation expert with access to conversation history.\n\n"
-        f"CONVERSATION HISTORY:\n{formatted_history}\n\n"
+        f"CONVERSATION SUMMARY:\n{formatted_history}\n\n"
         f"RELEVANT DOCUMENTS:\n{document_list}\n\n"
         f"CURRENT QUERY: {body.q}\n\n"
         "Answer using the documents and history. Reference document IDs and filepaths where relevant."

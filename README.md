@@ -414,13 +414,81 @@ async def clear_history(body: ClearRequest):
     return {"success": True}
 ```
 
-### Step 5 — Test conversation memory
+### Step 5 — Summarize conversation history with Capella AI Functions
+
+Instead of passing raw message history to the prompt, use Couchbase Capella's built-in
+`ai_summary` SQL++ function to compress it. The summarization runs **inside the database**
+— no extra API call from the backend is needed.
+
+#### Prerequisites
+
+Enable the **Summarization** AI Function on your Capella cluster:
+
+1. In Capella, go to **AI Services → AI Functions**
+2. Click **Enable AI Functions**
+3. Select **Summarization** and click **Next**
+4. Choose your LLM model (OpenAI, Bedrock, or Capella Model Service) and configure credentials
+5. Select your operational cluster and click **Complete Setup**
+6. Wait for the status to show **Healthy** before proceeding
+
+See: [Capella AI Functions — Summarization](https://docs.couchbase.com/ai/build/ai-functions.html#summarization)
+
+#### Implement `summarize_conversation`
+
+In `backend/services/conversation_service.py`:
+
+```python
+async def summarize_conversation(session_id: str, max_words: int = 150) -> str:
+    cluster = _get_cluster()
+
+    history = await get_conversation_history(session_id)
+    if len(history) < 2:
+        return "No conversation to summarize."
+
+    text = "\n".join(
+        f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content']}"
+        for m in history
+    )
+
+    sql = """
+        SELECT default:ai_summary({
+            "text": $text,
+            "max_words": $max_words,
+            "temperature": 0.3
+        }) AS summary
+    """
+    result = cluster.query(
+        sql,
+        QueryOptions(named_parameters={"text": text, "max_words": max_words})
+    )
+    rows = list(result.rows())
+    return rows[0]["summary"][0]["response"]
+```
+
+#### Update the `/api/query` route to use the summary
+
+Replace `formatted_history` in the prompt with the summary:
+
+```python
+# Replace this:
+history = await get_conversation_history(session_id, limit=10)
+formatted_history = format_conversation_history(history)
+
+# With this:
+formatted_history = await summarize_conversation(session_id)
+```
+
+The prompt stays compact regardless of how long the conversation grows.
+
+### Step 6 — Test conversation memory
 
 Restart the backend and try in the **RAG Chat** tab:
 
 1. Ask: *"What is the JavaScript Array.map() method?"*
 2. Ask: *"What was my previous question?"*
 3. Ask: *"Can you explain that in simpler terms?"*
+
+Check the Capella Query Workbench to see the `ai_summary` function being called.
 
 ---
 
