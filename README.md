@@ -99,6 +99,8 @@ Open the app, select the **Simple Chat** tab, and send a message. You should get
 
 Before building the RAG app you need documents and their vector embeddings stored in Couchbase.
 
+> **`cbsh` is pre-installed** by the devcontainer `postCreateCommand` — no manual install needed. Run all `cbsh` commands from the **repository root** so that `scripts/` paths resolve correctly.
+
 ### Set up Couchbase Capella
 
 1. Sign up at [cloud.couchbase.com/signup](https://cloud.couchbase.com/signup)
@@ -145,7 +147,10 @@ credentials create --read --write --username cbsh --password yourPassword
 
 ### Import the documentation
 
+Run `cbsh` from the **repository root** (not from inside `backend/` or `scripts/`):
+
 ```bash
+# from repo root
 cbsh
 ```
 
