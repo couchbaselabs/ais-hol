@@ -97,20 +97,24 @@ Open the app, select the **Simple Chat** tab, and send a message. You should get
 
 ## Exercise 2 — Import Data into Couchbase
 
-Before building the RAG app you need documents and their vector embeddings stored in Couchbase.
+Before building the RAG app you need chunked documents stored in Couchbase and their vector embeddings generated. This exercise uses two steps:
+
+1. **Import** — use `cbsh` to chunk and import raw markdown into a collection named `ingestion` (no embedding yet)
+2. **Vectorize** — use the Capella AI Services vectorization workflow to generate embeddings automatically inside the database
 
 > **`cbsh` is pre-installed** by the devcontainer `postCreateCommand` — no manual install needed. Run all `cbsh` commands from the **repository root** so that `scripts/` paths resolve correctly.
 
-### Set up Couchbase Capella
+### Step 1 — Set up Couchbase Capella
 
 1. Sign up at [cloud.couchbase.com/signup](https://cloud.couchbase.com/signup)
-2. Create a cluster, then inside it create:
+2. Create a cluster (Couchbase Server 8.0+, Search Service and Eventing Service enabled)
+3. Inside the cluster create:
    - Bucket: `shared`
    - Scope: `public`
-   - Collection: `documentation`
-3. Go to **Organization Settings → API Keys → Generate Key** and copy the access key and secret
+   - Collection: `ingestion`
+4. Go to **Organization Settings → API Keys → Generate Key** and copy the access key and secret
 
-### Configure Couchbase Shell
+### Step 2 — Configure Couchbase Shell
 
 Edit `~/.cbsh/config`:
 
@@ -122,13 +126,6 @@ identifier = "yourOrgIdentifier"
 access-key = "yourAccessKey"
 secret-key = "yourSecretKey"
 default-project = "Trial - Project"
-
-[[llm]]
-identifier = "OpenAI-small"
-provider = "OpenAI"
-embed_model = "text-embedding-3-small"
-chat_model = "gpt-3.5-turbo"
-api_key = "sk-your-openai-api-key"
 ```
 
 Register your cluster in cbsh:
@@ -145,12 +142,11 @@ Create database credentials:
 credentials create --read --write --username cbsh --password yourPassword
 ```
 
-### Import the documentation
+### Step 3 — Import the documentation (no embedding)
 
-Run `cbsh` from the **repository root** (not from inside `backend/` or `scripts/`):
+Run `cbsh` from the **repository root**:
 
 ```bash
-# from repo root
 cbsh
 ```
 
@@ -158,10 +154,46 @@ cbsh
 cb-env cluster <your-cluster-identifier>
 use scripts/couchbase.nu *
 use scripts/importers.nu *
-import_markdown_in_folder scripts/content/files/en-us/glossary1/ "glossary" "a glossary of IT terms"
+
+# Import raw chunks into the ingestion collection — no embedding step
+$env.CASH_DOCUMENTATION_COLLECTION = "ingestion"
+import_markdown_no_embed scripts/content/files/en-us/glossary1/ "glossary" "a glossary of IT terms"
 ```
 
-This reads all markdown files, chunks them, generates OpenAI embeddings, and upserts into Couchbase. It may take a few minutes.
+This reads all markdown files, chunks them, assigns a content hash as document ID, and upserts into the `ingestion` collection. No OpenAI calls are made.
+
+### Step 4 — Vectorize with Capella AI Services
+
+Now use the Capella AI Services vectorization workflow to generate embeddings for all documents in `ingestion` and create a vector search index automatically.
+
+1. In Capella, go to **AI Services → Workflows → Create New Workflow**
+2. Click **Data from Capella**
+3. Give the workflow a name and click **Start Workflow**
+4. Under **Data Source**, select your cluster, then:
+   - Bucket: `shared`
+   - Scope: `public`
+   - Collection: `ingestion`
+5. Under **Source Fields**, click **Map all source fields to a single vector field**
+   - Set the **Vector Field** name to `vector`
+6. Under **Embedding Model**, click **External Model**
+   - Select `text-embedding-3-small` from the OpenAI model list
+   - Add your OpenAI API key
+7. Click **Next**, verify the configuration, then click **Run Workflow**
+
+The workflow generates a `vector` field on every document in `ingestion` and creates a vector search index. Wait for the workflow status to show all documents processed before moving to Exercise 3.
+
+See: [Vectorize Structured Data from Capella](https://docs.couchbase.com/ai/build/vectorization-service/vectorize-structured-data-capella.html)
+
+### Step 5 — Update your backend environment
+
+Add to `backend/.env`:
+
+```env
+COUCHBASE_COLLECTION_NAME=ingestion
+COUCHBASE_SEARCH_INDEX_NAME=<index-name-created-by-the-workflow>
+```
+
+The index name is shown in the Capella AI Services workflow detail page after the workflow completes.
 
 ---
 

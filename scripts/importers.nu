@@ -3,6 +3,44 @@ use splitter_recursive.nu *
 use couchbase.nu *
 use embedding.nu *
 
+export def import_markdown_no_embed [
+    path,
+    name,
+    description,
+    --visibility: string = "shared"
+    --tenant: string = "public"
+] {
+    # Chunk markdown files and import raw text into Couchbase — no embedding.
+    # Embeddings are generated later by the Capella AI Services vectorization workflow.
+    let chunked_files = (cd $path; ls **/*.md | each { |f| $f.name | open | markdown-chunker | insert filepath $f.name | insert name $name }) | flatten
+    let filtered_chunked_files = $chunked_files | filter { |f| $f.content | hash sha256 | doc get | get cas | $in.0 == 0 }
+    let chunks_with_ids = $filtered_chunked_files | each { |c| $c | insert id ($c.content | hash sha256) }
+    let meta = {type: "meta", name: $name, description: $description, count: ($chunks_with_ids | length)}
+    import_raw_documentation $chunks_with_ids $meta --visibility $visibility --tenant $tenant
+}
+
+def import_raw_documentation [
+    chunks,
+    meta,
+    --visibility: string = "shared",
+    --tenant: string = "public",
+] {
+    let storageconfig = get_storage_config
+    let now = epoch_now_nano
+    let meta = $meta | insert date $now
+    let filepath = $"($meta.name)-($now).json"
+    let metaId = $"meta::($meta.name)"
+    let chunks = $chunks | each { |c| $c | insert metaId $metaId }
+    $chunks | save -f $filepath
+    let structure = match $visibility {
+        "private" => {bucket: $storageconfig.private_bucket, tenant: get_private_scope}
+        _ => {bucket: $storageconfig.shared_bucket, tenant: $tenant}
+    }
+    create_collection_if_not_exist $structure.bucket $structure.tenant $storageconfig.documentation_collection
+    doc import --bucket $structure.bucket --scope $structure.tenant --collection $storageconfig.documentation_collection --id-column id $filepath
+    doc insert --bucket $structure.bucket --scope $structure.tenant --collection $storageconfig.documentation_collection $metaId $meta
+}
+
 export def import_markdown_in_folder [
     path,
     name,

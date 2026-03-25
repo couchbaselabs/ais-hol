@@ -7,6 +7,9 @@ from couchbase.search import SearchRequest
 
 _cluster = None
 SCOPE_NAME = "public"
+# Collection where ingested + vectorized documents live.
+# Must match the collection targeted by the Capella AI Services vectorization workflow.
+COLLECTION_NAME = lambda: os.environ.get("COUCHBASE_COLLECTION_NAME", "ingestion")
 
 
 def _get_cluster() -> Cluster:
@@ -38,7 +41,7 @@ async def get_relevant_documents(embedding: list[float], name: str | None = None
       1. Call _get_cluster() to get the cluster
       2. Get the scope: cluster.bucket(COUCHBASE_BUCKET_NAME).scope(SCOPE_NAME)
          where COUCHBASE_BUCKET_NAME = os.environ["COUCHBASE_BUCKET_NAME"]
-      3. Get the collection: scope.collection("documentation")
+      3. Get the collection: scope.collection(COLLECTION_NAME())
       4. Build a vector search request:
            request = SearchRequest.create(
                VectorSearch.from_vector_query(
