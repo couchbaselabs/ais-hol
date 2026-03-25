@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from services.openai_service import generate_response, get_embedding, stream_completion
+from services.openai_service import generate_response, get_embedding, stream_completion, COMPLETION_MODEL
 from services.couchbase_service import get_relevant_documents
 from services.conversation_service import (
     add_message,
@@ -30,10 +30,6 @@ app.add_middleware(
 )
 
 
-# ---------------------------------------------------------------------------
-# Health check
-# ---------------------------------------------------------------------------
-
 @app.get("/health")
 async def health():
     return {"status": "OK", "message": "Server is running"}
@@ -50,64 +46,70 @@ class ChatRequest(BaseModel):
 
 @app.post("/api/chat")
 async def chat(body: ChatRequest):
-    """Simple chatbot endpoint — calls OpenAI and returns a JSON response.
-
-    TODO (Exercise 1):
-      This route is already wired up. Your task is to implement
-      generate_response() in services/openai_service.py.
-
-      Once done, this endpoint will:
-        1. Call generate_response(body.message, body.systemPrompt)
-        2. Return { "response": <text>, "timestamp": <iso string> }
-    """
     if not body.message or not body.message.strip():
         raise HTTPException(status_code=400, detail="Message is required.")
-
     response = await generate_response(body.message, body.systemPrompt)
     return {"response": response, "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
 # ---------------------------------------------------------------------------
-# Exercise 3 — RAG query
+# Exercises 3–5 — RAG + conversation history + semantic cache
 # ---------------------------------------------------------------------------
 
 class QueryRequest(BaseModel):
     q: str
-    session_id: str | None = None  # used in Exercise 4
+    session_id: str | None = None
 
 
 @app.post("/api/query")
 async def query(body: QueryRequest):
-    """RAG endpoint — embeds the query, retrieves docs, streams the response.
-
-    TODO (Exercise 3 — step 1): implement get_embedding() in openai_service.py
-    TODO (Exercise 3 — step 2): implement get_relevant_documents() in couchbase_service.py
-    TODO (Exercise 3 — step 3): implement stream_completion() in openai_service.py
-    TODO (Exercise 3 — step 4): fill in the body of this route below
-
-    Once all TODOs are done, this route should:
-      1. Embed the query with get_embedding(body.q)
-      2. Retrieve relevant docs with get_relevant_documents(embedding)
-      3. Build an augmented prompt from the docs and the query
-      4. Return StreamingResponse(stream_completion(prompt), media_type="text/plain; charset=utf-8")
-
-    TODO (Exercise 4): after implementing conversation_service.py, also:
-      - Call add_message(session_id, body.q, "user") before generating
-      - Call get_conversation_history(session_id) and prepend it to the prompt
-      - Call add_message(session_id, full_response, "assistant") after streaming
-
-    TODO (Exercise 5): after implementing semantic_cache_service.py, also:
-      - Call cache_get() before the RAG pipeline; return cached response if hit
-      - Call cache_put() after generating a fresh response
-    """
     if not body.q or not body.q.strip():
         raise HTTPException(status_code=400, detail="Query is required.")
 
-    # TODO (Exercise 3): replace this placeholder with your implementation
-    async def placeholder():
-        yield "[RAG response will appear here. Implement the /api/query route in main.py]"
+    session_id = body.session_id or "default-session"
+    llm_sig = create_llm_signature(COMPLETION_MODEL, 0.7, 1000, "MDN expert")
 
-    return StreamingResponse(placeholder(), media_type="text/plain; charset=utf-8")
+    # Exercise 3: embed the query
+    embedding = await get_embedding(body.q)
+
+    # Exercise 5: check semantic cache before running the full pipeline
+    cached = await cache_get(body.q, embedding, llm_sig)
+    if cached:
+        async def from_cache():
+            yield cached
+        return StreamingResponse(from_cache(), media_type="text/plain; charset=utf-8")
+
+    # Exercise 4: store user message and retrieve history
+    await add_message(session_id, body.q, "user")
+    history = await get_conversation_history(session_id, limit=10)
+    formatted_history = format_conversation_history(history)
+
+    # Exercise 3: retrieve relevant documents
+    documents = await get_relevant_documents(embedding)
+
+    document_list = "\n\n".join(
+        f"Document {i+1}:\n  ID: {doc['id']}\n  Filepath: {doc['filepath']}\n  Score: {doc['score']}\n  Content: {doc['content']}"
+        for i, doc in enumerate(documents)
+    )
+    prompt = (
+        "You are a Web MDN Documentation expert with access to conversation history.\n\n"
+        f"CONVERSATION HISTORY:\n{formatted_history}\n\n"
+        f"RELEVANT DOCUMENTS:\n{document_list}\n\n"
+        f"CURRENT QUERY: {body.q}\n\n"
+        "Answer using the documents and history. Reference document IDs and filepaths where relevant."
+    )
+
+    async def generate_and_store():
+        full_response = ""
+        async for token in stream_completion(prompt):
+            full_response += token
+            yield token
+        # Exercise 4: store assistant response
+        await add_message(session_id, full_response, "assistant")
+        # Exercise 5: cache the response for future similar queries
+        await cache_put(body.q, embedding, llm_sig, full_response)
+
+    return StreamingResponse(generate_and_store(), media_type="text/plain; charset=utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -116,18 +118,8 @@ async def query(body: QueryRequest):
 
 @app.get("/api/conversation/history")
 async def get_history(session_id: str, limit: int = 10):
-    """Return recent messages for a session.
-
-    TODO (Exercise 4):
-      This route is already wired up. Your task is to implement
-      get_conversation_history() in services/conversation_service.py.
-
-      Once done, call:
-        messages = await get_conversation_history(session_id, limit)
-        return {"session_id": session_id, "messages": messages, "count": len(messages)}
-    """
-    # TODO: replace this placeholder with your implementation
-    raise HTTPException(status_code=501, detail="Implement get_conversation_history in conversation_service.py")
+    messages = await get_conversation_history(session_id, limit)
+    return {"session_id": session_id, "messages": messages, "count": len(messages)}
 
 
 class ClearRequest(BaseModel):
@@ -136,18 +128,8 @@ class ClearRequest(BaseModel):
 
 @app.delete("/api/conversation/clear")
 async def clear_history(body: ClearRequest):
-    """Delete all messages for a session.
-
-    TODO (Exercise 4):
-      This route is already wired up. Your task is to implement
-      clear_conversation_history() in services/conversation_service.py.
-
-      Once done, call:
-        await clear_conversation_history(body.session_id)
-        return {"success": True}
-    """
-    # TODO: replace this placeholder with your implementation
-    raise HTTPException(status_code=501, detail="Implement clear_conversation_history in conversation_service.py")
+    await clear_conversation_history(body.session_id)
+    return {"success": True}
 
 
 # ---------------------------------------------------------------------------

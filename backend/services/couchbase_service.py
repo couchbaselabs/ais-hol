@@ -10,10 +10,6 @@ SCOPE_NAME = "public"
 
 
 def _get_cluster() -> Cluster:
-    """Return a lazily-initialised Couchbase cluster connection.
-
-    Uses wan_development profile suitable for Capella (cloud) connections.
-    """
     global _cluster
     if _cluster is None:
         conn_str = os.environ["COUCHBASE_CONNECTION_STRING"]
@@ -27,30 +23,33 @@ def _get_cluster() -> Cluster:
     return _cluster
 
 
-# ---------------------------------------------------------------------------
-# Exercise 3
-# ---------------------------------------------------------------------------
-
 async def get_relevant_documents(embedding: list[float], name: str | None = None) -> list[dict]:
-    """Search Couchbase for documents similar to the given embedding.
+    cluster = _get_cluster()
+    bucket_name = os.environ["COUCHBASE_BUCKET_NAME"]
+    index_name = os.environ["COUCHBASE_SEARCH_INDEX_NAME"]
+    scope = cluster.bucket(bucket_name).scope(SCOPE_NAME)
+    collection = scope.collection("documentation")
 
-    TODO (Exercise 3):
-      1. Call _get_cluster() to get the cluster
-      2. Get the scope: cluster.bucket(COUCHBASE_BUCKET_NAME).scope(SCOPE_NAME)
-         where COUCHBASE_BUCKET_NAME = os.environ["COUCHBASE_BUCKET_NAME"]
-      3. Get the collection: scope.collection("documentation")
-      4. Build a vector search request:
-           request = SearchRequest.create(
-               VectorSearch.from_vector_query(
-                   VectorQuery("vector", embedding, num_candidates=4)
-               )
-           )
-      5. Run: result = scope.search(os.environ["COUCHBASE_SEARCH_INDEX_NAME"], request, SearchOptions(limit=4))
-      6. For each row in result.rows, fetch the document with collection.get(row.id)
-         - Remove the "vector" key from the content
-         - Return a list of dicts: {id, filepath, content, score}
+    request = SearchRequest.create(
+        VectorSearch.from_vector_query(
+            VectorQuery("vector", embedding, num_candidates=4)
+        )
+    )
+    result = scope.search(index_name, request, SearchOptions(limit=4))
+    doc_refs = [{"id": row.id, "score": row.score} for row in result.rows]
 
-    Docs: https://docs.couchbase.com/python-sdk/current/howtos/full-text-searching-with-sdk.html
-    """
-    # TODO: replace this placeholder with your implementation
-    raise NotImplementedError("Implement get_relevant_documents in couchbase_service.py")
+    documents = []
+    for ref in doc_refs:
+        try:
+            doc = collection.get(ref["id"])
+            content = dict(doc.content_as[dict])
+            content.pop("vector", None)
+            documents.append({
+                "id": ref["id"],
+                "filepath": content.get("filepath", ""),
+                "content": content,
+                "score": ref["score"],
+            })
+        except Exception as e:
+            print(f"Error fetching {ref['id']}: {e}")
+    return documents
