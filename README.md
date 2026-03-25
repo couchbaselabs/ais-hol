@@ -1,5 +1,7 @@
 # Python Workshop — AI with Couchbase
 
+[![Open in Ona](https://gitpod.io/button/open-in-gitpod.svg)](https://app.ona.io/new#https://github.com/ldoguin/ais-hol)
+
 Build a RAG (Retrieval-Augmented Generation) chatbot step by step using **Python (FastAPI)** and **Couchbase Vector Search**.
 
 You will start with a simple OpenAI chatbot and progressively add vector search, conversation history, and semantic caching — all without switching branches.
