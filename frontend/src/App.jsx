@@ -1,38 +1,28 @@
 import React, { useState, useEffect } from 'react'
 import ChatWindow from './components/ChatWindow'
-import Header from './components/Header'
-import SystemPrompt from './components/SystemPrompt'
 import './App.css'
 
 function App() {
   const [messages, setMessages] = useState([
     {
       id: 1,
-      text: "Hello! I'm your AI assistant. How can I help you today?",
+      text: "Hello! I'm your RAG assistant. Ask me about Web MDN Documentation!",
       sender: 'bot',
       timestamp: new Date()
     }
   ])
 
-  const defaultSystemPrompt = "You are a helpful AI assistant. Please respond to the user's message in a friendly and helpful manner. Keep your responses concise but informative."
-  
   const [isLoading, setIsLoading] = useState(false)
-  const [systemPrompt, setSystemPrompt] = useState(defaultSystemPrompt)
-  const [showSystemPrompt, setShowSystemPrompt] = useState(false)
 
-  // Load system prompt from localStorage on component mount
-  useEffect(() => {
-    const savedSystemPrompt = localStorage.getItem('chatapp-system-prompt')
-    if (savedSystemPrompt) {
-      setSystemPrompt(savedSystemPrompt)
+  // Each browser session gets a unique ID for conversation history (Exercise 4)
+  const [sessionId] = useState(() => {
+    let id = sessionStorage.getItem('rag-session-id')
+    if (!id) {
+      id = crypto.randomUUID()
+      sessionStorage.setItem('rag-session-id', id)
     }
-  }, [])
-
-  // Save system prompt to localStorage whenever it changes
-  const handleSystemPromptChange = (newPrompt) => {
-    setSystemPrompt(newPrompt)
-    localStorage.setItem('chatapp-system-prompt', newPrompt)
-  }
+    return id
+  })
 
   const sendMessage = async (messageText) => {
     const userMessage = {
@@ -46,29 +36,45 @@ function App() {
     setIsLoading(true)
 
     try {
-      // TODO: Implement API call to backend with systemPrompt and messageText
-      // Example:
-      // const response = await fetch('/api/chat', { ... })
-      // const data = await response.json()
-      // Use data.response for bot reply
+      const response = await fetch('/api/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q: messageText, session_id: sessionId }),
+      })
 
-      // Placeholder bot response for workshop
+      if (!response.ok) throw new Error('Failed to send message')
+
+      // Stream the response token by token
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let botResponseText = ''
+
       const botMessage = {
         id: Date.now() + 1,
-        text: '[Bot response will appear here. Implement API call and response handling.]',
+        text: '',
         sender: 'bot',
         timestamp: new Date()
       }
       setMessages(prev => [...prev, botMessage])
+
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        botResponseText += decoder.decode(value, { stream: true })
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === botMessage.id ? { ...msg, text: botResponseText } : msg
+          )
+        )
+      }
     } catch (error) {
       console.error('Error sending message:', error)
-      const errorMessage = {
+      setMessages(prev => [...prev, {
         id: Date.now() + 1,
         text: 'Sorry, I encountered an error. Please try again.',
         sender: 'bot',
         timestamp: new Date()
-      }
-      setMessages(prev => [...prev, errorMessage])
+      }])
     } finally {
       setIsLoading(false)
     }
@@ -76,18 +82,10 @@ function App() {
 
   return (
     <div className="app">
-      <Header />
-      <ChatWindow 
-        messages={messages} 
+      <ChatWindow
+        messages={messages}
         onSendMessage={sendMessage}
         isLoading={isLoading}
-      />
-      <SystemPrompt 
-        systemPrompt={systemPrompt}
-        onSystemPromptChange={handleSystemPromptChange}
-        isVisible={showSystemPrompt}
-        onToggleVisibility={() => setShowSystemPrompt(!showSystemPrompt)}
-        defaultSystemPrompt={defaultSystemPrompt}
       />
     </div>
   )

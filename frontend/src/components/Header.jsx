@@ -1,12 +1,30 @@
 import React from 'react'
 import './Header.css'
 
-const Header = () => {
+const Header = ({ activeTab, onTabChange }) => {
   return (
     <header className="header">
       <div className="header-content">
-        <h1>Workshop Step 1 - Simple Chatbot</h1>
-        <p>Powered by LLM API</p>
+        <div className="header-title">
+          <h1>AI Workshop</h1>
+          <p>Powered by Couchbase &amp; OpenAI</p>
+        </div>
+        {onTabChange && (
+          <nav className="header-tabs">
+            <button
+              className={`tab-btn ${activeTab === 'chat' ? 'tab-btn--active' : ''}`}
+              onClick={() => onTabChange('chat')}
+            >
+              Simple Chat
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'rag' ? 'tab-btn--active' : ''}`}
+              onClick={() => onTabChange('rag')}
+            >
+              RAG Chat
+            </button>
+          </nav>
+        )}
       </div>
     </header>
   )
