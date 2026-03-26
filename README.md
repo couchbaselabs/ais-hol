@@ -22,8 +22,8 @@ You will start with a simple OpenAI chatbot and progressively add vector search,
 
 ```bash
 # Clone this branch
-git clone -b python-workshop <repo-url>
-cd <repo>
+git clone -b python-workshop https://github.com/couchbaselabs/ais-hol
+cd ais-hol
 
 # Install Python dependencies (once, covers all exercises)
 cd backend
