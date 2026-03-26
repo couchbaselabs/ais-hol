@@ -44,3 +44,42 @@
 .bot-message .message-time {
   text-align: left;
 }
+
+/* Agent routing badges */
+.message-badge {
+  margin-top: 0.4rem;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.badge--router {
+  background-color: #e8f4fd;
+  color: #1a73e8;
+  border: 1px solid #c5dff8;
+}
+
+.badge--math {
+  background-color: #fef3e2;
+  color: #e67e00;
+  border: 1px solid #fad7a0;
+}
+
+.badge--faq {
+  background-color: #e8f8f0;
+  color: #1a7a45;
+  border: 1px solid #a9dfbf;
+}
+
+.badge--missing {
+  background-color: #fdf2f2;
+  color: #c0392b;
+  border: 1px solid #f5b7b1;
+}

@@ -158,6 +158,42 @@ async def clear_history(body: ClearRequest):
 
 
 # ---------------------------------------------------------------------------
+# Exercise 6 & 7 — Multi-agent endpoint
+# ---------------------------------------------------------------------------
+
+class AgentRequest(BaseModel):
+    message: str
+
+
+@app.post("/api/agent")
+async def agent(body: AgentRequest):
+    """Multi-agent endpoint — routes to math agent or FAQ search agent.
+
+    TODO (Exercise 6 — Step 7):
+      This route is already wired up. Your tasks are to implement the
+      agent files in backend/agents/ and then invoke the graph here.
+
+      1. Import the compiled graph:
+           from agents.graph import agent_graph
+      2. Invoke it:
+           result = await agent_graph.ainvoke({"message": body.message})
+      3. Return:
+           {
+             "response":       result.get("answer", ""),
+             "routed_to":      result.get("routed_to", "router"),
+             "faq_collection": result.get("faq_collection"),
+             "missing_topic":  result.get("missing_topic"),
+             "timestamp":      datetime.now(timezone.utc).isoformat(),
+           }
+    """
+    if not body.message or not body.message.strip():
+        raise HTTPException(status_code=400, detail="Message is required.")
+
+    # TODO: replace this placeholder with your implementation
+    raise HTTPException(status_code=501, detail="Implement the agent graph in backend/agents/")
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 

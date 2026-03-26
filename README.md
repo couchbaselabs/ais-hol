@@ -667,3 +667,352 @@ The app runs at [http://localhost:3000](http://localhost:3000).
 
 - **Simple Chat tab** — Exercise 1 chatbot
 - **RAG Chat tab** — Exercises 3–5 RAG application
+- **Agent Chat tab** — Exercises 6–7 multi-agent system
+## Exercise 6 — Multi-Agent Routing
+
+### What you will build
+
+A multi-agent system using **LangGraph** and the **Couchbase Agent Catalog**. A router agent classifies each user message and either answers directly or hands off to a math agent equipped with calculation tools. The Agent Catalog manages tool discovery and versioning.
+
+```
+User message
+     │
+  [router]  ──── direct answer ────▶ response
+     │
+     └── math question ──▶ [math_agent] ──▶ response
+```
+
+### Step 1 — Install new dependencies
+
+```bash
+cd backend
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+New packages: `langgraph`, `langchain-openai`, `agentc[langgraph]`.
+
+### Step 2 — Set up the Agent Catalog
+
+Add to `backend/.env`:
+
+```env
+AGENT_CATALOG_CONN_STRING=couchbases://your-cluster-endpoint
+AGENT_CATALOG_USERNAME=your-username
+AGENT_CATALOG_PASSWORD=your-password
+AGENT_CATALOG_BUCKET=shared
+```
+
+Initialise the catalog in your project root:
+
+```bash
+agentc init
+```
+
+### Step 3 — Implement math tools
+
+Open `backend/agents/math_tools.py`. The file defines five functions decorated with `@agentc.tool`:
+
+```python
+@agentc.tool
+def add(a: float, b: float) -> float:
+    """Add two numbers and return the result."""
+    return a + b
+
+@agentc.tool
+def evaluate_expression(expression: str) -> float:
+    """Evaluate a mathematical expression string (e.g. 'sqrt(144) + 10')."""
+    return _safe_eval(expression)
+```
+
+The `evaluate_expression` tool uses a whitelist-based safe eval — only names from Python's `math` module are permitted.
+
+### Step 4 — Index and publish tools to the Agent Catalog
+
+```bash
+# From the backend/ directory
+agentc index agents/
+agentc publish --bucket shared
+```
+
+This creates a `.agent-catalog/` directory locally and uploads the tool index to Couchbase under the `agent_catalog` scope.
+
+> **Important:** you must re-run `agentc index agents/ && agentc publish --bucket shared` every time you add or modify a tool file. The agents retrieve tools from the catalog at runtime — if the catalog is stale, `catalog.find()` will fail or return an outdated version.
+
+### Step 5 — Implement the router agent
+
+Open `backend/agents/router_agent.py`. The router uses an LLM with structured output to classify the message:
+
+```python
+class RouterDecision(BaseModel):
+    route: Literal["direct", "math", "faq"]
+    answer: str | None = None
+    missing_topic: str | None = None
+```
+
+- `"direct"` → router answers immediately
+- `"math"` → `Command(goto="math_agent")`
+- `"faq"` → FAQ catalog lookup (Exercise 7)
+
+### Step 6 — Implement the math agent
+
+Open `backend/agents/math_agent.py`. It retrieves tools from the catalog and runs a ReAct loop:
+
+```python
+catalog = agentc.Catalog()
+item = catalog.find(kind="tool", name="add")
+tool = StructuredTool.from_function(func=item.func, ...)
+
+agent = create_react_agent(llm, tools)
+result = await agent.ainvoke({"messages": [("user", state["message"])]})
+```
+
+### Step 7 — Wire the LangGraph graph
+
+Open `backend/agents/graph.py`:
+
+```python
+builder = StateGraph(AgentState)
+builder.add_node("router", router_node)
+builder.add_node("math_agent", math_agent_node)
+builder.set_entry_point("router")
+agent_graph = builder.compile()
+```
+
+Routing is driven by `Command(goto=...)` returned from each node — no explicit conditional edges needed.
+
+### Step 8 — Add the `/api/agent` endpoint
+
+In `backend/main.py` the route is already wired:
+
+```python
+@app.post("/api/agent")
+async def agent(body: AgentRequest):
+    result = await agent_graph.ainvoke({"message": body.message})
+    return {
+        "response": result.get("answer", ""),
+        "routed_to": result.get("routed_to", "router"),
+        ...
+    }
+```
+
+### Step 9 — Run and test
+
+Restart the backend and open the **Agent Chat** tab.
+
+- Ask `"What is 2 + 2?"` → routed to **Math Agent**, badge shows `MATH AGENT`
+- Ask `"What is the capital of France?"` → answered directly, badge shows `ROUTER`
+- Ask `"sqrt(144) + 10"` → routed to **Math Agent**, returns `22.0`
+
+**API:** `POST /api/agent` — `{ "message": "..." }` returns `{ "response": "...", "routed_to": "...", "faq_collection": null, "missing_topic": null, "timestamp": "..." }`
+
+---
+
+## Exercise 7 — FAQ Search Agent
+
+### What you will build
+
+Extend the multi-agent graph with a **FAQ search agent**. Multiple FAQ PDFs are each ingested into their own Couchbase collection. The router embeds the user question, compares it against FAQ metadata stored in a `faq_catalog` collection, and routes to the FAQ search agent when a match is found. When no FAQ covers the topic, the router returns an informative message.
+
+```
+User message
+     │
+  [router] ──── direct answer ──────────────────────▶ response
+     │
+     ├── math question ──▶ [math_agent] ─────────────▶ response
+     │
+     ├── FAQ match found ──▶ [faq_search_agent] ──────▶ response  (badge: FAQ Search · hr_policy)
+     │
+     └── no FAQ match ──── informative message ───────▶ response  (badge: No FAQ found · topic)
+```
+
+### Step 1 — Upload FAQ PDFs to S3
+
+Create an S3 bucket (or use an existing one). Upload one or more FAQ PDFs, each representing a distinct topic. Choose a short snake_case name for each (e.g. `hr_policy`, `product_manual`) — this will become the Couchbase collection name.
+
+### Step 2 — Ingest PDFs with Capella AI Services (S3 workflow)
+
+For each FAQ PDF:
+
+1. In Capella, go to **AI Services → Workflows → Create New Workflow**
+2. Click **Data from S3**
+3. Give the workflow a name and click **Start Workflow**
+4. Under **Data Source**, configure:
+   - **S3 Bucket URL**: your S3 bucket URL (e.g. `s3://my-bucket/hr_policy.pdf`)
+   - **AWS Access Key ID** and **Secret Access Key**
+5. Under **Target**, select your cluster, then:
+   - Bucket: `shared`
+   - Scope: `public`
+   - Collection: your chosen name (e.g. `hr_policy`)
+6. Under **Embedding Model**, click **External Model**
+   - Select `text-embedding-3-small` from the OpenAI model list
+   - Add your OpenAI API key
+7. Click **Next**, verify, then click **Run Workflow**
+
+Wait for the workflow to complete. Each document in the collection will have `content` and `vector` fields.
+
+> **Rename the vector index after the workflow completes.** The Capella workflow creates a vector index with an auto-generated name. Rename it to `shared.public.<collection_name>_vector_idx` (e.g. `shared.public.hr_policy_vector_idx`) so the `hybrid_faq_search` tool can find it. You can rename it in the Capella Search UI or via `cbsh`:
+> ```
+> search index update shared.public.<auto-generated-name> --new-name shared.public.hr_policy_vector_idx
+> ```
+
+### Step 3 — Create the FTS index with `cbsh`
+
+Run `cbsh` from the repository root, then create a Full-Text Search index on the new collection.
+
+> **Index naming is required.** The `hybrid_faq_search` tool looks up indexes by the convention `shared.public.<collection_name>_fts_idx`. Use exactly this pattern — replace `hr_policy` with your collection name.
+
+```
+cb-env cluster <your-cluster-identifier>
+
+# Replace hr_policy with your collection name
+search index create shared.public.hr_policy_fts_idx \
+  --type fulltext-index \
+  --source-name shared \
+  --source-type couchbase \
+  --params '{
+    "mapping": {
+      "default_mapping": {
+        "enabled": true,
+        "dynamic": false,
+        "properties": {
+          "content": { "enabled": true, "dynamic": false,
+            "fields": [{ "name": "content", "type": "text", "analyzer": "standard", "index": true }]
+          }
+        }
+      },
+      "default_type": "_default",
+      "default_analyzer": "standard"
+    },
+    "store": { "indexType": "scorch" }
+  }'
+```
+
+Repeat for each FAQ collection, changing the index name and collection accordingly.
+
+### Step 4 — Create the vector index on `faq_catalog` with `cbsh`
+
+The `faq_catalog` collection stores metadata embeddings used by the router to match questions to FAQs. Create its vector index.
+
+> **Index naming is required.** The FAQ catalog service looks up this index by the fixed name `shared.public.faq_catalog_idx`. Do not change it.
+
+```
+search index create shared.public.faq_catalog_idx \
+  --type fulltext-index \
+  --source-name shared \
+  --source-type couchbase \
+  --params '{
+    "mapping": {
+      "default_mapping": {
+        "enabled": true,
+        "dynamic": false,
+        "properties": {
+          "vector": { "enabled": true, "dynamic": false,
+            "fields": [{ "name": "vector", "type": "vector",
+              "dims": 1536, "similarity": "dot_product" }]
+          }
+        }
+      }
+    },
+    "store": { "indexType": "scorch" }
+  }'
+```
+
+### Step 5 — Register the FAQ in the catalog
+
+After ingestion, register the FAQ so the router can discover it. Run this once per FAQ from a Python shell inside `backend/`:
+
+```python
+import asyncio
+from services.faq_catalog_service import register_faq
+
+asyncio.run(register_faq(
+    collection_name="hr_policy",
+    display_name="HR Policy FAQ",
+    description="Answers to common HR questions about leave, benefits, conduct, and payroll.",
+))
+```
+
+This upserts a metadata document with an embedding of the description into the `faq_catalog` collection.
+
+### Step 6 — Implement `faq_catalog_service.py`
+
+Open `backend/services/faq_catalog_service.py`. The key function is `find_best_faq`:
+
+```python
+async def find_best_faq(question_embedding: list[float]) -> dict | None:
+    # Runs a VectorQuery against faq_catalog_idx
+    # Returns the top FAQ metadata doc if score >= FAQ_SIMILARITY_THRESHOLD
+    # Returns None otherwise
+```
+
+The threshold is controlled by `FAQ_SIMILARITY_THRESHOLD` in `.env` (default `0.75`).
+
+### Step 7 — Implement `faq_search_tools.py`
+
+Open `backend/agents/faq_search_tools.py`. The `hybrid_faq_search` tool runs both a vector search and an FTS search against the target collection, then merges and deduplicates results by document ID:
+
+```python
+@agentc.tool
+def hybrid_faq_search(query: str, collection_name: str) -> list[dict]:
+    """Search a FAQ collection using both vector similarity and full-text search."""
+    ...
+```
+
+The tool looks up indexes by a fixed naming convention — **your index names in `cbsh` must match exactly**:
+
+| Index type | Expected name |
+|---|---|
+| Vector | `shared.public.<collection_name>_vector_idx` |
+| FTS | `shared.public.<collection_name>_fts_idx` |
+
+For example, for a collection named `hr_policy`:
+- Vector index: `shared.public.hr_policy_vector_idx`
+- FTS index: `shared.public.hr_policy_fts_idx`
+
+After implementing, re-index and publish so the agent can find the updated tool:
+
+```bash
+# From backend/
+agentc index agents/
+agentc publish --bucket shared
+```
+
+### Step 8 — Implement `faq_search_agent.py`
+
+Open `backend/agents/faq_search_agent.py`. It retrieves `hybrid_faq_search` from the catalog, binds the `collection_name` from state, and runs a ReAct loop:
+
+```python
+catalog = agentc.Catalog()
+item = catalog.find(kind="tool", name="hybrid_faq_search")
+
+# Bind collection_name from router state
+def bound_search(query: str) -> list[dict]:
+    return item.func(query=query, collection_name=collection_name)
+```
+
+### Step 9 — Update the router for FAQ matching
+
+Open `backend/agents/router_agent.py`. The router now:
+
+1. Embeds the user question with `get_embedding()`
+2. Calls `find_best_faq(embedding)` to check the catalog
+3. If a match is found → `Command(goto="faq_search_agent")` with `faq_collection` in state
+4. If no match → returns an informative message with `missing_topic` set
+
+### Step 10 — Update `graph.py`
+
+Open `backend/agents/graph.py` — the `faq_search_agent` node is already registered:
+
+```python
+builder.add_node("faq_search_agent", faq_search_agent_node)
+```
+
+### Step 11 — Run and test with two FAQs
+
+Ingest and register two different FAQ PDFs (e.g. `hr_policy` and `product_manual`), then restart the backend and test in the **Agent Chat** tab:
+
+- Ask `"How many days of annual leave do I get?"` → badge: `FAQ SEARCH · hr policy`
+- Ask `"How do I reset my product license?"` → badge: `FAQ SEARCH · product manual`
+- Ask `"What is the refund policy?"` (no matching FAQ) → badge: `NO FAQ FOUND · refund policy`
+- Ask `"What is 15 * 7?"` → badge: `MATH AGENT` (Exercise 6 still works)
