@@ -46,7 +46,10 @@ async def faq_search_agent_node(state: AgentState) -> Command:
              "routed_to": "faq_search_agent",
          })
       2. Call _get_faq_tool(collection_name) to get the tool.
-      3. Create an LLM: ChatOpenAI(model="gpt-4o-mini", temperature=0, ...)
+      3. Create an LLM using the shared helper from router_agent:
+           from agents.router_agent import _get_llm
+           llm = _get_llm()
+         This respects OPENAI_BASE_URL for Capella AI Model Service compatibility.
       4. Define a system prompt instructing the agent to use the FAQ tool
          and answer only from retrieved documents.
       5. Build a ReAct agent: agent = create_react_agent(llm, [tool], prompt=system_prompt)

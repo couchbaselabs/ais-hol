@@ -42,7 +42,10 @@ async def math_agent_node(state: AgentState) -> Command:
 
     TODO (Exercise 6 — Step 6):
       1. Call _get_math_tools() to get the tools list.
-      2. Create an LLM: ChatOpenAI(model="gpt-4o-mini", temperature=0, ...)
+      2. Create an LLM using the shared helper from router_agent:
+           from agents.router_agent import _get_llm
+           llm = _get_llm()
+         This respects OPENAI_BASE_URL for Capella AI Model Service compatibility.
       3. Build a ReAct agent: agent = create_react_agent(llm, tools)
       4. Invoke: result = await agent.ainvoke({"messages": [("user", state["message"])]})
       5. Extract the final answer: result["messages"][-1].content

@@ -55,11 +55,17 @@ Rules:
 
 
 def _get_llm() -> ChatOpenAI:
-    return ChatOpenAI(
-        model="gpt-4o-mini",
+    # OPENAI_BASE_URL is optional. Set it to use an OpenAI-compatible
+    # endpoint such as Capella AI Model Service instead of api.openai.com.
+    kwargs = dict(
+        model=os.environ.get("OPENAI_COMPLETION_MODEL", "gpt-4o-mini"),
         temperature=0,
         api_key=os.environ["OPENAI_API_KEY"],
     )
+    base_url = os.environ.get("OPENAI_BASE_URL")
+    if base_url:
+        kwargs["base_url"] = base_url
+    return ChatOpenAI(**kwargs)
 
 
 # ---------------------------------------------------------------------------
