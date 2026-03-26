@@ -5,12 +5,10 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install Rust toolchain
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-
-# Build and install couchbase-shell (slow cargo build baked into image)
-RUN cargo install --git https://github.com/couchbaselabs/couchbase-shell.git --tag v1.1.0 --locked
+# Install couchbase-shell
+RUN curl -fsSL https://github.com/couchbaselabs/couchbase-shell/releases/download/v1.1.0/couchbase-shell_1.1.0_x86_64-unknown-linux-gnu.deb -o /tmp/cbsh.deb \
+    && dpkg -i /tmp/cbsh.deb \
+    && rm /tmp/cbsh.deb
 
 # Install Python dependencies
 COPY backend/requirements.txt /tmp/requirements.txt
