@@ -10,6 +10,9 @@ const MessageBubble = ({ message }) => {
         <div className="message-text">
           {message.text}
         </div>
+        {message.badge && (
+          <div className="message-badge">{message.badge}</div>
+        )}
         <div className="message-time">
           {message.timestamp.toLocaleTimeString([], { 
             hour: '2-digit', 

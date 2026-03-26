@@ -152,6 +152,40 @@ async def clear_history(body: ClearRequest):
 
 
 # ---------------------------------------------------------------------------
+# Exercise 6 & 7 — Multi-agent endpoint
+# ---------------------------------------------------------------------------
+
+class AgentRequest(BaseModel):
+    message: str
+
+
+@app.post("/api/agent")
+async def agent(body: AgentRequest):
+    """Multi-agent endpoint — routes to math agent or FAQ search agent.
+
+    Exercise 6: router classifies the message; math questions go to the
+                math agent, general questions are answered directly.
+    Exercise 7: FAQ questions are matched against the FAQ catalog via
+                vector similarity and routed to the FAQ search agent.
+                When no FAQ matches, an informative message is returned.
+    """
+    if not body.message or not body.message.strip():
+        raise HTTPException(status_code=400, detail="Message is required.")
+
+    from agents.graph import agent_graph
+
+    result = await agent_graph.ainvoke({"message": body.message})
+
+    return {
+        "response": result.get("answer", ""),
+        "routed_to": result.get("routed_to", "router"),
+        "faq_collection": result.get("faq_collection"),
+        "missing_topic": result.get("missing_topic"),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 

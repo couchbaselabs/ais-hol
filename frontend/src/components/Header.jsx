@@ -23,6 +23,12 @@ const Header = ({ activeTab, onTabChange }) => {
             >
               RAG Chat
             </button>
+            <button
+              className={`tab-btn ${activeTab === 'agent' ? 'tab-btn--active' : ''}`}
+              onClick={() => onTabChange('agent')}
+            >
+              Agent Chat
+            </button>
           </nav>
         )}
       </div>
