@@ -1,7 +1,7 @@
 # Python Workshop — AI with Couchbase
 
-[![Open in Ona](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/ldoguin/ais-hol)
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/ldoguin/ais-hol)
+[![Open in Ona](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/couchbaselabs/ais-hol)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/couchbaselabs/ais-hol)
 
 Build a RAG (Retrieval-Augmented Generation) chatbot step by step using **Python (FastAPI)** and **Couchbase Vector Search**.
 
