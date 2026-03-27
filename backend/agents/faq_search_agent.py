@@ -3,7 +3,8 @@
 Uses agentc_langgraph.ReActAgent to fetch the faq_search_agent prompt and
 its hybrid_faq_search tool from the Agent Catalog. The tool is bound to the
 collection_name from state before the ReAct loop runs.
-Activity (tool calls, completions, edges) is logged to the agentc Span.
+Tool calls and completions are logged to the agentc Span via ToolNode and
+the LangChain Callback.
 """
 
 from __future__ import annotations
@@ -77,7 +78,7 @@ class FaqSearchAgent(agentc_langgraph.agent.ReActAgent):
 
 
 async def faq_search_agent_node(state: AgentState, catalog: agentc.Catalog, span: agentc.Span) -> Command:
-    """LangGraph node entry point — delegates to FaqSearchAgent."""
+    """LangGraph node entry point — runs FaqSearchAgent inside a child span."""
     collection_name = state.get("faq_collection", "")
     if not collection_name:
         return Command(
@@ -87,4 +88,6 @@ async def faq_search_agent_node(state: AgentState, catalog: agentc.Catalog, span
                 "routed_to": "faq_search_agent",
             },
         )
-    return await FaqSearchAgent(catalog=catalog, span=span, collection_name=collection_name).ainvoke(state)
+    agent = FaqSearchAgent(catalog=catalog, span=span, collection_name=collection_name)
+    with span.new(name="faq_search_agent", state=state) as child_span:
+        return await agent._ainvoke(child_span, state, config=None)

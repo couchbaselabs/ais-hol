@@ -2,7 +2,8 @@
 
 Uses agentc_langgraph.ReActAgent to fetch the math_agent prompt and its
 associated tools from the Agent Catalog, then runs a LangGraph ReAct loop.
-Activity (tool calls, completions, edges) is logged to the agentc Span.
+Tool calls and completions are logged to the agentc Span via ToolNode and
+the LangChain Callback.
 """
 
 from __future__ import annotations
@@ -46,5 +47,7 @@ class MathAgent(agentc_langgraph.agent.ReActAgent):
 
 
 async def math_agent_node(state: AgentState, catalog: agentc.Catalog, span: agentc.Span) -> Command:
-    """LangGraph node entry point — delegates to MathAgent."""
-    return await MathAgent(catalog=catalog, span=span).ainvoke(state)
+    """LangGraph node entry point — runs MathAgent inside a child span."""
+    agent = MathAgent(catalog=catalog, span=span)
+    with span.new(name="math_agent", state=state) as child_span:
+        return await agent._ainvoke(child_span, state, config=None)

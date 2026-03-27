@@ -725,7 +725,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-New packages: `langgraph`, `langchain-openai`, `agentc[langgraph]`.
+New packages: `langgraph`, `langchain-openai`, `agentc[langgraph]`, `agentc-langchain`.
 
 ### Step 2 — Set up the Agent Catalog
 
@@ -748,7 +748,7 @@ AGENT_CATALOG_CONN_ROOT_CERTIFICATE=backend/certificate \
 
 > `--no-config` avoids a known conflict between `agentc 1.0.0` and `click-extra` that causes a spurious `ERROR` before the command runs. `AGENT_CATALOG_CONN_ROOT_CERTIFICATE` must be set because the `.env` relative path does not resolve when running from the repo root.
 
-### Step 3 — Implement math tools
+### Step 3 — Implement math tools and the agent prompt
 
 Open `backend/agents/math_tools.py`. The file defines five functions decorated with `@agentc_tool` (imported from `agentc_core.tool`):
 
@@ -768,25 +768,47 @@ def evaluate_expression(expression: str) -> float:
 
 The `evaluate_expression` tool uses a whitelist-based safe eval — only names from Python's `math` module are permitted.
 
-### Step 4 — Index and publish tools to the Agent Catalog
+The agent's system prompt and tool list are declared in `backend/agents/prompts/math_agent.yaml`:
 
-Run from the **repository root**:
+```yaml
+record_kind: prompt
+name: math_agent
+description: System prompt and tools for the math agent.
 
-```bash
-cd /path/to/ais-hol
-PYTHONPATH=backend \
-AGENT_CATALOG_CONN_ROOT_CERTIFICATE=backend/certificate \
-  backend/.venv/bin/agentc --no-config index ./backend/agents/
+content:
+  agent_instructions: >
+    You are a precise math assistant. Use the available tools to evaluate
+    the user's calculation request. Always use a tool — do not compute
+    answers in your head.
 
-AGENT_CATALOG_CONN_ROOT_CERTIFICATE=backend/certificate \
-  backend/.venv/bin/agentc --no-config publish --bucket shared
+tools:
+  - name: add
+  - name: subtract
+  - name: multiply
+  - name: divide
+  - name: evaluate_expression
 ```
 
-`PYTHONPATH=backend` is required so that `from agents.state import AgentState` resolves when `agentc` imports the tool files.
+`agentc index` resolves the `tools` list at index time. At runtime, `catalog.find("prompt", name="math_agent")` returns the prompt with tool functions already attached — no manual `catalog.find("tool", ...)` calls needed.
 
-This creates a `backend/.agent-catalog/` directory locally and uploads the tool index to Couchbase under the `agent_catalog` scope.
+### Step 4 — Index and publish tools and prompts
 
-> **Important:** re-run `index` then `publish` every time you add or modify a tool file. The agents retrieve tools from the catalog at runtime — a stale catalog will cause `catalog.find()` to fail or return an outdated version.
+Run from the **`backend/` directory** after exporting env vars:
+
+```bash
+cd backend
+export $(grep -v '^#' .env | grep -v '^$' | xargs)
+AGENT_CATALOG_CONN_ROOT_CERTIFICATE=/path/to/ais-hol/backend/certificate \
+PYTHONPATH=. \
+  .venv/bin/agentc --no-config index ./agents/
+
+AGENT_CATALOG_CONN_ROOT_CERTIFICATE=/path/to/ais-hol/backend/certificate \
+  .venv/bin/agentc --no-config publish --bucket shared
+```
+
+`PYTHONPATH=.` is required so that `from agents.state import AgentState` resolves when `agentc` imports the tool files. Both tools and prompts are indexed and published in one pass.
+
+> **Important:** `publish` requires a clean git working tree — commit any changes before running it. Re-run `index` then `publish` every time you modify a tool or prompt file.
 
 ### Step 5 — Implement the router agent
 
@@ -805,39 +827,51 @@ class RouterDecision(BaseModel):
 
 ### Step 6 — Implement the math agent
 
-Open `backend/agents/math_agent.py`. It retrieves tools from the catalog and runs a ReAct loop:
+Open `backend/agents/math_agent.py`. It extends `agentc_langgraph.ReActAgent`, which fetches the `math_agent` prompt (and its attached tools) from the catalog and wraps each invocation in an agentc `Span` for activity logging:
 
 ```python
-catalog = agentc.Catalog()
-item = catalog.find(kind="tool", name="add")
-tool = StructuredTool.from_function(func=item.func, ...)
+class MathAgent(agentc_langgraph.agent.ReActAgent):
+    def __init__(self, catalog: agentc.Catalog, span: agentc.Span):
+        super().__init__(
+            chat_model=_get_llm(),
+            catalog=catalog,
+            span=span,
+            prompt_name="math_agent",   # resolves prompts/math_agent.yaml
+        )
 
-agent = create_react_agent(llm, tools)
-result = await agent.ainvoke({"messages": [("user", state["message"])]})
+    async def _ainvoke(self, span, state, config):
+        agent = self.create_react_agent(span)  # attaches ToolNode + Callback
+        result = await agent.ainvoke({"messages": [("user", state["message"])], ...})
+        return Command(goto="__end__", update={"answer": result["messages"][-1].content})
 ```
+
+`create_react_agent(span)` wraps the tool node with `agentc_langgraph.ToolNode` (logs tool results) and attaches a `Callback` to the chat model (logs completions and tool calls).
 
 ### Step 7 — Wire the LangGraph graph
 
-Open `backend/agents/graph.py`:
+Open `backend/agents/graph.py`. The graph is wrapped in `agentc_langgraph.GraphRunnable`, which creates a root `Span` and encloses every invocation in it. `catalog` and `span` are injected into the math and FAQ nodes via `functools.partial`:
 
 ```python
-builder = StateGraph(AgentState)
-builder.add_node("router", router_node)
-builder.add_node("math_agent", math_agent_node)
-builder.set_entry_point("router")
-agent_graph = builder.compile()
-```
+class AgentGraph(agentc_langgraph.graph.GraphRunnable):
+    async def acompile(self):
+        builder = StateGraph(AgentState)
+        builder.add_node("router", router_node)
+        builder.add_node("math_agent",
+            functools.partial(math_agent_node, catalog=self.catalog, span=self.span))
+        builder.set_entry_point("router")
+        return builder.compile()
 
-Routing is driven by `Command(goto=...)` returned from each node — no explicit conditional edges needed.
+agent_graph = AgentGraph(catalog=agentc.Catalog())
+```
 
 ### Step 8 — Add the `/api/agent` endpoint
 
-In `backend/main.py` the route is already wired:
+In `backend/main.py` the route is already wired. Note that `previous_node` must be initialised to `None` in the input state — it is used internally by the agentc span logging:
 
 ```python
 @app.post("/api/agent")
 async def agent(body: AgentRequest):
-    result = await agent_graph.ainvoke({"message": body.message})
+    result = await agent_graph.ainvoke({"message": body.message, "previous_node": None})
     return {
         "response": result.get("answer", ""),
         "routed_to": result.get("routed_to", "router"),
@@ -997,7 +1031,7 @@ async def find_best_faq(question_embedding: list[float]) -> dict | None:
 
 The threshold is controlled by `FAQ_SIMILARITY_THRESHOLD` in `.env` (default `0.75`).
 
-### Step 7 — Implement `faq_search_tools.py`
+### Step 7 — Implement `faq_search_tools.py` and the agent prompt
 
 Open `backend/agents/faq_search_tools.py`. The `hybrid_faq_search` tool runs both a vector search and an FTS search against the target collection, then merges and deduplicates results by document ID:
 
@@ -1017,33 +1051,47 @@ The tool looks up indexes by a fixed naming convention — **your index names in
 | Vector | `shared.public.<collection_name>_vector_idx` |
 | FTS | `shared.public.<collection_name>_fts_idx` |
 
-For example, for a collection named `hr_policy`:
-- Vector index: `shared.public.hr_policy_vector_idx`
-- FTS index: `shared.public.hr_policy_fts_idx`
+The agent's system prompt is declared in `backend/agents/prompts/faq_search_agent.yaml`:
 
-After implementing, re-index and publish so the agent can find the updated tool (run from the **repository root**):
+```yaml
+record_kind: prompt
+name: faq_search_agent
+description: System prompt and tools for the FAQ search agent.
+
+content:
+  agent_instructions: >
+    You are a helpful assistant that answers questions using FAQ documentation.
+    Use the hybrid_faq_search tool to find relevant content, then synthesise a
+    clear, accurate answer based only on what the documents say.
+
+tools:
+  - name: hybrid_faq_search
+```
+
+After implementing, commit your changes, then re-index and publish:
 
 ```bash
-cd /path/to/ais-hol
-PYTHONPATH=backend \
-AGENT_CATALOG_CONN_ROOT_CERTIFICATE=backend/certificate \
-  backend/.venv/bin/agentc --no-config index ./backend/agents/
+cd backend
+export $(grep -v '^#' .env | grep -v '^$' | xargs)
+AGENT_CATALOG_CONN_ROOT_CERTIFICATE=/path/to/ais-hol/backend/certificate \
+PYTHONPATH=. \
+  .venv/bin/agentc --no-config index ./agents/
 
-AGENT_CATALOG_CONN_ROOT_CERTIFICATE=backend/certificate \
-  backend/.venv/bin/agentc --no-config publish --bucket shared
+AGENT_CATALOG_CONN_ROOT_CERTIFICATE=/path/to/ais-hol/backend/certificate \
+  .venv/bin/agentc --no-config publish --bucket shared
 ```
 
 ### Step 8 — Implement `faq_search_agent.py`
 
-Open `backend/agents/faq_search_agent.py`. It retrieves `hybrid_faq_search` from the catalog, binds the `collection_name` from state, and runs a ReAct loop:
+Open `backend/agents/faq_search_agent.py`. It extends `agentc_langgraph.ReActAgent` and binds `collection_name` into the tool before the ReAct loop runs — the LLM only needs to supply the `query` argument:
 
 ```python
-catalog = agentc.Catalog()
-item = catalog.find(kind="tool", name="hybrid_faq_search")
-
-# Bind collection_name from router state
-def bound_search(query: str) -> list[dict]:
-    return item.func(query=query, collection_name=collection_name)
+class FaqSearchAgent(agentc_langgraph.agent.ReActAgent):
+    def __init__(self, catalog, span, collection_name):
+        super().__init__(chat_model=_get_llm(), catalog=catalog, span=span,
+                         prompt_name="faq_search_agent")
+        # Pre-fill collection_name so the LLM only sees query
+        self.tools = [self._bind_collection(t, collection_name) for t in self.tools]
 ```
 
 ### Step 9 — Update the router for FAQ matching
@@ -1057,10 +1105,11 @@ Open `backend/agents/router_agent.py`. The router now:
 
 ### Step 10 — Update `graph.py`
 
-Open `backend/agents/graph.py` — the `faq_search_agent` node is already registered:
+Open `backend/agents/graph.py` — add the `faq_search_agent` node with `catalog` and `span` injected via `functools.partial`:
 
 ```python
-builder.add_node("faq_search_agent", faq_search_agent_node)
+builder.add_node("faq_search_agent",
+    functools.partial(faq_search_agent_node, catalog=self.catalog, span=self.span))
 ```
 
 ### Step 11 — Run and test with two FAQs

@@ -82,7 +82,7 @@ async def router_node(state: AgentState) -> Command:
     embedding = await get_embedding(message)
 
     # Ask the LLM to classify.
-    llm = _get_llm().with_structured_output(RouterDecision)
+    llm = _get_llm().with_structured_output(RouterDecision, include_raw=False)
     decision: RouterDecision = await llm.ainvoke([
         {"role": "system", "content": _SYSTEM_PROMPT},
         {"role": "user", "content": message},
@@ -96,6 +96,7 @@ async def router_node(state: AgentState) -> Command:
                 "routed_to": "router",
                 "faq_collection": None,
                 "missing_topic": None,
+                "previous_node": ["router"],
             },
         )
 
@@ -106,6 +107,7 @@ async def router_node(state: AgentState) -> Command:
                 "routed_to": "math_agent",
                 "faq_collection": None,
                 "missing_topic": None,
+                "previous_node": ["router"],
             },
         )
 
@@ -119,6 +121,7 @@ async def router_node(state: AgentState) -> Command:
                 "routed_to": "faq_search_agent",
                 "faq_collection": best_faq["collection_name"],
                 "missing_topic": None,
+                "previous_node": ["router"],
             },
         )
 
@@ -150,5 +153,6 @@ async def router_node(state: AgentState) -> Command:
             "routed_to": "router",
             "faq_collection": None,
             "missing_topic": missing_topic,
+            "previous_node": ["router"],
         },
     )

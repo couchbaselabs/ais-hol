@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
-from typing import TypedDict
+from typing import List, Optional, TypedDict
 
 
 class AgentState(TypedDict, total=False):
@@ -22,5 +21,6 @@ class AgentState(TypedDict, total=False):
     missing_topic: Optional[str]
     """Snake_case topic label when no FAQ matched (Exercise 7)."""
 
-    # Required by agentc_langgraph.ReActAgent for edge logging between nodes.
-    previous_node: Optional[str]
+    # agentc_langgraph.ReActAgent uses this for EdgeContent logging.
+    # Must be a list[str] (span name path), not a plain string.
+    previous_node: Optional[List[str]]
