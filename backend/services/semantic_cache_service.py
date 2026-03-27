@@ -3,17 +3,16 @@ import uuid
 import hashlib
 from datetime import timedelta
 from couchbase.cluster import Cluster
-from couchbase.options import ClusterOptions, SearchOptions, UpsertOptions
+from couchbase.options import ClusterOptions, QueryOptions, UpsertOptions
 from couchbase.auth import PasswordAuthenticator
-from couchbase.vector_search import VectorSearch, VectorQuery
-from couchbase.search import SearchRequest
 
 _cluster = None
 
 CACHE_BUCKET = lambda: os.environ.get("CACHE_BUCKET", "semantic_cache")
 CACHE_SCOPE = lambda: os.environ.get("CACHE_SCOPE", "_default")
 CACHE_COLLECTION = lambda: os.environ.get("CACHE_COLLECTION", "semantic")
-CACHE_INDEX = lambda: f"{CACHE_BUCKET()}.{CACHE_SCOPE()}.semantic_cache_idx"
+# SQL++ GSI vector index name for the semantic cache collection.
+CACHE_INDEX = lambda: os.environ.get("CACHE_INDEX", "semantic_cache_vector_idx")
 
 
 def _get_cluster() -> Cluster:
@@ -43,22 +42,24 @@ async def cache_get(
     k: int = 3,
 ) -> str | None:
     cluster = _get_cluster()
-    scope = cluster.bucket(CACHE_BUCKET()).scope(CACHE_SCOPE())
-    collection = scope.collection(CACHE_COLLECTION())
-
-    request = SearchRequest.create(
-        VectorSearch.from_vector_query(VectorQuery("vector", embedding, num_candidates=k))
-    )
     try:
-        result = scope.search(CACHE_INDEX(), request, SearchOptions(limit=k))
+        sql = f"""
+            SELECT META(c).id AS id,
+                   c.llm_signature,
+                   c.response,
+                   ANN_DISTANCE(c.vector, $embedding, "L2") AS score
+            FROM `{CACHE_BUCKET()}`.`{CACHE_SCOPE()}`.`{CACHE_COLLECTION()}` AS c
+            USE INDEX ({CACHE_INDEX()} USING GSI)
+            ORDER BY ANN_DISTANCE(c.vector, $embedding, "L2")
+            LIMIT {k}
+        """
+        result = cluster.query(sql, QueryOptions(named_parameters={"embedding": embedding}))
         for row in result.rows():
-            if row.score < similarity_threshold:
+            if row.get("score", 1.0) > similarity_threshold:
                 continue
-            doc = collection.get(row.id)
-            entry = doc.content_as[dict]
-            if entry.get("llm_signature") == llm_signature:
-                print(f"Cache HIT (score={row.score:.3f})")
-                return entry["response"]
+            if row.get("llm_signature") == llm_signature:
+                print(f"Cache HIT (score={row.get('score', '?'):.3f})")
+                return row["response"]
     except Exception as e:
         print(f"Cache lookup error: {e}")
     return None

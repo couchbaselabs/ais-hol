@@ -231,36 +231,33 @@ async def get_embedding(text: str) -> list[float]:
 
 In `backend/services/couchbase_service.py`:
 
+> The Capella AI Services workflow creates a **SQL++ GSI vector index** (not an FTS index). Query it using `ORDER BY ANN_DISTANCE()` via SQL++, not `scope.search()`.
+
 ```python
 async def get_relevant_documents(embedding: list[float], name: str | None = None) -> list[dict]:
     cluster = _get_cluster()
     bucket_name = os.environ["COUCHBASE_BUCKET_NAME"]
     index_name = os.environ["COUCHBASE_SEARCH_INDEX_NAME"]
-    scope = cluster.bucket(bucket_name).scope(SCOPE_NAME)
-    collection = scope.collection("documentation")
 
-    request = SearchRequest.create(
-        VectorSearch.from_vector_query(
-            VectorQuery("vector", embedding, num_candidates=4)
-        )
-    )
-    result = scope.search(index_name, request, SearchOptions(limit=4))
-    doc_refs = [{"id": row.id, "score": row.score} for row in result.rows]
-
+    sql = f"""
+        SELECT META(d).id AS id,
+               d.filepath,
+               d.content,
+               ANN_DISTANCE(d.vector, $embedding, "L2") AS score
+        FROM `{bucket_name}`.`{SCOPE_NAME}`.`documentation` AS d
+        USE INDEX ({index_name} USING GSI)
+        ORDER BY ANN_DISTANCE(d.vector, $embedding, "L2")
+        LIMIT 4
+    """
+    result = cluster.query(sql, QueryOptions(named_parameters={"embedding": embedding}))
     documents = []
-    for ref in doc_refs:
-        try:
-            doc = collection.get(ref["id"])
-            content = dict(doc.content_as[dict])
-            content.pop("vector", None)
-            documents.append({
-                "id": ref["id"],
-                "filepath": content.get("filepath", ""),
-                "content": content,
-                "score": ref["score"],
-            })
-        except Exception as e:
-            print(f"Error fetching {ref['id']}: {e}")
+    for row in result.rows():
+        documents.append({
+            "id": row.get("id", ""),
+            "filepath": row.get("filepath", ""),
+            "content": row.get("content", ""),
+            "score": row.get("score", 0.0),
+        })
     return documents
 ```
 
@@ -280,6 +277,8 @@ async def stream_completion(prompt: str):
         stream=True,
     )
     async for chunk in stream:
+        if not chunk.choices:
+            continue
         token = chunk.choices[0].delta.content
         if token:
             yield token
@@ -536,16 +535,30 @@ Check the Capella Query Workbench to see the `ai_summary` function being called.
 
 Semantically similar queries are served from cache without calling OpenAI, reducing latency and cost.
 
-### Step 1 — Create the cache bucket and collection
+### Step 1 — Create the cache bucket, collection and vector index
 
 In Couchbase Capella:
 
 1. Create a new bucket named `semantic_cache`
 2. Inside it, create a collection named `semantic` in the `_default` scope
-3. Create a vector search index:
-   - **Index Name:** `semantic_cache._default.semantic_cache_idx`
-   - **Source:** `semantic_cache._default.semantic`
-   - Field: `vector`, 1536 dimensions, dot product similarity
+3. Create a SQL++ vector index on the collection. In the Capella **Query** tab run:
+
+```sql
+CREATE VECTOR INDEX `semantic_cache_vector_idx`
+ON `semantic_cache`.`_default`.`semantic`(`vector` VECTOR)
+WITH {
+  "dimension": 2048,
+  "similarity": "L2",
+  "description": "IVF,SQ8"
+}
+```
+
+> Adjust `"dimension"` to match your embedding model output size (2048 for `nvidia/llama-3.2-nv-embedqa-1b-v2`, 1536 for `text-embedding-3-small`).
+
+Add to `backend/.env`:
+```env
+CACHE_INDEX=semantic_cache_vector_idx
+```
 
 ### Step 2 — Implement `semantic_cache_service.py`
 
@@ -555,22 +568,25 @@ In `backend/services/semantic_cache_service.py`:
 ```python
 async def cache_get(prompt, embedding, llm_signature, similarity_threshold=0.85, k=3):
     cluster = _get_cluster()
-    scope = cluster.bucket(CACHE_BUCKET()).scope(CACHE_SCOPE())
-    collection = scope.collection(CACHE_COLLECTION())
-
-    request = SearchRequest.create(
-        VectorSearch.from_vector_query(VectorQuery("vector", embedding, num_candidates=k))
-    )
     try:
-        result = scope.search(CACHE_INDEX(), request, SearchOptions(limit=k))
-        for row in result.rows:
-            if row.score < similarity_threshold:
+        sql = f"""
+            SELECT META(c).id AS id,
+                   c.llm_signature,
+                   c.response,
+                   ANN_DISTANCE(c.vector, $embedding, "L2") AS score
+            FROM `{CACHE_BUCKET()}`.`{CACHE_SCOPE()}`.`{CACHE_COLLECTION()}` AS c
+            USE INDEX ({CACHE_INDEX()} USING GSI)
+            ORDER BY ANN_DISTANCE(c.vector, $embedding, "L2")
+            LIMIT {k}
+        """
+        result = cluster.query(sql, QueryOptions(named_parameters={"embedding": embedding}))
+        for row in result.rows():
+            # ANN_DISTANCE with L2: lower = more similar, so skip if score is too high
+            if row.get("score", 1.0) > similarity_threshold:
                 continue
-            doc = collection.get(row.id)
-            entry = doc.content_as[dict]
-            if entry.get("llm_signature") == llm_signature:
-                print(f"Cache HIT (score={row.score:.3f})")
-                return entry["response"]
+            if row.get("llm_signature") == llm_signature:
+                print(f"Cache HIT (score={row.get('score', '?'):.3f})")
+                return row["response"]
     except Exception as e:
         print(f"Cache lookup error: {e}")
     return None

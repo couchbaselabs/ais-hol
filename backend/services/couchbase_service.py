@@ -39,9 +39,9 @@ async def get_relevant_documents(embedding: list[float], name: str | None = None
                d.content,
                ANN_DISTANCE(d.vector, $embedding, "L2") AS score
         FROM `{bucket_name}`.`{SCOPE_NAME}`.`documentation` AS d
+        USE INDEX ({index_name} USING GSI)
         ORDER BY ANN_DISTANCE(d.vector, $embedding, "L2")
         LIMIT 4
-        USE INDEX ({index_name} USING GSI)
     """
     result = cluster.query(
         sql,
