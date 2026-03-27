@@ -8,7 +8,9 @@ _cluster = None
 
 BUCKET_NAME = lambda: os.environ["COUCHBASE_BUCKET_NAME"]
 SCOPE = lambda: os.environ.get("COUCHBASE_CONVERSATION_SCOPE", "_default")
-COLLECTION = lambda: os.environ.get("COUCHBASE_CONVERSATION_COLLECTION", "conversations")
+COLLECTION = lambda: os.environ.get(
+    "COUCHBASE_CONVERSATION_COLLECTION", "conversations"
+)
 
 
 def _get_cluster() -> Cluster:
@@ -29,6 +31,7 @@ def _get_cluster() -> Cluster:
 # Exercise 4
 # ---------------------------------------------------------------------------
 
+
 async def add_message(session_id: str, content: str, role: str) -> None:
     """Store a single chat message in Couchbase."""
     cluster = _get_cluster()
@@ -48,13 +51,15 @@ async def get_conversation_history(session_id: str, limit: int = 10) -> list[dic
     """Retrieve the most recent messages for a session, in chronological order."""
     cluster = _get_cluster()
     sql = f"""
-        SELECT role, content, timestamp
+        SELECT `role`, content, timestamp
         FROM `{BUCKET_NAME()}`.`{SCOPE()}`.`{COLLECTION()}`
         WHERE session_id = $session_id AND type = "chat_message"
         ORDER BY timestamp DESC
         LIMIT 20
     """
-    result = cluster.query(sql, QueryOptions(named_parameters={"session_id": session_id}))
+    result = cluster.query(
+        sql, QueryOptions(named_parameters={"session_id": session_id})
+    )
     rows = [row for row in result.rows()]
     rows.reverse()
     return rows
@@ -77,7 +82,9 @@ async def clear_conversation_history(session_id: str) -> None:
         DELETE FROM `{BUCKET_NAME()}`.`{SCOPE()}`.`{COLLECTION()}`
         WHERE session_id = $session_id AND type = "chat_message"
     """
-    cluster.query(sql, QueryOptions(named_parameters={"session_id": session_id})).execute()
+    cluster.query(
+        sql, QueryOptions(named_parameters={"session_id": session_id})
+    ).execute()
 
 
 async def summarize_conversation(session_id: str, max_words: int = 150) -> str:
@@ -107,9 +114,13 @@ async def summarize_conversation(session_id: str, max_words: int = 150) -> str:
             "temperature": 0.3
         }) AS summary
     """
-    result = cluster.query(
-        sql,
-        QueryOptions(named_parameters={"text": text, "max_words": max_words})
-    )
-    rows = list(result.rows())
-    return rows[0]["summary"][0]["response"]
+    try:
+        result = cluster.query(
+            sql, QueryOptions(named_parameters={"text": text, "max_words": max_words})
+        )
+        rows = list(result.rows())
+        return rows[0]["summary"][0]["response"]
+    except Exception:
+        # ai_summary requires the query_external_access role. Fall back to
+        # returning the raw formatted history when the function is unavailable.
+        return format_conversation_history(history)
