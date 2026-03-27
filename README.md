@@ -702,7 +702,22 @@ User message
      └── math question ──▶ [math_agent] ──▶ response
 ```
 
-### Step 1 — Install new dependencies
+### Step 1 — Switch to OpenAI and install new dependencies
+
+Exercises 6 and 7 use tool calling and structured output, which require a model that supports these features. Capella-hosted models (DeepSeek, Mistral NIM) do not reliably support multi-turn tool use. Switch to a real OpenAI key before proceeding.
+
+In `backend/.env`, comment out the Capella endpoint variables and set a real OpenAI API key:
+
+```env
+OPENAI_API_KEY=sk-...        # real OpenAI key
+# OPENAI_BASE_URL=...        # comment out
+# OPENAI_COMPLETION_MODEL=... # comment out
+# OPENAI_EMBEDDING_MODEL=...  # comment out — embeddings will use OpenAI too
+```
+
+> If you still need Capella embeddings for the vector search index created in Exercise 2, keep `OPENAI_EMBEDDING_MODEL` set. The completion model is what requires OpenAI.
+
+Then install the new packages:
 
 ```bash
 cd backend
