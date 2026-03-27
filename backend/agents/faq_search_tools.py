@@ -10,7 +10,7 @@ import asyncio
 import concurrent.futures
 import os
 
-import agentc
+from agentc_core.tool import tool as agentc_tool
 from couchbase.auth import PasswordAuthenticator
 from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions, SearchOptions
@@ -128,7 +128,7 @@ def _run_async(coro):
         return future.result()
 
 
-@agentc.tool
+@agentc_tool
 def hybrid_faq_search(query: str, collection_name: str) -> list[dict]:
     """Search a FAQ collection using both vector similarity and full-text search.
 

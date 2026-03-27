@@ -1,7 +1,7 @@
 import math
 import re
 
-import agentc
+from agentc_core.tool import tool as agentc_tool
 from pydantic import BaseModel
 
 
@@ -45,25 +45,25 @@ def _safe_eval(expression: str) -> float:
     return float(result)
 
 
-@agentc.tool
+@agentc_tool
 def add(a: float, b: float) -> float:
     """Add two numbers and return the result."""
     return a + b
 
 
-@agentc.tool
+@agentc_tool
 def subtract(a: float, b: float) -> float:
     """Subtract b from a and return the result."""
     return a - b
 
 
-@agentc.tool
+@agentc_tool
 def multiply(a: float, b: float) -> float:
     """Multiply two numbers and return the result."""
     return a * b
 
 
-@agentc.tool
+@agentc_tool
 def divide(a: float, b: float) -> float:
     """Divide a by b and return the result. Raises ValueError if b is zero."""
     if b == 0:
@@ -71,7 +71,7 @@ def divide(a: float, b: float) -> float:
     return a / b
 
 
-@agentc.tool
+@agentc_tool
 def evaluate_expression(expression: str) -> float:
     """Evaluate a mathematical expression string.
 

@@ -723,23 +723,29 @@ AGENT_CATALOG_PASSWORD=your-password
 AGENT_CATALOG_BUCKET=shared
 ```
 
-Initialise the catalog in your project root:
+Initialise the catalog. Run from the **repository root** (where `.git` lives) so `agentc` can install its post-commit hook:
 
 ```bash
-agentc init
+cd /path/to/ais-hol
+AGENT_CATALOG_CONN_ROOT_CERTIFICATE=backend/certificate \
+  backend/.venv/bin/agentc --no-config init --bucket shared
 ```
+
+> `--no-config` avoids a known conflict between `agentc 1.0.0` and `click-extra` that causes a spurious `ERROR` before the command runs. `AGENT_CATALOG_CONN_ROOT_CERTIFICATE` must be set because the `.env` relative path does not resolve when running from the repo root.
 
 ### Step 3 — Implement math tools
 
-Open `backend/agents/math_tools.py`. The file defines five functions decorated with `@agentc.tool`:
+Open `backend/agents/math_tools.py`. The file defines five functions decorated with `@agentc_tool` (imported from `agentc_core.tool`):
 
 ```python
-@agentc.tool
+from agentc_core.tool import tool as agentc_tool
+
+@agentc_tool
 def add(a: float, b: float) -> float:
     """Add two numbers and return the result."""
     return a + b
 
-@agentc.tool
+@agentc_tool
 def evaluate_expression(expression: str) -> float:
     """Evaluate a mathematical expression string (e.g. 'sqrt(144) + 10')."""
     return _safe_eval(expression)
@@ -749,15 +755,23 @@ The `evaluate_expression` tool uses a whitelist-based safe eval — only names f
 
 ### Step 4 — Index and publish tools to the Agent Catalog
 
+Run from the **repository root**:
+
 ```bash
-# From the backend/ directory
-agentc index agents/
-agentc publish --bucket shared
+cd /path/to/ais-hol
+PYTHONPATH=backend \
+AGENT_CATALOG_CONN_ROOT_CERTIFICATE=backend/certificate \
+  backend/.venv/bin/agentc --no-config index ./backend/agents/
+
+AGENT_CATALOG_CONN_ROOT_CERTIFICATE=backend/certificate \
+  backend/.venv/bin/agentc --no-config publish --bucket shared
 ```
 
-This creates a `.agent-catalog/` directory locally and uploads the tool index to Couchbase under the `agent_catalog` scope.
+`PYTHONPATH=backend` is required so that `from agents.state import AgentState` resolves when `agentc` imports the tool files.
 
-> **Important:** you must re-run `agentc index agents/ && agentc publish --bucket shared` every time you add or modify a tool file. The agents retrieve tools from the catalog at runtime — if the catalog is stale, `catalog.find()` will fail or return an outdated version.
+This creates a `backend/.agent-catalog/` directory locally and uploads the tool index to Couchbase under the `agent_catalog` scope.
+
+> **Important:** re-run `index` then `publish` every time you add or modify a tool file. The agents retrieve tools from the catalog at runtime — a stale catalog will cause `catalog.find()` to fail or return an outdated version.
 
 ### Step 5 — Implement the router agent
 
@@ -973,7 +987,9 @@ The threshold is controlled by `FAQ_SIMILARITY_THRESHOLD` in `.env` (default `0.
 Open `backend/agents/faq_search_tools.py`. The `hybrid_faq_search` tool runs both a vector search and an FTS search against the target collection, then merges and deduplicates results by document ID:
 
 ```python
-@agentc.tool
+from agentc_core.tool import tool as agentc_tool
+
+@agentc_tool
 def hybrid_faq_search(query: str, collection_name: str) -> list[dict]:
     """Search a FAQ collection using both vector similarity and full-text search."""
     ...
@@ -990,12 +1006,16 @@ For example, for a collection named `hr_policy`:
 - Vector index: `shared.public.hr_policy_vector_idx`
 - FTS index: `shared.public.hr_policy_fts_idx`
 
-After implementing, re-index and publish so the agent can find the updated tool:
+After implementing, re-index and publish so the agent can find the updated tool (run from the **repository root**):
 
 ```bash
-# From backend/
-agentc index agents/
-agentc publish --bucket shared
+cd /path/to/ais-hol
+PYTHONPATH=backend \
+AGENT_CATALOG_CONN_ROOT_CERTIFICATE=backend/certificate \
+  backend/.venv/bin/agentc --no-config index ./backend/agents/
+
+AGENT_CATALOG_CONN_ROOT_CERTIFICATE=backend/certificate \
+  backend/.venv/bin/agentc --no-config publish --bucket shared
 ```
 
 ### Step 8 — Implement `faq_search_agent.py`

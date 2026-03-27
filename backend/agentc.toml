@@ -1,0 +1,12 @@
+# agentc CLI configuration
+# Pass explicitly with: agentc --config agentc.toml <command>
+# Or copy to ~/.config/agentc/agentc.toml for automatic pickup.
+#
+# Connection credentials (conn_string, username, password, conn_root_certificate)
+# are read from AGENT_CATALOG_* environment variables in .env — not set here.
+
+[agentc.init]
+bucket = "shared"
+
+[agentc.publish]
+bucket = "shared"
