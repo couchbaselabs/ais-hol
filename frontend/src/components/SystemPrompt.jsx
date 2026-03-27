@@ -55,20 +55,6 @@ function SystemPrompt({ systemPrompt, onSystemPromptChange, isVisible, onToggleV
     setTempPrompt(preset.prompt)
   }
 
-  if (!isVisible) {
-    return (
-      <div className="system-prompt-toggle">
-        <button 
-          className="toggle-button"
-          onClick={onToggleVisibility}
-          title="Configure System Prompt"
-        >
-          ⚙️ System Prompt
-        </button>
-      </div>
-    )
-  }
-
   return (
     <div className="system-prompt-overlay">
       <div className="system-prompt-modal">

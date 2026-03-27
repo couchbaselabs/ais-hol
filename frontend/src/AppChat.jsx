@@ -3,7 +3,7 @@ import ChatWindow from './components/ChatWindow'
 import SystemPrompt from './components/SystemPrompt'
 import './App.css'
 
-function AppChat() {
+function AppChat({ onHeaderAction }) {
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -18,6 +18,21 @@ function AppChat() {
   const [isLoading, setIsLoading] = useState(false)
   const [systemPrompt, setSystemPrompt] = useState(defaultSystemPrompt)
   const [showSystemPrompt, setShowSystemPrompt] = useState(false)
+
+  // Push the toggle button into the header whenever visibility state changes
+  React.useEffect(() => {
+    if (!onHeaderAction) return
+    onHeaderAction(
+      <button
+        className="toggle-button"
+        onClick={() => setShowSystemPrompt(v => !v)}
+        title="Configure System Prompt"
+      >
+        ⚙️ System Prompt
+      </button>
+    )
+    return () => onHeaderAction(null)
+  }, [onHeaderAction])
 
   // Load system prompt from localStorage on component mount
   useEffect(() => {
@@ -45,20 +60,21 @@ function AppChat() {
     setIsLoading(true)
 
     try {
-      // TODO: Implement API call to backend with systemPrompt and messageText
-      // Example:
-      // const response = await fetch('/api/chat', { ... })
-      // const data = await response.json()
-      // Use data.response for bot reply
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: messageText, systemPrompt }),
+      })
 
-      // Placeholder bot response for workshop
-      const botMessage = {
+      if (!response.ok) throw new Error('Failed to send message')
+
+      const data = await response.json()
+      setMessages(prev => [...prev, {
         id: Date.now() + 1,
-        text: '[Bot response will appear here. Implement API call and response handling.]',
+        text: data.response,
         sender: 'bot',
         timestamp: new Date()
-      }
-      setMessages(prev => [...prev, botMessage])
+      }])
     } catch (error) {
       console.error('Error sending message:', error)
       const errorMessage = {
@@ -80,13 +96,15 @@ function AppChat() {
         onSendMessage={sendMessage}
         isLoading={isLoading}
       />
-      <SystemPrompt 
-        systemPrompt={systemPrompt}
-        onSystemPromptChange={handleSystemPromptChange}
-        isVisible={showSystemPrompt}
-        onToggleVisibility={() => setShowSystemPrompt(!showSystemPrompt)}
-        defaultSystemPrompt={defaultSystemPrompt}
-      />
+      {showSystemPrompt && (
+        <SystemPrompt
+          systemPrompt={systemPrompt}
+          onSystemPromptChange={handleSystemPromptChange}
+          isVisible={showSystemPrompt}
+          onToggleVisibility={() => setShowSystemPrompt(!showSystemPrompt)}
+          defaultSystemPrompt={defaultSystemPrompt}
+        />
+      )}
     </div>
   )
 }
