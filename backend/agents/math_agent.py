@@ -1,50 +1,50 @@
 """Math agent node — Exercise 6.
 
-Retrieves math tools from the Agent Catalog and runs a LangGraph ReAct loop
-to evaluate the user's calculation request.
+Uses agentc_langgraph.ReActAgent to fetch the math_agent prompt and its
+associated tools from the Agent Catalog, then runs a LangGraph ReAct loop.
+Activity (tool calls, completions, edges) is logged to the agentc Span.
 """
 
 from __future__ import annotations
 
-
 import agentc
-from langchain_core.tools import StructuredTool
-from langgraph.prebuilt import create_react_agent
+import agentc_langgraph.agent
+import langchain_core.runnables
 from langgraph.types import Command
 
 from agents.state import AgentState
+from agents.router_agent import _get_llm
 
 
-def _get_math_tools() -> list[StructuredTool]:
-    """Retrieve math tools from the Agent Catalog."""
-    catalog = agentc.Catalog()
-    tool_names = ["add", "subtract", "multiply", "divide", "evaluate_expression"]
-    tools = []
-    for name in tool_names:
-        item = catalog.find(kind="tool", name=name)
-        tools.append(
-            StructuredTool.from_function(
-                func=item.func,
-                name=item.meta.name,
-                description=item.meta.description,
-            )
+class MathAgent(agentc_langgraph.agent.ReActAgent):
+    """ReAct agent that evaluates math expressions using catalog-managed tools."""
+
+    def __init__(self, catalog: agentc.Catalog, span: agentc.Span):
+        super().__init__(
+            chat_model=_get_llm(),
+            catalog=catalog,
+            span=span,
+            prompt_name="math_agent",
         )
-    return tools
+
+    async def _ainvoke(
+        self,
+        span: agentc.Span,
+        state: AgentState,
+        config: langchain_core.runnables.RunnableConfig,
+    ) -> Command:
+        agent = self.create_react_agent(span)
+        result = await agent.ainvoke(
+            {"messages": [("user", state["message"])], "is_last_step": False, "previous_node": None},
+            config=config,
+        )
+        final_answer = result["messages"][-1].content
+        return Command(
+            goto="__end__",
+            update={"answer": final_answer, "routed_to": "math_agent"},
+        )
 
 
-async def math_agent_node(state: AgentState) -> Command:
-    """Run a ReAct loop with math tools to answer the user's calculation."""
-    tools = _get_math_tools()
-    from agents.router_agent import _get_llm
-    llm = _get_llm()
-
-    agent = create_react_agent(llm, tools)
-    result = await agent.ainvoke({"messages": [("user", state["message"])]})
-
-    # The last message in the result is the final answer.
-    final_answer = result["messages"][-1].content
-
-    return Command(
-        goto="__end__",
-        update={"answer": final_answer, "routed_to": "math_agent"},
-    )
+async def math_agent_node(state: AgentState, catalog: agentc.Catalog, span: agentc.Span) -> Command:
+    """LangGraph node entry point — delegates to MathAgent."""
+    return await MathAgent(catalog=catalog, span=span).ainvoke(state)

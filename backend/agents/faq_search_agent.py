@@ -1,45 +1,83 @@
 """FAQ search agent node — Exercise 7.
 
-Retrieves the hybrid_faq_search tool from the Agent Catalog and runs a
-LangGraph ReAct loop to answer the user's question from the matched FAQ
-collection.
+Uses agentc_langgraph.ReActAgent to fetch the faq_search_agent prompt and
+its hybrid_faq_search tool from the Agent Catalog. The tool is bound to the
+collection_name from state before the ReAct loop runs.
+Activity (tool calls, completions, edges) is logged to the agentc Span.
 """
 
 from __future__ import annotations
 
+import functools
 
 import agentc
-from langchain_core.tools import StructuredTool
-from langgraph.prebuilt import create_react_agent
+import agentc_langgraph.agent
+import langchain_core.runnables
+import langchain_core.tools
 from langgraph.types import Command
 
 from agents.state import AgentState
+from agents.router_agent import _get_llm
 
 
-def _get_faq_tool(collection_name: str) -> StructuredTool:
-    """Retrieve hybrid_faq_search from the Agent Catalog and bind the collection."""
-    catalog = agentc.Catalog()
-    item = catalog.find(kind="tool", name="hybrid_faq_search")
+class FaqSearchAgent(agentc_langgraph.agent.ReActAgent):
+    """ReAct agent that searches a FAQ collection using catalog-managed tools."""
 
-    # Wrap the tool so the collection_name is pre-filled from state.
-    original_func = item.func
+    def __init__(self, catalog: agentc.Catalog, span: agentc.Span, collection_name: str):
+        super().__init__(
+            chat_model=_get_llm(),
+            catalog=catalog,
+            span=span,
+            prompt_name="faq_search_agent",
+        )
+        # Bind collection_name into the tool so the LLM only needs to supply query.
+        self.tools = [self._bind_collection(t, collection_name) for t in self.tools]
 
-    def bound_search(query: str) -> list[dict]:
-        """Search the FAQ collection for content relevant to the query."""
-        return original_func(query=query, collection_name=collection_name)
+    @staticmethod
+    def _bind_collection(
+        tool: langchain_core.tools.BaseTool, collection_name: str
+    ) -> langchain_core.tools.BaseTool:
+        """Return a copy of the tool with collection_name pre-filled."""
+        original_func = tool.func
 
-    return StructuredTool.from_function(
-        func=bound_search,
-        name="hybrid_faq_search",
-        description=(
-            f"Search the '{collection_name}' FAQ for content relevant to the user's question. "
-            "Returns a list of document chunks with their content and relevance score."
-        ),
-    )
+        @functools.wraps(original_func)
+        def bound(query: str) -> list[dict]:
+            """Search the FAQ collection for content relevant to the query."""
+            return original_func(query=query, collection_name=collection_name)
+
+        return langchain_core.tools.StructuredTool.from_function(
+            func=bound,
+            name=tool.name,
+            description=(
+                f"Search the '{collection_name}' FAQ for content relevant to the query. "
+                "Returns a list of document chunks with their content and relevance score."
+            ),
+        )
+
+    async def _ainvoke(
+        self,
+        span: agentc.Span,
+        state: AgentState,
+        config: langchain_core.runnables.RunnableConfig,
+    ) -> Command:
+        agent = self.create_react_agent(span)
+        result = await agent.ainvoke(
+            {"messages": [("user", state["message"])], "is_last_step": False, "previous_node": None},
+            config=config,
+        )
+        final_answer = result["messages"][-1].content
+        return Command(
+            goto="__end__",
+            update={
+                "answer": final_answer,
+                "routed_to": "faq_search_agent",
+                "faq_collection": state.get("faq_collection"),
+            },
+        )
 
 
-async def faq_search_agent_node(state: AgentState) -> Command:
-    """Run a ReAct loop with the hybrid FAQ search tool to answer the user's question."""
+async def faq_search_agent_node(state: AgentState, catalog: agentc.Catalog, span: agentc.Span) -> Command:
+    """LangGraph node entry point — delegates to FaqSearchAgent."""
     collection_name = state.get("faq_collection", "")
     if not collection_name:
         return Command(
@@ -49,28 +87,4 @@ async def faq_search_agent_node(state: AgentState) -> Command:
                 "routed_to": "faq_search_agent",
             },
         )
-
-    tool = _get_faq_tool(collection_name)
-    from agents.router_agent import _get_llm
-    llm = _get_llm()
-
-    system_prompt = (
-        "You are a helpful assistant that answers questions using FAQ documentation. "
-        "Use the hybrid_faq_search tool to find relevant content, then synthesise a "
-        "clear, accurate answer based only on what the documents say. "
-        "If the documents do not contain enough information, say so explicitly."
-    )
-
-    agent = create_react_agent(llm, [tool], prompt=system_prompt)
-    result = await agent.ainvoke({"messages": [("user", state["message"])]})
-
-    final_answer = result["messages"][-1].content
-
-    return Command(
-        goto="__end__",
-        update={
-            "answer": final_answer,
-            "routed_to": "faq_search_agent",
-            "faq_collection": collection_name,
-        },
-    )
+    return await FaqSearchAgent(catalog=catalog, span=span, collection_name=collection_name).ainvoke(state)

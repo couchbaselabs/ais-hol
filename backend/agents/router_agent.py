@@ -55,15 +55,11 @@ Rules:
 
 
 def _get_llm(temperature: float = 0) -> ChatOpenAI:
-    """Create a ChatOpenAI instance respecting OPENAI_BASE_URL and OPENAI_COMPLETION_MODEL.
-
-    max_retries=3 handles transient 503s from the model service with exponential backoff.
-    """
+    """Create a ChatOpenAI instance respecting OPENAI_BASE_URL and OPENAI_COMPLETION_MODEL."""
     kwargs = dict(
         model=os.environ.get("OPENAI_COMPLETION_MODEL", "gpt-4o-mini"),
         temperature=temperature,
         api_key=os.environ["OPENAI_API_KEY"],
-        max_retries=3,
     )
     base_url = os.environ.get("OPENAI_BASE_URL")
     if base_url:
