@@ -59,7 +59,7 @@ def get_available_faqs() -> list[dict]:
            SELECT collection_name, display_name, description
            FROM `<bucket>`.`<scope>`.`<faq_catalog_collection>`
            WHERE type = "faq_meta"
-      3. Return [row for row in result.rows()]
+      3. Return [row for row in result.rows()()]
 
     Docs: https://docs.couchbase.com/python-sdk/current/howtos/n1ql-queries-with-sdk.html
     """

@@ -67,7 +67,7 @@ def _vector_search(
     collection = scope.collection(collection_name)
 
     hits: dict[str, dict] = {}
-    for row in result.rows:
+    for row in result.rows():
         try:
             doc = collection.get(row.id)
             content = dict(doc.content_as[dict])
@@ -90,7 +90,7 @@ def _fts_search(
     collection = scope.collection(collection_name)
 
     hits: dict[str, dict] = {}
-    for row in result.rows:
+    for row in result.rows():
         try:
             doc = collection.get(row.id)
             content = dict(doc.content_as[dict])

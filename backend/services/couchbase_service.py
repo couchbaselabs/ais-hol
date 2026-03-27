@@ -47,7 +47,7 @@ async def get_relevant_documents(embedding: list[float], name: str | None = None
                )
            )
       5. Run: result = scope.search(os.environ["COUCHBASE_SEARCH_INDEX_NAME"], request, SearchOptions(limit=4))
-      6. For each row in result.rows, fetch the document with collection.get(row.id)
+      6. For each row in result.rows(), fetch the document with collection.get(row.id)
          - Remove the "vector" key from the content
          - Return a list of dicts: {id, filepath, content, score}
 
