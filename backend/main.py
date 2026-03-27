@@ -51,16 +51,7 @@ class ChatRequest(BaseModel):
 
 @app.post("/api/chat")
 async def chat(body: ChatRequest):
-    """Simple chatbot endpoint — calls OpenAI and returns a JSON response.
-
-    TODO (Exercise 1):
-      This route is already wired up. Your task is to implement
-      generate_response() in services/openai_service.py.
-
-      Once done, this endpoint will:
-        1. Call generate_response(body.message, body.systemPrompt)
-        2. Return { "response": <text>, "timestamp": <iso string> }
-    """
+    """Simple chatbot endpoint — calls OpenAI and returns a JSON response."""
     if not body.message or not body.message.strip():
         raise HTTPException(status_code=400, detail="Message is required.")
 
@@ -79,10 +70,7 @@ class QueryRequest(BaseModel):
 
 @app.post("/api/query")
 async def query(body: QueryRequest):
-    """RAG endpoint — embeds the query, retrieves docs, streams the response.
-
-    TODO (Exercise 3 — step 1): implement get_embedding() in openai_service.py
-    """
+    """RAG endpoint — embeds the query, retrieves docs, streams the response."""
     if not body.q or not body.q.strip():
         raise HTTPException(status_code=400, detail="Query is required.")
 
