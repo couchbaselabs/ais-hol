@@ -102,7 +102,7 @@ Open the app, select the **Simple Chat** tab, and send a message. You should get
 
 Before building the RAG app you need chunked documents stored in Couchbase and their vector embeddings generated. This exercise uses two steps:
 
-1. **Import** — use `cbsh` to chunk and import raw markdown into a collection named `ingestion` (no embedding yet)
+1. **Import** — use `cbsh` to chunk and import raw markdown into a collection named `documentation` (no embedding yet)
 2. **Vectorize** — use the Capella AI Services vectorization workflow to generate embeddings automatically inside the database
 
 > **`cbsh` is pre-installed** by the devcontainer `postCreateCommand` — no manual install needed. Run all `cbsh` commands from the **repository root** so that `scripts/` paths resolve correctly.
@@ -162,27 +162,27 @@ use scripts/importers.nu *
 import_markdown_no_embed scripts/content/files/en-us/glossary1/ "glossary" "a glossary of IT terms"
 ```
 
-This reads all markdown files, chunks them, assigns a content hash as document ID, and upserts into the `ingestion` collection. No OpenAI calls are made.
+This reads all markdown files, chunks them, assigns a content hash as document ID, and upserts into the `documentation` collection. No OpenAI calls are made.
 
 ### Step 4 — Vectorize with Capella AI Services
 
-Now use the Capella AI Services vectorization workflow to generate embeddings for all documents in `ingestion` and create a vector search index automatically.
+Now use the Capella AI Services vectorization workflow to generate embeddings for all documents in `documentation` and create a vector search index automatically.
 
 1. In Capella, go to **AI Services → Workflows → Create New Workflow**
 2. Click **Data from Capella**
-3. Give the workflow a name and click **Start Workflow**
+3. Give the workflow a name and click **Setup Workflow**
 4. Under **Data Source**, select your cluster, then:
    - Bucket: `shared`
    - Scope: `public`
-   - Collection: `ingestion`
+   - Collection: `documentation`
 5. Under **Source Fields**, click **Map all source fields to a single vector field**
    - Set the **Vector Field** name to `vector`
-6. Under **Embedding Model**, click **External Model**
-   - Select `text-embedding-3-small` from the OpenAI model list
-   - Add your OpenAI API key
+6. Under **Embedding Model**, click **Capella Model**
+   - Select your available embedding model
+   - Add your API key ID and Token
 7. Click **Next**, verify the configuration, then click **Run Workflow**
 
-The workflow generates a `vector` field on every document in `ingestion` and creates a vector search index. Wait for the workflow status to show all documents processed before moving to Exercise 3.
+The workflow generates a `vector` field on every document in `documentation` and creates a vector search index. Wait for the workflow status to show all documents processed before moving to Exercise 3.
 
 See: [Vectorize Structured Data from Capella](https://docs.couchbase.com/ai/build/vectorization-service/vectorize-structured-data-capella.html)
 

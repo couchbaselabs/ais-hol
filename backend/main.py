@@ -20,6 +20,9 @@ from services.conversation_service import (
 )
 from services.semantic_cache_service import cache_get, cache_put, create_llm_signature
 
+EMBEDDING_MODEL = os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+COMPLETION_MODEL = os.environ.get("OPENAI_COMPLETION_MODEL", "gpt-4o-mini")
+
 app = FastAPI(title="AI Workshop Backend")
 
 app.add_middleware(
@@ -35,6 +38,7 @@ app.add_middleware(
 # Health check
 # ---------------------------------------------------------------------------
 
+
 @app.get("/health")
 async def health():
     return {"status": "OK", "message": "Server is running"}
@@ -43,6 +47,7 @@ async def health():
 # ---------------------------------------------------------------------------
 # Exercise 1 — Simple Chatbot
 # ---------------------------------------------------------------------------
+
 
 class ChatRequest(BaseModel):
     message: str
@@ -62,6 +67,7 @@ async def chat(body: ChatRequest):
 # ---------------------------------------------------------------------------
 # Exercise 3 — RAG query
 # ---------------------------------------------------------------------------
+
 
 class QueryRequest(BaseModel):
     q: str
@@ -83,8 +89,10 @@ async def query(body: QueryRequest):
     # Exercise 5: check semantic cache before running the full pipeline
     cached = await cache_get(body.q, embedding, llm_sig)
     if cached:
+
         async def from_cache():
             yield cached
+
         return StreamingResponse(from_cache(), media_type="text/plain; charset=utf-8")
 
     # Exercise 4: store user message and summarize history via Capella AI Functions
@@ -116,12 +124,15 @@ async def query(body: QueryRequest):
         # Exercise 5: cache the response for future similar queries
         await cache_put(body.q, embedding, llm_sig, full_response)
 
-    return StreamingResponse(generate_and_store(), media_type="text/plain; charset=utf-8")
+    return StreamingResponse(
+        generate_and_store(), media_type="text/plain; charset=utf-8"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Exercise 4 — Conversation history endpoints
 # ---------------------------------------------------------------------------
+
 
 @app.get("/api/conversation/history")
 async def get_history(session_id: str, limit: int = 10):
@@ -142,6 +153,7 @@ async def clear_history(body: ClearRequest):
 # ---------------------------------------------------------------------------
 # Exercise 6 & 7 — Multi-agent endpoint
 # ---------------------------------------------------------------------------
+
 
 class AgentRequest(BaseModel):
     message: str
@@ -179,5 +191,6 @@ async def agent(body: AgentRequest):
 
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.environ.get("PORT", 5000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)

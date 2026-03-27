@@ -34,7 +34,7 @@ def _get_cluster() -> Cluster:
         options = ClusterOptions(auth)
         options.apply_profile("wan_development")
         _cluster = Cluster(conn_str, options)
-        _cluster.wait_until_ready(timeout=15)
+        _cluster.wait_until_ready(timeout=timedelta(seconds=15))
     return _cluster
 
 

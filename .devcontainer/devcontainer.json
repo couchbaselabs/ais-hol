@@ -33,7 +33,7 @@
     "forwardPorts": [5000, 5173],
     "portsAttributes": {
         "5000": { "label": "Backend (FastAPI)" },
-        "5173": { "label": "Frontend (Vite)" }
+        "3000": { "label": "Frontend (Vite)" }
     },
     "postCreateCommand": "cd frontend && npm install"
 }
