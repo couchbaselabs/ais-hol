@@ -51,7 +51,7 @@ async def cache_get(
     )
     try:
         result = scope.search(CACHE_INDEX(), request, SearchOptions(limit=k))
-        for row in result.rows:
+        for row in result.rows():
             if row.score < similarity_threshold:
                 continue
             doc = collection.get(row.id)

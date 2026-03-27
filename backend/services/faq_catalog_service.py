@@ -59,7 +59,7 @@ def get_available_faqs() -> list[dict]:
         WHERE type = "faq_meta"
     """
     result = cluster.query(sql)
-    return [row for row in result.rows()]
+    return [row for row in result.rows()()]
 
 
 async def find_best_faq(question_embedding: list[float]) -> dict | None:
@@ -82,7 +82,7 @@ async def find_best_faq(question_embedding: list[float]) -> dict | None:
         result = scope.search(
             FAQ_CATALOG_INDEX(), request, SearchOptions(limit=1)
         )
-        rows = list(result.rows)
+        rows = list(result.rows())
         if not rows:
             return None
 

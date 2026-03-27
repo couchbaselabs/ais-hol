@@ -37,7 +37,7 @@ async def get_relevant_documents(embedding: list[float], name: str | None = None
         )
     )
     result = scope.search(index_name, request, SearchOptions(limit=4))
-    doc_refs = [{"id": row.id, "score": row.score} for row in result.rows]
+    doc_refs = [{"id": row.id, "score": row.score} for row in result.rows()]
 
     documents = []
     for ref in doc_refs:
