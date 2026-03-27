@@ -1,10 +1,9 @@
+import json
 import os
 from datetime import timedelta
 from couchbase.cluster import Cluster
-from couchbase.options import ClusterOptions, SearchOptions
+from couchbase.options import ClusterOptions, QueryOptions
 from couchbase.auth import PasswordAuthenticator
-from couchbase.vector_search import VectorSearch, VectorQuery
-from couchbase.search import SearchRequest
 
 _cluster = None
 SCOPE_NAME = "public"
@@ -25,32 +24,35 @@ def _get_cluster() -> Cluster:
 
 
 async def get_relevant_documents(embedding: list[float], name: str | None = None) -> list[dict]:
+    """Retrieve the most relevant documents using a SQL++ vector index (ANN search).
+
+    The index is a SQL++ VECTOR INDEX created with CREATE VECTOR INDEX, so it
+    must be queried via SQL++ using ORDER BY ANN_DISTANCE(), not via the FTS API.
+    """
     cluster = _get_cluster()
     bucket_name = os.environ["COUCHBASE_BUCKET_NAME"]
     index_name = os.environ["COUCHBASE_SEARCH_INDEX_NAME"]
-    scope = cluster.bucket(bucket_name).scope(SCOPE_NAME)
-    collection = scope.collection("documentation")
 
-    request = SearchRequest.create(
-        VectorSearch.from_vector_query(
-            VectorQuery("vector", embedding, num_candidates=4)
-        )
+    sql = f"""
+        SELECT META(d).id AS id,
+               d.filepath,
+               d.content,
+               ANN_DISTANCE(d.vector, $embedding, "L2") AS score
+        FROM `{bucket_name}`.`{SCOPE_NAME}`.`documentation` AS d
+        ORDER BY ANN_DISTANCE(d.vector, $embedding, "L2")
+        LIMIT 4
+        USE INDEX ({index_name} USING GSI)
+    """
+    result = cluster.query(
+        sql,
+        QueryOptions(named_parameters={"embedding": embedding}),
     )
-    result = scope.search(index_name, request, SearchOptions(limit=4))
-    doc_refs = [{"id": row.id, "score": row.score} for row in result.rows()]
-
     documents = []
-    for ref in doc_refs:
-        try:
-            doc = collection.get(ref["id"])
-            content = dict(doc.content_as[dict])
-            content.pop("vector", None)
-            documents.append({
-                "id": ref["id"],
-                "filepath": content.get("filepath", ""),
-                "content": content,
-                "score": ref["score"],
-            })
-        except Exception as e:
-            print(f"Error fetching {ref['id']}: {e}")
+    for row in result.rows():
+        documents.append({
+            "id": row.get("id", ""),
+            "filepath": row.get("filepath", ""),
+            "content": row.get("content", ""),
+            "score": row.get("score", 0.0),
+        })
     return documents
