@@ -6,11 +6,9 @@ to evaluate the user's calculation request.
 
 from __future__ import annotations
 
-import os
 
 import agentc
 from langchain_core.tools import StructuredTool
-from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langgraph.types import Command
 
@@ -37,11 +35,8 @@ def _get_math_tools() -> list[StructuredTool]:
 async def math_agent_node(state: AgentState) -> Command:
     """Run a ReAct loop with math tools to answer the user's calculation."""
     tools = _get_math_tools()
-    llm = ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=0,
-        api_key=os.environ["OPENAI_API_KEY"],
-    )
+    from agents.router_agent import _get_llm
+    llm = _get_llm()
 
     agent = create_react_agent(llm, tools)
     result = await agent.ainvoke({"messages": [("user", state["message"])]})

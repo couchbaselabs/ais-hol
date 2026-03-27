@@ -7,11 +7,9 @@ collection.
 
 from __future__ import annotations
 
-import os
 
 import agentc
 from langchain_core.tools import StructuredTool
-from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langgraph.types import Command
 
@@ -53,11 +51,8 @@ async def faq_search_agent_node(state: AgentState) -> Command:
         )
 
     tool = _get_faq_tool(collection_name)
-    llm = ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=0,
-        api_key=os.environ["OPENAI_API_KEY"],
-    )
+    from agents.router_agent import _get_llm
+    llm = _get_llm()
 
     system_prompt = (
         "You are a helpful assistant that answers questions using FAQ documentation. "
