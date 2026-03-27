@@ -125,6 +125,9 @@ async def summarize_conversation(session_id: str, max_words: int = 150) -> str:
          Use cluster.query(sql, QueryOptions(named_parameters={"text": ..., "max_words": ...}))
       5. Extract and return the summary string:
            result.rows()[0]["summary"][0]["response"]
+      6. Wrap the query in a try/except — if ai_summary fails (e.g. the user
+         lacks the query_external_access role), fall back to returning
+         format_conversation_history(history) instead.
 
     Prerequisites:
       - Capella AI Functions must be enabled on your cluster with the Summarization
