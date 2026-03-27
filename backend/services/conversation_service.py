@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions, QueryOptions
 from couchbase.auth import PasswordAuthenticator
@@ -21,7 +21,7 @@ def _get_cluster() -> Cluster:
         options = ClusterOptions(auth)
         options.apply_profile("wan_development")
         _cluster = Cluster(conn_str, options)
-        _cluster.wait_until_ready(timeout=15)
+        _cluster.wait_until_ready(timeout=timedelta(seconds=15))
     return _cluster
 
 
