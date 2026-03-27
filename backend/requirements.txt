@@ -7,3 +7,5 @@ couchbase>=4.3.0
 langgraph>=0.2.0
 langchain-openai>=0.1.0
 agentc[langgraph]>=0.4.0
+agentc-langchain>=0.4.0
+click-extra>=7.0.0  # agentc dependency; 4.x is incompatible with extra-platforms>=11

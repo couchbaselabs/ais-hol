@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import List, Optional, TypedDict
 
 
 class AgentState(TypedDict, total=False):
@@ -15,8 +15,12 @@ class AgentState(TypedDict, total=False):
     routed_to: str
     """Which node produced the answer: 'router', 'math_agent', or 'faq_search_agent'."""
 
-    faq_collection: str | None
+    faq_collection: Optional[str]
     """Couchbase collection name of the matched FAQ (Exercise 7)."""
 
-    missing_topic: str | None
+    missing_topic: Optional[str]
     """Snake_case topic label when no FAQ matched (Exercise 7)."""
+
+    # agentc_langgraph.ReActAgent uses this for EdgeContent logging.
+    # Must be a list[str] (span name path), not a plain string.
+    previous_node: Optional[List[str]]

@@ -102,7 +102,7 @@ Open the app, select the **Simple Chat** tab, and send a message. You should get
 
 Before building the RAG app you need chunked documents stored in Couchbase and their vector embeddings generated. This exercise uses two steps:
 
-1. **Import** — use `cbsh` to chunk and import raw markdown into a collection named `ingestion` (no embedding yet)
+1. **Import** — use `cbsh` to chunk and import raw markdown into a collection named `documentation` (no embedding yet)
 2. **Vectorize** — use the Capella AI Services vectorization workflow to generate embeddings automatically inside the database
 
 > **`cbsh` is pre-installed** by the devcontainer `postCreateCommand` — no manual install needed. Run all `cbsh` commands from the **repository root** so that `scripts/` paths resolve correctly.
@@ -162,27 +162,27 @@ use scripts/importers.nu *
 import_markdown_no_embed scripts/content/files/en-us/glossary1/ "glossary" "a glossary of IT terms"
 ```
 
-This reads all markdown files, chunks them, assigns a content hash as document ID, and upserts into the `ingestion` collection. No OpenAI calls are made.
+This reads all markdown files, chunks them, assigns a content hash as document ID, and upserts into the `documentation` collection. No OpenAI calls are made.
 
 ### Step 4 — Vectorize with Capella AI Services
 
-Now use the Capella AI Services vectorization workflow to generate embeddings for all documents in `ingestion` and create a vector search index automatically.
+Now use the Capella AI Services vectorization workflow to generate embeddings for all documents in `documentation` and create a vector search index automatically.
 
 1. In Capella, go to **AI Services → Workflows → Create New Workflow**
 2. Click **Data from Capella**
-3. Give the workflow a name and click **Start Workflow**
+3. Give the workflow a name and click **Setup Workflow**
 4. Under **Data Source**, select your cluster, then:
    - Bucket: `shared`
    - Scope: `public`
-   - Collection: `ingestion`
+   - Collection: `documentation`
 5. Under **Source Fields**, click **Map all source fields to a single vector field**
    - Set the **Vector Field** name to `vector`
-6. Under **Embedding Model**, click **External Model**
-   - Select `text-embedding-3-small` from the OpenAI model list
-   - Add your OpenAI API key
+6. Under **Embedding Model**, click **Capella Model**
+   - Select your available embedding model
+   - Add your API key ID and Token
 7. Click **Next**, verify the configuration, then click **Run Workflow**
 
-The workflow generates a `vector` field on every document in `ingestion` and creates a vector search index. Wait for the workflow status to show all documents processed before moving to Exercise 3.
+The workflow generates a `vector` field on every document in `documentation` and creates a vector search index. Wait for the workflow status to show all documents processed before moving to Exercise 3.
 
 See: [Vectorize Structured Data from Capella](https://docs.couchbase.com/ai/build/vectorization-service/vectorize-structured-data-capella.html)
 
@@ -231,36 +231,33 @@ async def get_embedding(text: str) -> list[float]:
 
 In `backend/services/couchbase_service.py`:
 
+> The Capella AI Services workflow creates a **SQL++ GSI vector index** (not an FTS index). Query it using `ORDER BY ANN_DISTANCE()` via SQL++, not `scope.search()`.
+
 ```python
 async def get_relevant_documents(embedding: list[float], name: str | None = None) -> list[dict]:
     cluster = _get_cluster()
     bucket_name = os.environ["COUCHBASE_BUCKET_NAME"]
     index_name = os.environ["COUCHBASE_SEARCH_INDEX_NAME"]
-    scope = cluster.bucket(bucket_name).scope(SCOPE_NAME)
-    collection = scope.collection("documentation")
 
-    request = SearchRequest.create(
-        VectorSearch.from_vector_query(
-            VectorQuery("vector", embedding, num_candidates=4)
-        )
-    )
-    result = scope.search(index_name, request, SearchOptions(limit=4))
-    doc_refs = [{"id": row.id, "score": row.score} for row in result.rows]
-
+    sql = f"""
+        SELECT META(d).id AS id,
+               d.filepath,
+               d.content,
+               ANN_DISTANCE(d.vector, $embedding, "L2") AS score
+        FROM `{bucket_name}`.`{SCOPE_NAME}`.`documentation` AS d
+        USE INDEX ({index_name} USING GSI)
+        ORDER BY ANN_DISTANCE(d.vector, $embedding, "L2")
+        LIMIT 4
+    """
+    result = cluster.query(sql, QueryOptions(named_parameters={"embedding": embedding}))
     documents = []
-    for ref in doc_refs:
-        try:
-            doc = collection.get(ref["id"])
-            content = dict(doc.content_as[dict])
-            content.pop("vector", None)
-            documents.append({
-                "id": ref["id"],
-                "filepath": content.get("filepath", ""),
-                "content": content,
-                "score": ref["score"],
-            })
-        except Exception as e:
-            print(f"Error fetching {ref['id']}: {e}")
+    for row in result.rows():
+        documents.append({
+            "id": row.get("id", ""),
+            "filepath": row.get("filepath", ""),
+            "content": row.get("content", ""),
+            "score": row.get("score", 0.0),
+        })
     return documents
 ```
 
@@ -280,6 +277,8 @@ async def stream_completion(prompt: str):
         stream=True,
     )
     async for chunk in stream:
+        if not chunk.choices:
+            continue
         token = chunk.choices[0].delta.content
         if token:
             yield token
@@ -536,16 +535,30 @@ Check the Capella Query Workbench to see the `ai_summary` function being called.
 
 Semantically similar queries are served from cache without calling OpenAI, reducing latency and cost.
 
-### Step 1 — Create the cache bucket and collection
+### Step 1 — Create the cache bucket, collection and vector index
 
 In Couchbase Capella:
 
 1. Create a new bucket named `semantic_cache`
 2. Inside it, create a collection named `semantic` in the `_default` scope
-3. Create a vector search index:
-   - **Index Name:** `semantic_cache._default.semantic_cache_idx`
-   - **Source:** `semantic_cache._default.semantic`
-   - Field: `vector`, 1536 dimensions, dot product similarity
+3. Create a SQL++ vector index on the collection. In the Capella **Query** tab run:
+
+```sql
+CREATE VECTOR INDEX `semantic_cache_vector_idx`
+ON `semantic_cache`.`_default`.`semantic`(`vector` VECTOR)
+WITH {
+  "dimension": 2048,
+  "similarity": "L2",
+  "description": "IVF,SQ8"
+}
+```
+
+> Adjust `"dimension"` to match your embedding model output size (2048 for `nvidia/llama-3.2-nv-embedqa-1b-v2`, 1536 for `text-embedding-3-small`).
+
+Add to `backend/.env`:
+```env
+CACHE_INDEX=semantic_cache_vector_idx
+```
 
 ### Step 2 — Implement `semantic_cache_service.py`
 
@@ -555,22 +568,25 @@ In `backend/services/semantic_cache_service.py`:
 ```python
 async def cache_get(prompt, embedding, llm_signature, similarity_threshold=0.85, k=3):
     cluster = _get_cluster()
-    scope = cluster.bucket(CACHE_BUCKET()).scope(CACHE_SCOPE())
-    collection = scope.collection(CACHE_COLLECTION())
-
-    request = SearchRequest.create(
-        VectorSearch.from_vector_query(VectorQuery("vector", embedding, num_candidates=k))
-    )
     try:
-        result = scope.search(CACHE_INDEX(), request, SearchOptions(limit=k))
-        for row in result.rows:
-            if row.score < similarity_threshold:
+        sql = f"""
+            SELECT META(c).id AS id,
+                   c.llm_signature,
+                   c.response,
+                   ANN_DISTANCE(c.vector, $embedding, "L2") AS score
+            FROM `{CACHE_BUCKET()}`.`{CACHE_SCOPE()}`.`{CACHE_COLLECTION()}` AS c
+            USE INDEX ({CACHE_INDEX()} USING GSI)
+            ORDER BY ANN_DISTANCE(c.vector, $embedding, "L2")
+            LIMIT {k}
+        """
+        result = cluster.query(sql, QueryOptions(named_parameters={"embedding": embedding}))
+        for row in result.rows():
+            # ANN_DISTANCE with L2: lower = more similar, so skip if score is too high
+            if row.get("score", 1.0) > similarity_threshold:
                 continue
-            doc = collection.get(row.id)
-            entry = doc.content_as[dict]
-            if entry.get("llm_signature") == llm_signature:
-                print(f"Cache HIT (score={row.score:.3f})")
-                return entry["response"]
+            if row.get("llm_signature") == llm_signature:
+                print(f"Cache HIT (score={row.get('score', '?'):.3f})")
+                return row["response"]
     except Exception as e:
         print(f"Cache lookup error: {e}")
     return None
@@ -669,6 +685,9 @@ The app runs at [http://localhost:3000](http://localhost:3000).
 - **Simple Chat tab** — Exercise 1 chatbot
 - **RAG Chat tab** — Exercises 3–5 RAG application
 - **Agent Chat tab** — Exercises 6–7 multi-agent system
+
+---
+
 ## Exercise 6 — Multi-Agent Routing
 
 ### What you will build
@@ -683,7 +702,22 @@ User message
      └── math question ──▶ [math_agent] ──▶ response
 ```
 
-### Step 1 — Install new dependencies
+### Step 1 — Switch to OpenAI and install new dependencies
+
+Exercises 6 and 7 use tool calling and structured output, which require a model that supports these features. Capella-hosted models (DeepSeek, Mistral NIM) do not reliably support multi-turn tool use. Switch to a real OpenAI key before proceeding.
+
+In `backend/.env`, comment out the Capella endpoint variables and set a real OpenAI API key:
+
+```env
+OPENAI_API_KEY=sk-...        # real OpenAI key
+# OPENAI_BASE_URL=...        # comment out
+# OPENAI_COMPLETION_MODEL=... # comment out
+# OPENAI_EMBEDDING_MODEL=...  # comment out — embeddings will use OpenAI too
+```
+
+> If you still need Capella embeddings for the vector search index created in Exercise 2, keep `OPENAI_EMBEDDING_MODEL` set. The completion model is what requires OpenAI.
+
+Then install the new packages:
 
 ```bash
 cd backend
@@ -691,7 +725,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-New packages: `langgraph`, `langchain-openai`, `agentc[langgraph]`.
+New packages: `langgraph`, `langchain-openai`, `agentc[langgraph]`, `agentc-langchain`.
 
 ### Step 2 — Set up the Agent Catalog
 
@@ -704,23 +738,29 @@ AGENT_CATALOG_PASSWORD=your-password
 AGENT_CATALOG_BUCKET=shared
 ```
 
-Initialise the catalog in your project root:
+Initialise the catalog. Run from the **repository root** (where `.git` lives) so `agentc` can install its post-commit hook:
 
 ```bash
-agentc init
+cd /path/to/ais-hol
+AGENT_CATALOG_CONN_ROOT_CERTIFICATE=backend/certificate \
+  backend/.venv/bin/agentc --no-config init --bucket shared
 ```
 
-### Step 3 — Implement math tools
+> `--no-config` avoids a known conflict between `agentc 1.0.0` and `click-extra` that causes a spurious `ERROR` before the command runs. `AGENT_CATALOG_CONN_ROOT_CERTIFICATE` must be set because the `.env` relative path does not resolve when running from the repo root.
 
-Open `backend/agents/math_tools.py`. The file defines five functions decorated with `@agentc.tool`:
+### Step 3 — Implement math tools and the agent prompt
+
+Open `backend/agents/math_tools.py`. The file defines five functions decorated with `@agentc_tool` (imported from `agentc_core.tool`):
 
 ```python
-@agentc.tool
+from agentc_core.tool import tool as agentc_tool
+
+@agentc_tool
 def add(a: float, b: float) -> float:
     """Add two numbers and return the result."""
     return a + b
 
-@agentc.tool
+@agentc_tool
 def evaluate_expression(expression: str) -> float:
     """Evaluate a mathematical expression string (e.g. 'sqrt(144) + 10')."""
     return _safe_eval(expression)
@@ -728,17 +768,47 @@ def evaluate_expression(expression: str) -> float:
 
 The `evaluate_expression` tool uses a whitelist-based safe eval — only names from Python's `math` module are permitted.
 
-### Step 4 — Index and publish tools to the Agent Catalog
+The agent's system prompt and tool list are declared in `backend/agents/prompts/math_agent.yaml`:
 
-```bash
-# From the backend/ directory
-agentc index agents/
-agentc publish --bucket shared
+```yaml
+record_kind: prompt
+name: math_agent
+description: System prompt and tools for the math agent.
+
+content:
+  agent_instructions: >
+    You are a precise math assistant. Use the available tools to evaluate
+    the user's calculation request. Always use a tool — do not compute
+    answers in your head.
+
+tools:
+  - name: add
+  - name: subtract
+  - name: multiply
+  - name: divide
+  - name: evaluate_expression
 ```
 
-This creates a `.agent-catalog/` directory locally and uploads the tool index to Couchbase under the `agent_catalog` scope.
+`agentc index` resolves the `tools` list at index time. At runtime, `catalog.find("prompt", name="math_agent")` returns the prompt with tool functions already attached — no manual `catalog.find("tool", ...)` calls needed.
 
-> **Important:** you must re-run `agentc index agents/ && agentc publish --bucket shared` every time you add or modify a tool file. The agents retrieve tools from the catalog at runtime — if the catalog is stale, `catalog.find()` will fail or return an outdated version.
+### Step 4 — Index and publish tools and prompts
+
+Run from the **`backend/` directory** after exporting env vars:
+
+```bash
+cd backend
+export $(grep -v '^#' .env | grep -v '^$' | xargs)
+AGENT_CATALOG_CONN_ROOT_CERTIFICATE=/path/to/ais-hol/backend/certificate \
+PYTHONPATH=. \
+  .venv/bin/agentc --no-config index ./agents/
+
+AGENT_CATALOG_CONN_ROOT_CERTIFICATE=/path/to/ais-hol/backend/certificate \
+  .venv/bin/agentc --no-config publish --bucket shared
+```
+
+`PYTHONPATH=.` is required so that `from agents.state import AgentState` resolves when `agentc` imports the tool files. Both tools and prompts are indexed and published in one pass.
+
+> **Important:** `publish` requires a clean git working tree — commit any changes before running it. Re-run `index` then `publish` every time you modify a tool or prompt file.
 
 ### Step 5 — Implement the router agent
 
@@ -757,39 +827,51 @@ class RouterDecision(BaseModel):
 
 ### Step 6 — Implement the math agent
 
-Open `backend/agents/math_agent.py`. It retrieves tools from the catalog and runs a ReAct loop:
+Open `backend/agents/math_agent.py`. It extends `agentc_langgraph.ReActAgent`, which fetches the `math_agent` prompt (and its attached tools) from the catalog and wraps each invocation in an agentc `Span` for activity logging:
 
 ```python
-catalog = agentc.Catalog()
-item = catalog.find(kind="tool", name="add")
-tool = StructuredTool.from_function(func=item.func, ...)
+class MathAgent(agentc_langgraph.agent.ReActAgent):
+    def __init__(self, catalog: agentc.Catalog, span: agentc.Span):
+        super().__init__(
+            chat_model=_get_llm(),
+            catalog=catalog,
+            span=span,
+            prompt_name="math_agent",   # resolves prompts/math_agent.yaml
+        )
 
-agent = create_react_agent(llm, tools)
-result = await agent.ainvoke({"messages": [("user", state["message"])]})
+    async def _ainvoke(self, span, state, config):
+        agent = self.create_react_agent(span)  # attaches ToolNode + Callback
+        result = await agent.ainvoke({"messages": [("user", state["message"])], ...})
+        return Command(goto="__end__", update={"answer": result["messages"][-1].content})
 ```
+
+`create_react_agent(span)` wraps the tool node with `agentc_langgraph.ToolNode` (logs tool results) and attaches a `Callback` to the chat model (logs completions and tool calls).
 
 ### Step 7 — Wire the LangGraph graph
 
-Open `backend/agents/graph.py`:
+Open `backend/agents/graph.py`. The graph is wrapped in `agentc_langgraph.GraphRunnable`, which creates a root `Span` and encloses every invocation in it. `catalog` and `span` are injected into the math and FAQ nodes via `functools.partial`:
 
 ```python
-builder = StateGraph(AgentState)
-builder.add_node("router", router_node)
-builder.add_node("math_agent", math_agent_node)
-builder.set_entry_point("router")
-agent_graph = builder.compile()
-```
+class AgentGraph(agentc_langgraph.graph.GraphRunnable):
+    async def acompile(self):
+        builder = StateGraph(AgentState)
+        builder.add_node("router", router_node)
+        builder.add_node("math_agent",
+            functools.partial(math_agent_node, catalog=self.catalog, span=self.span))
+        builder.set_entry_point("router")
+        return builder.compile()
 
-Routing is driven by `Command(goto=...)` returned from each node — no explicit conditional edges needed.
+agent_graph = AgentGraph(catalog=agentc.Catalog())
+```
 
 ### Step 8 — Add the `/api/agent` endpoint
 
-In `backend/main.py` the route is already wired:
+In `backend/main.py` the route is already wired. Note that `previous_node` must be initialised to `None` in the input state — it is used internally by the agentc span logging:
 
 ```python
 @app.post("/api/agent")
 async def agent(body: AgentRequest):
-    result = await agent_graph.ainvoke({"message": body.message})
+    result = await agent_graph.ainvoke({"message": body.message, "previous_node": None})
     return {
         "response": result.get("answer", ""),
         "routed_to": result.get("routed_to", "router"),
@@ -949,12 +1031,14 @@ async def find_best_faq(question_embedding: list[float]) -> dict | None:
 
 The threshold is controlled by `FAQ_SIMILARITY_THRESHOLD` in `.env` (default `0.75`).
 
-### Step 7 — Implement `faq_search_tools.py`
+### Step 7 — Implement `faq_search_tools.py` and the agent prompt
 
 Open `backend/agents/faq_search_tools.py`. The `hybrid_faq_search` tool runs both a vector search and an FTS search against the target collection, then merges and deduplicates results by document ID:
 
 ```python
-@agentc.tool
+from agentc_core.tool import tool as agentc_tool
+
+@agentc_tool
 def hybrid_faq_search(query: str, collection_name: str) -> list[dict]:
     """Search a FAQ collection using both vector similarity and full-text search."""
     ...
@@ -967,29 +1051,47 @@ The tool looks up indexes by a fixed naming convention — **your index names in
 | Vector | `shared.public.<collection_name>_vector_idx` |
 | FTS | `shared.public.<collection_name>_fts_idx` |
 
-For example, for a collection named `hr_policy`:
-- Vector index: `shared.public.hr_policy_vector_idx`
-- FTS index: `shared.public.hr_policy_fts_idx`
+The agent's system prompt is declared in `backend/agents/prompts/faq_search_agent.yaml`:
 
-After implementing, re-index and publish so the agent can find the updated tool:
+```yaml
+record_kind: prompt
+name: faq_search_agent
+description: System prompt and tools for the FAQ search agent.
+
+content:
+  agent_instructions: >
+    You are a helpful assistant that answers questions using FAQ documentation.
+    Use the hybrid_faq_search tool to find relevant content, then synthesise a
+    clear, accurate answer based only on what the documents say.
+
+tools:
+  - name: hybrid_faq_search
+```
+
+After implementing, commit your changes, then re-index and publish:
 
 ```bash
-# From backend/
-agentc index agents/
-agentc publish --bucket shared
+cd backend
+export $(grep -v '^#' .env | grep -v '^$' | xargs)
+AGENT_CATALOG_CONN_ROOT_CERTIFICATE=/path/to/ais-hol/backend/certificate \
+PYTHONPATH=. \
+  .venv/bin/agentc --no-config index ./agents/
+
+AGENT_CATALOG_CONN_ROOT_CERTIFICATE=/path/to/ais-hol/backend/certificate \
+  .venv/bin/agentc --no-config publish --bucket shared
 ```
 
 ### Step 8 — Implement `faq_search_agent.py`
 
-Open `backend/agents/faq_search_agent.py`. It retrieves `hybrid_faq_search` from the catalog, binds the `collection_name` from state, and runs a ReAct loop:
+Open `backend/agents/faq_search_agent.py`. It extends `agentc_langgraph.ReActAgent` and binds `collection_name` into the tool before the ReAct loop runs — the LLM only needs to supply the `query` argument:
 
 ```python
-catalog = agentc.Catalog()
-item = catalog.find(kind="tool", name="hybrid_faq_search")
-
-# Bind collection_name from router state
-def bound_search(query: str) -> list[dict]:
-    return item.func(query=query, collection_name=collection_name)
+class FaqSearchAgent(agentc_langgraph.agent.ReActAgent):
+    def __init__(self, catalog, span, collection_name):
+        super().__init__(chat_model=_get_llm(), catalog=catalog, span=span,
+                         prompt_name="faq_search_agent")
+        # Pre-fill collection_name so the LLM only sees query
+        self.tools = [self._bind_collection(t, collection_name) for t in self.tools]
 ```
 
 ### Step 9 — Update the router for FAQ matching
@@ -1003,10 +1105,11 @@ Open `backend/agents/router_agent.py`. The router now:
 
 ### Step 10 — Update `graph.py`
 
-Open `backend/agents/graph.py` — the `faq_search_agent` node is already registered:
+Open `backend/agents/graph.py` — add the `faq_search_agent` node with `catalog` and `span` injected via `functools.partial`:
 
 ```python
-builder.add_node("faq_search_agent", faq_search_agent_node)
+builder.add_node("faq_search_agent",
+    functools.partial(faq_search_agent_node, catalog=self.catalog, span=self.span))
 ```
 
 ### Step 11 — Run and test with two FAQs

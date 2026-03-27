@@ -176,7 +176,7 @@ async def agent(body: AgentRequest):
       1. Import the compiled graph:
            from agents.graph import agent_graph
       2. Invoke it:
-           result = await agent_graph.ainvoke({"message": body.message})
+           result = await agent_graph.ainvoke({"message": body.message, "previous_node": None})
       3. Return:
            {
              "response":       result.get("answer", ""),
