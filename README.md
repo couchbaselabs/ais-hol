@@ -29,7 +29,13 @@ cd ais-hol
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+# agentc-cli 1.0.0 declares click-extra<5.0.0, but extra-platforms>=11
+# removed the extra_platforms.platform module that click-extra<5 imports.
+# The fix is to install agentc packages with --no-deps so pip does not
+# enforce the click-extra<5 constraint, then install click-extra>=7.0.0.
+grep -v '^agentc' requirements.txt > /tmp/requirements-no-agentc.txt
+pip install -r /tmp/requirements-no-agentc.txt
+pip install --no-deps agentc agentc-cli agentc-core agentc-langchain agentc-langgraph
 
 # Copy and fill in environment variables
 cp .env.example .env
@@ -717,13 +723,17 @@ OPENAI_API_KEY=sk-...        # real OpenAI key
 
 > If you still need Capella embeddings for the vector search index created in Exercise 2, keep `OPENAI_EMBEDDING_MODEL` set. The completion model is what requires OpenAI.
 
-Then install the new packages:
+Then install the new packages using the same two-step approach as the initial setup (required to work around the `agentc-cli` / `click-extra` version conflict):
 
 ```bash
 cd backend
 source .venv/bin/activate
-pip install -r requirements.txt
+grep -v '^agentc' requirements.txt > /tmp/requirements-no-agentc.txt
+pip install -r /tmp/requirements-no-agentc.txt
+pip install --no-deps agentc agentc-cli agentc-core agentc-langchain agentc-langgraph
 ```
+
+> **Always use `backend/.venv/bin/agentc`**, not a bare `agentc` command. A system or user-level `agentc` installation may use an older `click-extra` that crashes with `ModuleNotFoundError: No module named 'extra_platforms.platform'`. The venv has the correct pinned version.
 
 New packages: `langgraph`, `langchain-openai`, `agentc[langgraph]`, `agentc-langchain`.
 

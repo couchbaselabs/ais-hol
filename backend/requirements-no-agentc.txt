@@ -1,0 +1,9 @@
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+python-dotenv>=1.0.0
+openai>=1.30.0
+couchbase>=4.3.0
+# Exercise 6 & 7 — multi-agent
+langgraph>=0.2.0
+langchain-openai>=0.1.0
+click-extra>=7.0.0
