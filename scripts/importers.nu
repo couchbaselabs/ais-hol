@@ -3,6 +3,25 @@ use splitter_recursive.nu *
 use couchbase.nu *
 use embedding.nu *
 
+export def save_chunks [
+    path,
+    name,
+    description
+] {
+    let chunked_files = (cd $path; ls **/*.md | each { |f| $f.name | open | markdown-chunker | insert filepath $f.name | insert name $name }) | flatten
+    let chunks = $chunked_files | each { |c| $c | insert id ($c.content | hash sha256) }
+    let meta = {type: "meta", name: $name, description: $description, count: ($chunks_with_ids | length)}
+    let now = epoch_now_nano
+    let meta = $meta | insert date $now
+    let filepath = $"($meta.name)-($now).json"
+    let metafilepath = $"meta-($meta.name)-($now).json"
+    let metaId = $"meta::($meta.name)"
+    let chunks = $chunks | each { |c| $c | insert metaId $metaId }
+    $chunks | save -f $filepath
+    $meta | save -f $metafilepath
+    echo $"chunks saved in ($filepath), meta doc in ($metafilepath)"
+}
+
 export def import_markdown_no_embed [
     path,
     name,
