@@ -10,7 +10,7 @@ export def save_chunks [
 ] {
     let chunked_files = (cd $path; ls **/*.md | each { |f| $f.name | open | markdown-chunker | insert filepath $f.name | insert name $name }) | flatten
     let chunks = $chunked_files | each { |c| $c | insert id ($c.content | hash sha256) }
-    let meta = {type: "meta", name: $name, description: $description, count: ($chunks_with_ids | length)}
+    let meta = {type: "meta", name: $name, description: $description, count: ($chunks | length)}
     let now = epoch_now_nano
     let meta = $meta | insert date $now
     let filepath = $"($meta.name)-($now).json"
