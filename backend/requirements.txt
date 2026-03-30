@@ -8,4 +8,6 @@ langgraph>=0.2.0
 langchain-openai>=0.1.0
 agentc[langgraph]>=0.4.0
 agentc-langchain>=0.4.0
-click-extra>=7.0.0  # agentc dependency; 4.x is incompatible with extra-platforms>=11
+click-extra>=7.0.0 # agentc-cli requires <5.0.0 but extra-platforms>=11 removed extra_platforms.platform
+# Install agentc packages with --no-deps to bypass the click-extra conflict:
+# pip install --no-deps agentc agentc-cli agentc-core agentc-langchain agentc-langgraph
