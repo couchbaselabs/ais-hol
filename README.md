@@ -125,9 +125,14 @@ Before building the RAG app you need chunked documents stored in Couchbase and t
 
 ### Step 2 — Configure Couchbase Shell
 
-Edit `~/.cbsh/config`:
+### Step 2.1: Couchbase Shell Initial Configuration
 
-```toml
+We will start by configuring your org and API key, `yourOrgIdentifier` can be whatever you want. It will be used later on to associate an API key with a cluster configuration.
+
+1. create a folder named `.cbsh` in the same folder, where Couchbase Shell executable will be run, or in your home directory like `~/.cbsh/`
+2. open/create `~/.cbsh/config` and edit this file with the following content (`code ~/.cbsh/config` if you are using codepsace):
+
+```
 version = 1
 
 [[capella-organization]]
@@ -135,23 +140,101 @@ identifier = "yourOrgIdentifier"
 access-key = "yourAccessKey"
 secret-key = "yourSecretKey"
 default-project = "Trial - Project"
-```
 
-Register your cluster in cbsh:
 
 ```
-clusters | clusters get $in.0.name | cb-env register $in.name $in."connection string" \
-  --capella-organization "yourOrgIdentifier" --project "Trial - Project" \
-  --save --default-bucket shared --default-scope public --username cbsh --password yourPassword
+
+> [!NOTE]
+>
+> 1. The value of `identifier` key in this config file will also be used in step 2.3
+
+### Step 2.2: Start Couchbase Shell
+
+Let's launch Couchbase Shell and explore its interactive command-line interface.
+
+```bash
+cbsh
 ```
 
-Create database credentials:
+You should see the Couchbase Shell prompt:
 
 ```
-credentials create --read --write --username cbsh --password yourPassword
+# MacOS/Linux
+👤 🏠
+>
+```
+
+```
+# Windows PowerShell
+>
+```
+
+### Step 2.3: Register Your Capella Cluster
+
+You'll now tell Couchbase Shell how to connect to your cloud cluster by providing the connection string, username, and password you created earlier.
+
+Select the Capella project you will be working on:
+
+```nushell
+# Select a Project
+projects | cb-env project $in.0.name
+```
+
+---
+
+**⚠ Understanding the following is important for the rest of the workshop, as we will manipulate JSON, which are all dataframes in a Couchbase Shell context.**
+
+Couchbase Shell is based on [nushell](https://www.nushell.sh/), where everything structured is managed as a dataframe, and every commands can be piped. Here Project returns the list of projects your API Key gives you access to. You can type `projects` to display the list. It's piped in the next command `cb-env project` that requires a string argument. (type `cb-env project -h` to see the details of the command). '\$in' refers to whatever was piped in that command. As it's a list of records, '$in.0.name' will get the first element of the list, then the value of the record 'name'.
+
+---
+
+Now that the Project has been selected, we can list available clusters by running the `clusters` command.
+We can assign the name our Free Tier cluster by running:
+
+```nushell
+let cluster_name = clusters | $in.0.name
+```
+
+This variable will be accessible with `$cluster_name` until you exit Couchbase Shell.
+
+The following command allows you to register the cluster:
+
+> [!NOTE]
+> Please be sure that the parameter `--capealla-organization` has the same value with the `identifier` key, which you've already defined in your config file in step 2.1
+
+```nushell
+# Register your cluster
+( clusters get $cluster_name | cb-env register $cluster_name $in."connection string"
+  --capella-organization "yourOrgIdentifier"
+  --project (projects | $in.0.name)
+  --default-bucket shared
+  --default-scope public
+  --default-collection documentation
+  --username cbsh
+  --password yourPassword
+  --save  )
+```
+
+```nushell
+cb-env cluster $cluster_name
+```
+
+> [!NOTE]
+> Replace:
+> `your-password` with the password you will create (yes we are setting up the connection before creating the user, and it must contain an uppercase letter, lowercase letter, number and special character, and minimum 8 chars long.)
+
+### Step 2.4: Create the User
+
+With an active Project and Cluster, we can create the cluster user.
+
+```nushell
+credentials create --read  --write --username cbsh --password yourPassword
 ```
 
 ### Step 3 — Import the documentation (no embedding)
+
+> [!NOTE]
+> As you have modified the cbsh configuration, you have to exit and reenter cbsh to take it into account.
 
 Run `cbsh` from the **repository root**:
 
