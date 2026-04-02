@@ -35,6 +35,7 @@ app.add_middleware(
 # Health check
 # ---------------------------------------------------------------------------
 
+
 @app.get("/health")
 async def health():
     return {"status": "OK", "message": "Server is running"}
@@ -43,6 +44,7 @@ async def health():
 # ---------------------------------------------------------------------------
 # Exercise 1 — Simple Chatbot
 # ---------------------------------------------------------------------------
+
 
 class ChatRequest(BaseModel):
     message: str
@@ -71,6 +73,7 @@ async def chat(body: ChatRequest):
 # ---------------------------------------------------------------------------
 # Exercise 3 — RAG query
 # ---------------------------------------------------------------------------
+
 
 class QueryRequest(BaseModel):
     q: str
@@ -121,6 +124,7 @@ async def query(body: QueryRequest):
 # Exercise 4 — Conversation history endpoints
 # ---------------------------------------------------------------------------
 
+
 @app.get("/api/conversation/history")
 async def get_history(session_id: str, limit: int = 10):
     """Return recent messages for a session.
@@ -134,7 +138,10 @@ async def get_history(session_id: str, limit: int = 10):
         return {"session_id": session_id, "messages": messages, "count": len(messages)}
     """
     # TODO: replace this placeholder with your implementation
-    raise HTTPException(status_code=501, detail="Implement get_conversation_history in conversation_service.py")
+    raise HTTPException(
+        status_code=501,
+        detail="Implement get_conversation_history in conversation_service.py",
+    )
 
 
 class ClearRequest(BaseModel):
@@ -154,12 +161,16 @@ async def clear_history(body: ClearRequest):
         return {"success": True}
     """
     # TODO: replace this placeholder with your implementation
-    raise HTTPException(status_code=501, detail="Implement clear_conversation_history in conversation_service.py")
+    raise HTTPException(
+        status_code=501,
+        detail="Implement clear_conversation_history in conversation_service.py",
+    )
 
 
 # ---------------------------------------------------------------------------
 # Exercise 6 & 7 — Multi-agent endpoint
 # ---------------------------------------------------------------------------
+
 
 class AgentRequest(BaseModel):
     message: str
@@ -190,7 +201,9 @@ async def agent(body: AgentRequest):
         raise HTTPException(status_code=400, detail="Message is required.")
 
     # TODO: replace this placeholder with your implementation
-    raise HTTPException(status_code=501, detail="Implement the agent graph in backend/agents/")
+    raise HTTPException(
+        status_code=501, detail="Implement the agent graph in backend/agents/"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -199,5 +212,6 @@ async def agent(body: AgentRequest):
 
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.environ.get("PORT", 5000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)

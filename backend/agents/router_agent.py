@@ -24,6 +24,7 @@ from agents.state import AgentState
 # Structured output schema
 # ---------------------------------------------------------------------------
 
+
 class RouterDecision(BaseModel):
     """LLM classification of the user message."""
 
@@ -54,15 +55,14 @@ Rules:
 """
 
 
-def _get_llm() -> ChatOpenAI:
-    # OPENAI_BASE_URL is optional. Set it to use an OpenAI-compatible
-    # endpoint such as Capella AI Model Service instead of api.openai.com.
+def _get_llm(temperature: float = 0) -> ChatOpenAI:
+    """Create a ChatOpenAI instance respecting INFERENCE_MODEL_BASE_URL and INFERENCE_MODEL."""
     kwargs = dict(
-        model=os.environ.get("OPENAI_COMPLETION_MODEL", "gpt-4o-mini"),
-        temperature=0,
-        api_key=os.environ["OPENAI_API_KEY"],
+        model=os.environ.get("INFERENCE_MODEL", "gpt-4o-mini"),
+        temperature=temperature,
+        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
     )
-    base_url = os.environ.get("OPENAI_BASE_URL")
+    base_url = os.environ.get("INFERENCE_MODEL_BASE_URL")
     if base_url:
         kwargs["base_url"] = base_url
     return ChatOpenAI(**kwargs)
@@ -71,6 +71,7 @@ def _get_llm() -> ChatOpenAI:
 # ---------------------------------------------------------------------------
 # Router node
 # ---------------------------------------------------------------------------
+
 
 async def router_node(state: AgentState) -> Command:
     """Classify the message and route to the appropriate agent or answer directly.

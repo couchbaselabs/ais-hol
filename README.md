@@ -59,7 +59,9 @@ A chatbot that accepts a message and an optional system prompt, calls OpenAI, an
 Edit `backend/.env` and set:
 
 ```env
-OPENAI_API_KEY=your_openai_api_key_here
+INFERENCE_MODEL_API_KEY=gpt-4o-mini
+INFERENCE_MODEL_BASE_URL=https://api.openai.com/v1
+INFERENCE_MODEL=your_openai_api_key_here
 PORT=5000
 ```
 
@@ -69,12 +71,12 @@ Open `backend/services/openai_service.py` and find the `generate_response` funct
 
 ```python
 async def generate_response(message: str, system_prompt: str | None = None) -> str:
-    client = _get_client()
+    client = _get_inference_client()
     default_prompt = "You are a helpful AI assistant. Be concise and friendly."
     final_prompt = system_prompt or default_prompt
 
     completion = await client.chat.completions.create(
-        model=COMPLETION_MODEL,
+        model=INFERENCE_MODEL,
         messages=[
             {"role": "system", "content": final_prompt},
             {"role": "user", "content": message},
@@ -311,7 +313,7 @@ In `backend/services/openai_service.py`:
 
 ```python
 async def get_embedding(text: str) -> list[float]:
-    client = _get_client()
+    client = _get_embeddings_client()
     response = await client.embeddings.create(model=EMBEDDING_MODEL, input=text)
     return response.data[0].embedding
 ```
@@ -356,9 +358,9 @@ In `backend/services/openai_service.py`:
 
 ```python
 async def stream_completion(prompt: str):
-    client = _get_client()
+    client = _get_inference_client()
     stream = await client.chat.completions.create(
-        model=COMPLETION_MODEL,
+        model=INFERENCE_MODEL,
         messages=[
             {"role": "system", "content": "Return plain text, no markdown. Be informal and conversational."},
             {"role": "user", "content": prompt},
@@ -791,22 +793,9 @@ User message
      └── math question ──▶ [math_agent] ──▶ response
 ```
 
-### Step 1 — Switch to OpenAI and install new dependencies
+### Step 1 — Install new dependencies
 
-Exercises 6 and 7 use tool calling and structured output, which require a model that supports these features. Capella-hosted models (DeepSeek, Mistral NIM) do not reliably support multi-turn tool use. Switch to a real OpenAI key before proceeding.
-
-In `backend/.env`, comment out the Capella endpoint variables and set a real OpenAI API key:
-
-```env
-OPENAI_API_KEY=sk-...        # real OpenAI key
-# OPENAI_BASE_URL=...        # comment out
-# OPENAI_COMPLETION_MODEL=... # comment out
-# OPENAI_EMBEDDING_MODEL=...  # comment out — embeddings will use OpenAI too
-```
-
-> If you still need Capella embeddings for the vector search index created in Exercise 2, keep `OPENAI_EMBEDDING_MODEL` set. The completion model is what requires OpenAI.
-
-Then install the new packages using the same two-step approach as the initial setup (required to work around the `agentc-cli` / `click-extra` version conflict):
+Install the new packages using the same two-step approach as the initial setup (required to work around the `agentc-cli` / `click-extra` version conflict):
 
 ```bash
 cd backend
