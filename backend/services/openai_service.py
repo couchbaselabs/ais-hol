@@ -1,36 +1,37 @@
 import os
 from openai import AsyncOpenAI
 
-_client: AsyncOpenAI | None = None
+_client_inference: AsyncOpenAI | None = None
+_client_embeddings: AsyncOpenAI | None = None
 
 EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small")
 INFERENCE_MODEL = os.environ.get("INFERENCE_MODEL", "gpt-4o-mini")
 
 
 def _get_inference_client() -> AsyncOpenAI:
-    global _client
-    if _client is None:
+    global _client_inference
+    if _client_inference is None:
         # OPENAI_BASE_URL is optional. Set it to use an OpenAI-compatible
         # endpoint such as Capella AI Model Service instead of api.openai.com.
         base_url = os.environ.get("INFERENCE_MODEL_BASE_URL") or None
-        _client = AsyncOpenAI(
+        _client_inference = AsyncOpenAI(
             api_key=os.environ["INFERENCE_MODEL_API_KEY"],
             base_url=base_url,
         )
-    return _client
+    return _client_inference
 
 
 def _get_embeddings_client() -> AsyncOpenAI:
-    global _client
-    if _client is None:
+    global _client_embeddings
+    if _client_embeddings is None:
         # OPENAI_BASE_URL is optional. Set it to use an OpenAI-compatible
         # endpoint such as Capella AI Model Service instead of api.openai.com.
         base_url = os.environ.get("EMBEDDING_MODEL_BASE_URL") or None
-        _client = AsyncOpenAI(
+        _client_embeddings = AsyncOpenAI(
             api_key=os.environ["EMBEDDING_MODEL_API_KEY"],
             base_url=base_url,
         )
-    return _client
+    return _client_embeddings
 
 
 # ---------------------------------------------------------------------------
