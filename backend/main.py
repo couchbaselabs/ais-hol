@@ -20,8 +20,8 @@ from services.conversation_service import (
 )
 from services.semantic_cache_service import cache_get, cache_put, create_llm_signature
 
-EMBEDDING_MODEL = os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
-COMPLETION_MODEL = os.environ.get("OPENAI_COMPLETION_MODEL", "gpt-4o-mini")
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small")
+INFERENCE_MODEL = os.environ.get("INFERENCE_MODEL", "gpt-4o-mini")
 
 app = FastAPI(title="AI Workshop Backend")
 
