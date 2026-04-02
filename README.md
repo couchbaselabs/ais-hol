@@ -714,7 +714,7 @@ async def query(body: QueryRequest):
         raise HTTPException(status_code=400, detail="Query is required.")
 
     session_id = body.session_id or "default-session"
-    llm_sig = create_llm_signature(COMPLETION_MODEL, 0.7, 1000, "MDN expert")
+    llm_sig = create_llm_signature(INFERENCE_MODEL, 0.7, 1000, "MDN expert")
 
     embedding = await get_embedding(body.q)
 
