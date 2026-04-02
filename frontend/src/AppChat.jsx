@@ -1,48 +1,64 @@
-import React, { useState, useEffect } from 'react'
-import ChatWindow from './components/ChatWindow'
-import SystemPrompt from './components/SystemPrompt'
-import './App.css'
+import React, { useState, useEffect } from "react";
+import ChatWindow from "./components/ChatWindow";
+import SystemPrompt from "./components/SystemPrompt";
+import "./App.css";
 
-function AppChat() {
+function AppChat({ onHeaderAction }) {
   const [messages, setMessages] = useState([
     {
       id: 1,
       text: "Hello! I'm your AI assistant. How can I help you today?",
-      sender: 'bot',
-      timestamp: new Date()
-    }
-  ])
+      sender: "bot",
+      timestamp: new Date(),
+    },
+  ]);
 
-  const defaultSystemPrompt = "You are a helpful AI assistant. Please respond to the user's message in a friendly and helpful manner. Keep your responses concise but informative."
-  
-  const [isLoading, setIsLoading] = useState(false)
-  const [systemPrompt, setSystemPrompt] = useState(defaultSystemPrompt)
-  const [showSystemPrompt, setShowSystemPrompt] = useState(false)
+  const defaultSystemPrompt =
+    "You are a helpful AI assistant. Please respond to the user's message in a friendly and helpful manner. Keep your responses concise but informative.";
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [systemPrompt, setSystemPrompt] = useState(defaultSystemPrompt);
+  const [showSystemPrompt, setShowSystemPrompt] = useState(false);
+
+  // Push the toggle button into the header whenever visibility state changes
+  React.useEffect(() => {
+    if (!onHeaderAction) return;
+    onHeaderAction(
+      <button
+        className="toggle-button"
+        onClick={() => setShowSystemPrompt((v) => !v)}
+        title="Configure System Prompt"
+      >
+        ⚙️ System Prompt
+      </button>,
+    );
+    return () => onHeaderAction(null);
+  }, [onHeaderAction]);
 
   // Load system prompt from localStorage on component mount
   useEffect(() => {
-    const savedSystemPrompt = localStorage.getItem('chatapp-system-prompt')
+    const savedSystemPrompt = localStorage.getItem("chatapp-system-prompt");
     if (savedSystemPrompt) {
-      setSystemPrompt(savedSystemPrompt)
+      setSystemPrompt(savedSystemPrompt);
     }
-  }, [])
+  }, []);
 
   // Save system prompt to localStorage whenever it changes
   const handleSystemPromptChange = (newPrompt) => {
-    setSystemPrompt(newPrompt)
-    localStorage.setItem('chatapp-system-prompt', newPrompt)
-  }
+    setSystemPrompt(newPrompt);
+    localStorage.setItem("chatapp-system-prompt", newPrompt);
+  };
 
   const sendMessage = async (messageText) => {
     const userMessage = {
       id: Date.now(),
       text: messageText,
-      sender: 'user',
-      timestamp: new Date()
-    }
+      sender: "user",
+      timestamp: new Date(),
+    };
 
-    setMessages(prev => [...prev, userMessage])
-    setIsLoading(true)
+    setMessages((prev) => [...prev, userMessage]);
+    setIsLoading(true);
 
     try {
       // TODO: Implement API call to backend with systemPrompt and messageText
@@ -54,41 +70,43 @@ function AppChat() {
       // Placeholder bot response for workshop
       const botMessage = {
         id: Date.now() + 1,
-        text: '[Bot response will appear here. Implement API call and response handling.]',
-        sender: 'bot',
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, botMessage])
+        text: "[Bot response will appear here. Implement API call and response handling.]",
+        sender: "bot",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
-      console.error('Error sending message:', error)
+      console.error("Error sending message:", error);
       const errorMessage = {
         id: Date.now() + 1,
-        text: 'Sorry, I encountered an error. Please try again.',
-        sender: 'bot',
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, errorMessage])
+        text: "Sorry, I encountered an error. Please try again.",
+        sender: "bot",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="app">
-      <ChatWindow 
-        messages={messages} 
+      <ChatWindow
+        messages={messages}
         onSendMessage={sendMessage}
         isLoading={isLoading}
       />
-      <SystemPrompt 
-        systemPrompt={systemPrompt}
-        onSystemPromptChange={handleSystemPromptChange}
-        isVisible={showSystemPrompt}
-        onToggleVisibility={() => setShowSystemPrompt(!showSystemPrompt)}
-        defaultSystemPrompt={defaultSystemPrompt}
-      />
+      {showSystemPrompt && (
+        <SystemPrompt
+          systemPrompt={systemPrompt}
+          onSystemPromptChange={handleSystemPromptChange}
+          isVisible={showSystemPrompt}
+          onToggleVisibility={() => setShowSystemPrompt(!showSystemPrompt)}
+          defaultSystemPrompt={defaultSystemPrompt}
+        />
+      )}
     </div>
-  )
+  );
 }
 
-export default AppChat
+export default AppChat;

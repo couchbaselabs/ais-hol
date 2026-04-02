@@ -37,6 +37,17 @@
   opacity: 0.9;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-action {
+  display: flex;
+  align-items: center;
+}
+
 .header-tabs {
   display: flex;
   gap: 0.5rem;
