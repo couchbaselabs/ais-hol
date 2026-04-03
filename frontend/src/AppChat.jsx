@@ -61,20 +61,23 @@ function AppChat({ onHeaderAction }) {
     setIsLoading(true);
 
     try {
-      // TODO: Implement API call to backend with systemPrompt and messageText
-      // Example:
-      // const response = await fetch('/api/chat', { ... })
-      // const data = await response.json()
-      // Use data.response for bot reply
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: messageText, systemPrompt }),
+      });
+      if (!response.ok) throw new Error("Failed to send message");
 
-      // Placeholder bot response for workshop
-      const botMessage = {
-        id: Date.now() + 1,
-        text: "[Bot response will appear here. Implement API call and response handling.]",
-        sender: "bot",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, botMessage]);
+      const data = await response.json();
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          text: data.response,
+          sender: "bot",
+          timestamp: new Date(),
+        },
+      ]);
     } catch (error) {
       console.error("Error sending message:", error);
       const errorMessage = {
