@@ -8,11 +8,10 @@ from couchbase.auth import PasswordAuthenticator
 
 _cluster = None
 
-CACHE_BUCKET = lambda: os.environ.get("CACHE_BUCKET", "semantic_cache")
-CACHE_SCOPE = lambda: os.environ.get("CACHE_SCOPE", "_default")
-CACHE_COLLECTION = lambda: os.environ.get("CACHE_COLLECTION", "semantic")
-# SQL++ GSI vector index name for the semantic cache collection.
-CACHE_INDEX = lambda: os.environ.get("CACHE_INDEX", "semantic_cache_vector_idx")
+CACHE_BUCKET = os.environ.get("CACHE_BUCKET", "semantic_cache")
+CACHE_SCOPE = os.environ.get("CACHE_SCOPE", "_default")
+CACHE_COLLECTION = os.environ.get("CACHE_COLLECTION", "semantic")
+CACHE_INDEX = f"semantic_cache_vector_idx"
 
 
 def _get_cluster() -> Cluster:
@@ -29,7 +28,9 @@ def _get_cluster() -> Cluster:
     return _cluster
 
 
-def create_llm_signature(model: str, temperature: float, max_tokens: int, system_prompt: str) -> str:
+def create_llm_signature(
+    model: str, temperature: float, max_tokens: int, system_prompt: str
+) -> str:
     raw = f"{model}:{temperature}:{max_tokens}:{system_prompt}"
     return hashlib.md5(raw.encode()).hexdigest()
 
@@ -48,12 +49,14 @@ async def cache_get(
                    c.llm_signature,
                    c.response,
                    ANN_DISTANCE(c.vector, $embedding, "L2") AS score
-            FROM `{CACHE_BUCKET()}`.`{CACHE_SCOPE()}`.`{CACHE_COLLECTION()}` AS c
-            USE INDEX ({CACHE_INDEX()} USING GSI)
+            FROM `{CACHE_BUCKET}`.`{CACHE_SCOPE}`.`{CACHE_COLLECTION}` AS c
+            USE INDEX ({CACHE_INDEX} USING GSI)
             ORDER BY ANN_DISTANCE(c.vector, $embedding, "L2")
             LIMIT {k}
         """
-        result = cluster.query(sql, QueryOptions(named_parameters={"embedding": embedding}))
+        result = cluster.query(
+            sql, QueryOptions(named_parameters={"embedding": embedding})
+        )
         for row in result.rows():
             if row.get("score", 1.0) > similarity_threshold:
                 continue
@@ -73,7 +76,9 @@ async def cache_put(
     ttl_minutes: int = 1440,
 ) -> None:
     cluster = _get_cluster()
-    collection = cluster.bucket(CACHE_BUCKET()).scope(CACHE_SCOPE()).collection(CACHE_COLLECTION())
+    collection = (
+        cluster.bucket(CACHE_BUCKET).scope(CACHE_SCOPE).collection(CACHE_COLLECTION)
+    )
     doc = {
         "prompt": prompt,
         "response": response,

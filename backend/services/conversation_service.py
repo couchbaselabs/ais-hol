@@ -6,11 +6,10 @@ from couchbase.auth import PasswordAuthenticator
 
 _cluster = None
 
-BUCKET_NAME = lambda: os.environ["COUCHBASE_BUCKET_NAME"]
-SCOPE = lambda: os.environ.get("COUCHBASE_CONVERSATION_SCOPE", "_default")
-COLLECTION = lambda: os.environ.get(
-    "COUCHBASE_CONVERSATION_COLLECTION", "conversations"
-)
+
+BUCKET_NAME = os.environ["COUCHBASE_BUCKET_NAME"]
+SCOPE = os.environ.get("COUCHBASE_CONVERSATION_SCOPE", "_default")
+COLLECTION = os.environ.get("COUCHBASE_CONVERSATION_COLLECTION", "conversations")
 
 
 def _get_cluster() -> Cluster:
@@ -35,7 +34,7 @@ def _get_cluster() -> Cluster:
 async def add_message(session_id: str, content: str, role: str) -> None:
     """Store a single chat message in Couchbase."""
     cluster = _get_cluster()
-    collection = cluster.bucket(BUCKET_NAME()).scope(SCOPE()).collection(COLLECTION())
+    collection = cluster.bucket(BUCKET_NAME).scope(SCOPE).collection(COLLECTION)
     doc = {
         "session_id": session_id,
         "role": role,
@@ -52,7 +51,7 @@ async def get_conversation_history(session_id: str, limit: int = 10) -> list[dic
     cluster = _get_cluster()
     sql = f"""
         SELECT `role`, content, timestamp
-        FROM `{BUCKET_NAME()}`.`{SCOPE()}`.`{COLLECTION()}`
+        FROM `{BUCKET_NAME}`.`{SCOPE}`.`{COLLECTION}`
         WHERE session_id = $session_id AND type = "chat_message"
         ORDER BY timestamp DESC
         LIMIT 20
@@ -79,7 +78,7 @@ async def clear_conversation_history(session_id: str) -> None:
     """Delete all messages for a session."""
     cluster = _get_cluster()
     sql = f"""
-        DELETE FROM `{BUCKET_NAME()}`.`{SCOPE()}`.`{COLLECTION()}`
+        DELETE FROM `{BUCKET_NAME}`.`{SCOPE}`.`{COLLECTION}`
         WHERE session_id = $session_id AND type = "chat_message"
     """
     cluster.query(

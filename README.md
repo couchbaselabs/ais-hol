@@ -87,7 +87,7 @@ async def generate_response(message: str, system_prompt: str | None = None) -> s
     return completion.choices[0].message.content.strip()
 ```
 
-### Step 3 — Run and test
+### Step 4 — Run and test
 
 ```bash
 # Terminal 1 — backend
@@ -103,6 +103,14 @@ npm run dev
 Open the app, select the **Simple Chat** tab, and send a message. You should get a real AI response.
 
 **API:** `POST /api/chat` — `{ "message": "...", "systemPrompt": "..." }` returns `{ "response": "...", "timestamp": "..." }`
+
+This can also be verified using curl:
+
+```bash
+curl 'localhost:5000/api/chat' \
+  -H 'content-type: application/json' \
+  --data-raw $'{"message":"Hello?","systemPrompt":"You are a helpful AI assistant. Please respond to the user\'s message in a friendly and helpful manner. Keep your responses concise but informative."}'`
+```
 
 ---
 
@@ -178,9 +186,16 @@ You'll now tell Couchbase Shell how to connect to your cloud cluster by providin
 Select the Capella project you will be working on:
 
 ```nushell
+# List all your projects
+projects
+```
+
+```nushell
 # Select a Project
 projects | cb-env project $in.0.name
 ```
+
+Here we using the first row with 0 but if you have multiple projects, 0 refers to the row number.
 
 ---
 
@@ -213,7 +228,7 @@ The following command allows you to register the cluster:
   --default-scope public
   --default-collection documentation
   --username cbsh
-  --password yourPassword
+  --password yourPassword123!
   --save  )
 ```
 
@@ -230,7 +245,7 @@ cb-env cluster $cluster_name
 With an active Project and Cluster, we can create the cluster user.
 
 ```nushell
-credentials create --read  --write --username cbsh --password yourPassword
+credentials create --read  --write --username cbsh --password yourPassword123!
 ```
 
 ### Step 3 — Import the documentation (no embedding)
@@ -268,10 +283,11 @@ Now use the Capella AI Services vectorization workflow to generate embeddings fo
    - Collection: `documentation`
 5. Under **Source Fields**, click **Map all source fields to a single vector field**
    - Set the **Vector Field** name to `vector`
-6. Under **Embedding Model**, click **Capella Model**
+6. Click **Next**
+7. Under **Embedding Model**, click **Capella Model**
    - Select your available embedding model
    - Add your API key ID and Token
-7. Click **Next**, verify the configuration, then click **Run Workflow**
+8. Click **Next**, verify the configuration, then click **Run Workflow**
 
 The workflow generates a `vector` field on every document in `documentation` and creates a vector search index. Wait for the workflow status to show all documents processed before moving to Exercise 3.
 
@@ -286,6 +302,12 @@ COUCHBASE_SEARCH_INDEX_NAME=<index-name-created-by-the-workflow>
 ```
 
 The index name is shown in the Capella AI Services workflow detail page after the workflow completes.
+
+### Step 6 — Create a Primary Index for the documentation collection
+
+```nushell
+query "CREATE PRIMARY INDEX ON `default`:`shared`.`public`.`documentation`"
+```
 
 ---
 
@@ -304,7 +326,6 @@ COUCHBASE_CONNECTION_STRING=couchbases://your-cluster-endpoint
 COUCHBASE_USERNAME=your-username
 COUCHBASE_PASSWORD=your-password
 COUCHBASE_BUCKET_NAME=shared
-COUCHBASE_SEARCH_INDEX_NAME=documentation
 ```
 
 ### Step 2 — Implement `get_embedding`
@@ -405,7 +426,7 @@ async def query(body: QueryRequest):
 
 ### Step 6 — Switch to RAG Chat and test
 
-Restart the backend, then click the **RAG Chat** tab. Ask something like *"What is an array?"* — the response will stream in and reference MDN documentation.
+Restart the backend, then click the **RAG Chat** tab. Ask something like _"What is an array?"_ — the response will stream in and reference MDN documentation.
 
 ---
 
@@ -413,7 +434,7 @@ Restart the backend, then click the **RAG Chat** tab. Ask something like *"What 
 
 ### What you will build
 
-Every message is stored in Couchbase so the model can answer follow-up questions like *"What did I just ask?"*.
+Every message is stored in Couchbase so the model can answer follow-up questions like _"What did I just ask?"_.
 
 ### Step 1 — Create the conversations collection
 
@@ -427,15 +448,23 @@ ON `shared`.`_default`.`conversations`(session_id, timestamp)
 WHERE type = "chat_message";
 ```
 
+Or with `cbsh`:
+
+```
+query 'CREATE COLLECTION `shared`.`_default`.`conversations`;'
+query 'CREATE INDEX idx_conversation_session ON `shared`.`_default`.`conversations`(session_id, timestamp) WHERE type = "chat_message";'
+```
+
 ### Step 2 — Implement `conversation_service.py`
 
 In `backend/services/conversation_service.py`, implement all four functions:
 
 **`add_message`:**
+
 ```python
 async def add_message(session_id: str, content: str, role: str) -> None:
     cluster = _get_cluster()
-    collection = cluster.bucket(BUCKET_NAME()).scope(SCOPE()).collection(COLLECTION())
+    collection = cluster.bucket(BUCKET_NAME).scope(SCOPE).collection(COLLECTION)
     doc = {
         "session_id": session_id,
         "role": role,
@@ -448,12 +477,13 @@ async def add_message(session_id: str, content: str, role: str) -> None:
 ```
 
 **`get_conversation_history`:**
+
 ```python
 async def get_conversation_history(session_id: str, limit: int = 10) -> list[dict]:
     cluster = _get_cluster()
     sql = f"""
         SELECT content, `role`, timestamp
-        FROM `{BUCKET_NAME()}`.`{SCOPE()}`.`{COLLECTION()}`
+        FROM `{BUCKET_NAME}`.`{SCOPE}`.`{COLLECTION}`
         WHERE session_id = $session_id AND type = "chat_message"
         ORDER BY timestamp DESC LIMIT $limit
     """
@@ -464,6 +494,7 @@ async def get_conversation_history(session_id: str, limit: int = 10) -> list[dic
 ```
 
 **`format_conversation_history`:**
+
 ```python
 def format_conversation_history(messages: list[dict]) -> str:
     if not messages:
@@ -475,11 +506,12 @@ def format_conversation_history(messages: list[dict]) -> str:
 ```
 
 **`clear_conversation_history`:**
+
 ```python
 async def clear_conversation_history(session_id: str) -> None:
     cluster = _get_cluster()
     sql = f"""
-        DELETE FROM `{BUCKET_NAME()}`.`{SCOPE()}`.`{COLLECTION()}`
+        DELETE FROM `{BUCKET_NAME}`.`{SCOPE}`.`{COLLECTION}`
         WHERE session_id = $session_id AND type = "chat_message"
     """
     cluster.query(sql, QueryOptions(named_parameters={"session_id": session_id}))
@@ -542,6 +574,8 @@ async def clear_history(body: ClearRequest):
     return {"success": True}
 ```
 
+Now you can try the conversation feature in the RAG chat. For instance tell your name in a first message, and then ask what is your name.
+
 ### Step 5 — Summarize conversation history with Capella AI Functions
 
 Instead of passing raw message history to the prompt, use Couchbase Capella's built-in
@@ -595,7 +629,7 @@ async def summarize_conversation(session_id: str, max_words: int = 150) -> str:
 
 #### Update the `/api/query` route to use the summary
 
-Replace `formatted_history` in the prompt with the summary:
+In `main.py`, replace `formatted_history` in the prompt with the summary:
 
 ```python
 # Replace this:
@@ -612,9 +646,9 @@ The prompt stays compact regardless of how long the conversation grows.
 
 Restart the backend and try in the **RAG Chat** tab:
 
-1. Ask: *"What is the JavaScript Array.map() method?"*
-2. Ask: *"What was my previous question?"*
-3. Ask: *"Can you explain that in simpler terms?"*
+1. Ask: _"What is the JavaScript Array.map() method?"_
+2. Ask: _"What was my previous question?"_
+3. Ask: _"Can you explain that in simpler terms?"_
 
 Check the Capella Query Workbench to see the `ai_summary` function being called.
 
@@ -632,7 +666,8 @@ In Couchbase Capella:
 
 1. Create a new bucket named `semantic_cache`
 2. Inside it, create a collection named `semantic` in the `_default` scope
-3. Create a SQL++ vector index on the collection. In the Capella **Query** tab run:
+3. Create a primary index on this collection
+4. Create a SQL++ vector index on the collection. In the Capella **Query** tab run:
 
 ```sql
 CREATE VECTOR INDEX `semantic_cache_vector_idx`
@@ -644,9 +679,22 @@ WITH {
 }
 ```
 
-> Adjust `"dimension"` to match your embedding model output size (2048 for `nvidia/llama-3.2-nv-embedqa-1b-v2`, 1536 for `text-embedding-3-small`).
+> [!NOTE]
+>
+> 1. Adjust `"dimension"` to match your embedding model output size (2048 for `nvidia/llama-3.2-nv-embedqa-1b-v2`, 1536 for `text-embedding-3-small`).
+> 2. You will most likely have an error due to the absence of existing documents but the index will still be created.
 
-Add to `backend/.env`:
+Or with cbsh:
+
+```
+buckets create semantic_cache 200
+collections create --bucket semantic_cache --scope _default  semantic
+query 'CREATE PRIMARY INDEX ON `default`:`semantic_cache`.`_default`.`semantic`'
+query 'CREATE VECTOR INDEX `semantic_cache_vector_idx` ON `semantic_cache`.`_default`.`semantic`(`vector` VECTOR) WITH {  "dimension": 2048,  "similarity": "L2",  "description": "IVF,SQ8"}'
+```
+
+5. Add to `backend/.env`:
+
 ```env
 CACHE_INDEX=semantic_cache_vector_idx
 ```
@@ -656,6 +704,7 @@ CACHE_INDEX=semantic_cache_vector_idx
 In `backend/services/semantic_cache_service.py`:
 
 **`cache_get`:**
+
 ```python
 async def cache_get(prompt, embedding, llm_signature, similarity_threshold=0.85, k=3):
     cluster = _get_cluster()
@@ -665,12 +714,14 @@ async def cache_get(prompt, embedding, llm_signature, similarity_threshold=0.85,
                    c.llm_signature,
                    c.response,
                    ANN_DISTANCE(c.vector, $embedding, "L2") AS score
-            FROM `{CACHE_BUCKET()}`.`{CACHE_SCOPE()}`.`{CACHE_COLLECTION()}` AS c
-            USE INDEX ({CACHE_INDEX()} USING GSI)
+            FROM `{CACHE_BUCKET}`.`{CACHE_SCOPE}`.`{CACHE_COLLECTION}` AS c
+            USE INDEX (`semantic_cache_idx` USING GSI)
             ORDER BY ANN_DISTANCE(c.vector, $embedding, "L2")
             LIMIT {k}
         """
-        result = cluster.query(sql, QueryOptions(named_parameters={"embedding": embedding}))
+        result = cluster.query(
+            sql, QueryOptions(named_parameters={"embedding": embedding})
+        )
         for row in result.rows():
             # ANN_DISTANCE with L2: lower = more similar, so skip if score is too high
             if row.get("score", 1.0) > similarity_threshold:
@@ -680,16 +731,20 @@ async def cache_get(prompt, embedding, llm_signature, similarity_threshold=0.85,
                 return row["response"]
     except Exception as e:
         print(f"Cache lookup error: {e}")
-    return None
+        return None
 ```
 
 **`cache_put`:**
+
 ```python
 async def cache_put(prompt, embedding, llm_signature, response, ttl_minutes=1440):
     import uuid
     from couchbase.options import UpsertOptions
+
     cluster = _get_cluster()
-    collection = cluster.bucket(CACHE_BUCKET()).scope(CACHE_SCOPE()).collection(CACHE_COLLECTION())
+    collection = (
+        cluster.bucket(CACHE_BUCKET).scope(CACHE_SCOPE).collection(CACHE_COLLECTION)
+    )
     doc = {
         "prompt": prompt,
         "response": response,

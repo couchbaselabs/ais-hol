@@ -54,6 +54,9 @@ class ChatRequest(BaseModel):
     systemPrompt: str | None = None
 
 
+INFERENCE_MODEL = os.environ.get("INFERENCE_MODEL", "gpt-4o-mini")
+
+
 @app.post("/api/chat")
 async def chat(body: ChatRequest):
     """Simple chatbot endpoint — calls OpenAI and returns a JSON response."""
