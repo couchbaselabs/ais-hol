@@ -2,17 +2,17 @@ import os
 import hashlib
 from datetime import timedelta
 from couchbase.cluster import Cluster
-from couchbase.options import ClusterOptions, SearchOptions
+from couchbase.options import ClusterOptions, SearchOptions, QueryOptions
 from couchbase.auth import PasswordAuthenticator
 from couchbase.vector_search import VectorSearch, VectorQuery
 from couchbase.search import SearchRequest
 
 _cluster = None
 
-CACHE_BUCKET = lambda: os.environ.get("CACHE_BUCKET", "semantic_cache")
-CACHE_SCOPE = lambda: os.environ.get("CACHE_SCOPE", "_default")
-CACHE_COLLECTION = lambda: os.environ.get("CACHE_COLLECTION", "semantic")
-CACHE_INDEX = lambda: f"{CACHE_BUCKET()}.{CACHE_SCOPE()}.semantic_cache_idx"
+CACHE_BUCKET = os.environ.get("CACHE_BUCKET", "semantic_cache")
+CACHE_SCOPE = os.environ.get("CACHE_SCOPE", "_default")
+CACHE_COLLECTION = os.environ.get("CACHE_COLLECTION", "semantic")
+CACHE_INDEX = f"{CACHE_BUCKET}.{CACHE_SCOPE}."
 
 
 def _get_cluster() -> Cluster:

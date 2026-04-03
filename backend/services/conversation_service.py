@@ -6,9 +6,9 @@ from couchbase.auth import PasswordAuthenticator
 
 _cluster = None
 
-BUCKET_NAME = lambda: os.environ["COUCHBASE_BUCKET_NAME"]
-SCOPE = lambda: os.environ.get("COUCHBASE_CONVERSATION_SCOPE", "_default")
-COLLECTION = lambda: os.environ.get("COUCHBASE_CONVERSATION_COLLECTION", "conversations")
+BUCKET_NAME = os.environ["COUCHBASE_BUCKET_NAME"]
+SCOPE = os.environ.get("COUCHBASE_CONVERSATION_SCOPE", "_default")
+COLLECTION = os.environ.get("COUCHBASE_CONVERSATION_COLLECTION", "conversations")
 
 
 def _get_cluster() -> Cluster:
