@@ -857,11 +857,8 @@ Initialise the catalog. Run from the **repository root** (where `.git` lives) so
 
 ```bash
 cd /path/to/ais-hol
-AGENT_CATALOG_CONN_ROOT_CERTIFICATE=backend/certificate \
-  backend/.venv/bin/agentc --no-config init --bucket shared
+PYTHONPATH=/workspaces/ais-hol/backend/ agentc init
 ```
-
-> `--no-config` avoids a known conflict between `agentc 1.0.0` and `click-extra` that causes a spurious `ERROR` before the command runs. `AGENT_CATALOG_CONN_ROOT_CERTIFICATE` must be set because the `.env` relative path does not resolve when running from the repo root.
 
 ### Step 2 — Implement math tools and the agent prompt
 
@@ -908,22 +905,24 @@ tools:
 
 ### Step 3 — Index and publish tools and prompts
 
-Run from the **`backend/` directory** after exporting env vars:
+Run from the ** root directory** after exporting env vars:
 
 ```bash
-cd backend
-export $(grep -v '^#' .env | grep -v '^$' | xargs)
-AGENT_CATALOG_CONN_ROOT_CERTIFICATE=/path/to/ais-hol/backend/certificate \
-PYTHONPATH=. \
-  .venv/bin/agentc --no-config index ./agents/
-
-AGENT_CATALOG_CONN_ROOT_CERTIFICATE=/path/to/ais-hol/backend/certificate \
-  .venv/bin/agentc --no-config publish --bucket shared
+export $(grep -v '^#' backend/.env | grep -v '^$' | xargs)
+PYTHONPATH=/workspaces/ais-hol/backend/ agentc index ./backend/agents/prompts/
+PYTHONPATH=/workspaces/ais-hol/backend/ agentc index ./backend/agents/
+PYTHONPATH=/workspaces/ais-hol/backend/ agentc publih
 ```
 
 `PYTHONPATH=.` is required so that `from agents.state import AgentState` resolves when `agentc` imports the tool files. Both tools and prompts are indexed and published in one pass.
 
-> **Important:** `publish` requires a clean git working tree — commit any changes before running it. Re-run `index` then `publish` every time you modify a tool or prompt file.
+> **Important:** `publish` requires a clean git working tree — commit any changes before running it. Re-run `index` then `publish` every time you modify a tool or prompt file. This can be quickly achieve with something like:
+
+```bash
+git checkout -b testbranch # optionaly switch to a new branch
+git add . # adding everything in the repo
+git commit -m"your commit message"
+```
 
 ### Step 4 — Implement the router agent
 
