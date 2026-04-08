@@ -27,15 +27,9 @@ cd ais-hol
 
 # Install Python dependencies (once, covers all exercises)
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-# agentc-cli 1.0.0 declares click-extra<5.0.0, but extra-platforms>=11
-# removed the extra_platforms.platform module that click-extra<5 imports.
-# The fix is to install agentc packages with --no-deps so pip does not
-# enforce the click-extra<5 constraint, then install click-extra>=7.0.0.
-grep -v '^agentc' requirements.txt > /tmp/requirements-no-agentc.txt
-pip install -r /tmp/requirements-no-agentc.txt
-pip install --no-deps agentc agentc-cli agentc-core agentc-langchain agentc-langgraph
+poetry env use 3.13
+eval $(poetry env activate)
+poetry install
 
 # Copy and fill in environment variables
 cp .env.example .env
@@ -848,23 +842,7 @@ User message
      └── math question ──▶ [math_agent] ──▶ response
 ```
 
-### Step 1 — Install new dependencies
-
-Install the new packages using the same two-step approach as the initial setup (required to work around the `agentc-cli` / `click-extra` version conflict):
-
-```bash
-cd backend
-source .venv/bin/activate
-grep -v '^agentc' requirements.txt > /tmp/requirements-no-agentc.txt
-pip install -r /tmp/requirements-no-agentc.txt
-pip install --no-deps agentc agentc-cli agentc-core agentc-langchain agentc-langgraph
-```
-
-> **Always use `backend/.venv/bin/agentc`**, not a bare `agentc` command. A system or user-level `agentc` installation may use an older `click-extra` that crashes with `ModuleNotFoundError: No module named 'extra_platforms.platform'`. The venv has the correct pinned version.
-
-New packages: `langgraph`, `langchain-openai`, `agentc[langgraph]`, `agentc-langchain`.
-
-### Step 2 — Set up the Agent Catalog
+### Step 1 — Set up the Agent Catalog
 
 Add to `backend/.env`:
 
@@ -885,7 +863,7 @@ AGENT_CATALOG_CONN_ROOT_CERTIFICATE=backend/certificate \
 
 > `--no-config` avoids a known conflict between `agentc 1.0.0` and `click-extra` that causes a spurious `ERROR` before the command runs. `AGENT_CATALOG_CONN_ROOT_CERTIFICATE` must be set because the `.env` relative path does not resolve when running from the repo root.
 
-### Step 3 — Implement math tools and the agent prompt
+### Step 2 — Implement math tools and the agent prompt
 
 Open `backend/agents/math_tools.py`. The file defines five functions decorated with `@agentc_tool` (imported from `agentc_core.tool`):
 
@@ -928,7 +906,7 @@ tools:
 
 `agentc index` resolves the `tools` list at index time. At runtime, `catalog.find("prompt", name="math_agent")` returns the prompt with tool functions already attached — no manual `catalog.find("tool", ...)` calls needed.
 
-### Step 4 — Index and publish tools and prompts
+### Step 3 — Index and publish tools and prompts
 
 Run from the **`backend/` directory** after exporting env vars:
 
@@ -947,7 +925,7 @@ AGENT_CATALOG_CONN_ROOT_CERTIFICATE=/path/to/ais-hol/backend/certificate \
 
 > **Important:** `publish` requires a clean git working tree — commit any changes before running it. Re-run `index` then `publish` every time you modify a tool or prompt file.
 
-### Step 5 — Implement the router agent
+### Step 4 — Implement the router agent
 
 Open `backend/agents/router_agent.py`. The router uses an LLM with structured output to classify the message:
 
@@ -962,7 +940,7 @@ class RouterDecision(BaseModel):
 - `"math"` → `Command(goto="math_agent")`
 - `"faq"` → FAQ catalog lookup (Exercise 7)
 
-### Step 6 — Implement the math agent
+### Step 5 — Implement the math agent
 
 Open `backend/agents/math_agent.py`. It extends `agentc_langgraph.ReActAgent`, which fetches the `math_agent` prompt (and its attached tools) from the catalog and wraps each invocation in an agentc `Span` for activity logging:
 
@@ -984,7 +962,7 @@ class MathAgent(agentc_langgraph.agent.ReActAgent):
 
 `create_react_agent(span)` wraps the tool node with `agentc_langgraph.ToolNode` (logs tool results) and attaches a `Callback` to the chat model (logs completions and tool calls).
 
-### Step 7 — Wire the LangGraph graph
+### Step 6 — Wire the LangGraph graph
 
 Open `backend/agents/graph.py`. The graph is wrapped in `agentc_langgraph.GraphRunnable`, which creates a root `Span` and encloses every invocation in it. `catalog` and `span` are injected into the math and FAQ nodes via `functools.partial`:
 
@@ -1001,7 +979,7 @@ class AgentGraph(agentc_langgraph.graph.GraphRunnable):
 agent_graph = AgentGraph(catalog=agentc.Catalog())
 ```
 
-### Step 8 — Add the `/api/agent` endpoint
+### Step 7 — Add the `/api/agent` endpoint
 
 In `backend/main.py` the route is already wired. Note that `previous_node` must be initialised to `None` in the input state — it is used internally by the agentc span logging:
 
@@ -1016,7 +994,7 @@ async def agent(body: AgentRequest):
     }
 ```
 
-### Step 9 — Run and test
+### Step 8 — Run and test
 
 Restart the backend and open the **Agent Chat** tab.
 
@@ -1072,6 +1050,7 @@ For each FAQ PDF:
 Wait for the workflow to complete. Each document in the collection will have `content` and `vector` fields.
 
 > **Rename the vector index after the workflow completes.** The Capella workflow creates a vector index with an auto-generated name. Rename it to `shared.public.<collection_name>_vector_idx` (e.g. `shared.public.hr_policy_vector_idx`) so the `hybrid_faq_search` tool can find it. You can rename it in the Capella Search UI or via `cbsh`:
+>
 > ```
 > search index update shared.public.<auto-generated-name> --new-name shared.public.hr_policy_vector_idx
 > ```
@@ -1183,10 +1162,10 @@ def hybrid_faq_search(query: str, collection_name: str) -> list[dict]:
 
 The tool looks up indexes by a fixed naming convention — **your index names in `cbsh` must match exactly**:
 
-| Index type | Expected name |
-|---|---|
-| Vector | `shared.public.<collection_name>_vector_idx` |
-| FTS | `shared.public.<collection_name>_fts_idx` |
+| Index type | Expected name                                |
+| ---------- | -------------------------------------------- |
+| Vector     | `shared.public.<collection_name>_vector_idx` |
+| FTS        | `shared.public.<collection_name>_fts_idx`    |
 
 The agent's system prompt is declared in `backend/agents/prompts/faq_search_agent.yaml`:
 
