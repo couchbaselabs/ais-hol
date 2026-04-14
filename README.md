@@ -81,12 +81,12 @@ async def generate_response(message: str, system_prompt: str | None = None) -> s
     return completion.choices[0].message.content.strip()
 ```
 
-### Step 4 — Run and test
+### Step 3 — Run and test
 
 ```bash
 # Terminal 1 — backend
 cd backend
-source .venv/bin/activate
+eval $(poetry env activate)
 python main.py
 
 # Terminal 2 — frontend
@@ -812,7 +812,7 @@ Restart the backend and send the same query twice. The second response should be
 ```bash
 # Backend
 cd backend
-source .venv/bin/activate
+eval $(poetry env activate)
 python main.py
 
 # Frontend (separate terminal)
