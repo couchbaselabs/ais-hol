@@ -1,46 +1,28 @@
 .header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 1rem 2rem;
+  padding: 0.6rem 1.5rem 0.5rem;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  flex-shrink: 0;
 }
 
-.header-content h1 {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.header-content p {
-  margin: 0.25rem 0 0 0;
-  font-size: 0.9rem;
-  opacity: 0.9;
-}
-
-.header-content {
+.header-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
+  margin-bottom: 0.5rem;
 }
 
 .header-title h1 {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 1.15rem;
+  font-weight: 700;
 }
 
 .header-title p {
-  margin: 0.25rem 0 0 0;
-  font-size: 0.9rem;
-  opacity: 0.9;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+  margin: 0.1rem 0 0 0;
+  font-size: 0.78rem;
+  opacity: 0.8;
 }
 
 .header-action {
@@ -48,21 +30,46 @@
   align-items: center;
 }
 
+/* Two-row tab layout */
+.header-tab-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tab-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.tab-row-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+  width: 52px;
+  flex-shrink: 0;
+}
+
 .header-tabs {
   display: flex;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.35rem;
 }
 
 .tab-btn {
   background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   color: white;
-  padding: 0.4rem 1rem;
+  padding: 0.25rem 0.75rem;
   border-radius: 20px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   font-weight: 500;
-  transition: background 0.2s, border-color 0.2s;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
 }
 
 .tab-btn:hover {
@@ -73,5 +80,5 @@
   background: white;
   color: #764ba2;
   border-color: white;
-  font-weight: 600;
+  font-weight: 700;
 }

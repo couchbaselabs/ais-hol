@@ -1,0 +1,214 @@
+.prompt-app {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Controls bar */
+.prompt-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem 1.5rem 0.75rem;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.prompt-query-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.prompt-input {
+  flex: 1;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  color: #111827;
+  transition: border-color 0.15s;
+}
+
+.prompt-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+}
+
+.prompt-run-btn {
+  background: #6366f1;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 1.25rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.prompt-run-btn:hover:not(:disabled) { background: #4f46e5; }
+.prompt-run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Preset toggles */
+.preset-toggles {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.toggles-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+  margin-right: 0.25rem;
+}
+
+.preset-toggle {
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.preset-toggle:hover { background: #f3f4f6; }
+.preset-toggle--active { font-weight: 600; }
+
+/* Examples */
+.prompt-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.example-btn {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.78rem;
+  color: #374151;
+  cursor: pointer;
+  font-style: italic;
+  transition: background 0.15s;
+}
+
+.example-btn:hover { background: #f3f4f6; }
+
+/* Results grid */
+.prompt-results {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 3), 1fr);
+  gap: 1rem;
+  padding: 1rem 1.5rem 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Preset card */
+.preset-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-top: 3px solid var(--accent, #6366f1);
+  border-radius: 10px;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.preset-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.preset-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.preset-desc {
+  font-size: 0.72rem;
+  color: #9ca3af;
+  flex: 1;
+  font-style: italic;
+}
+
+.preset-tokens {
+  font-size: 0.68rem;
+  color: #9ca3af;
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+.preset-response {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #111827;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  flex: 1;
+}
+
+.show-prompt-btn {
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.72rem;
+  color: #9ca3af;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: background 0.15s, color 0.15s;
+}
+
+.show-prompt-btn:hover { background: #f9fafb; color: #374151; }
+
+.preset-system-prompt {
+  margin: 0;
+  font-size: 0.75rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.5rem 0.65rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #374151;
+  font-family: monospace;
+}
+
+/* States */
+.prompt-loading,
+.prompt-placeholder {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  text-align: center;
+  padding: 3rem 0;
+}
+
+.prompt-error {
+  font-size: 0.85rem;
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 1.5rem 0;
+}
