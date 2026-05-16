@@ -2,6 +2,35 @@ import React, { useState } from 'react'
 import './InfoPanel.css'
 
 const TAB_INFO = {
+  tokens: {
+    title: 'Token Counter',
+    subtitle: 'Live tokenisation with tiktoken — see exactly what the model reads',
+    color: '#6366f1',
+    icon: '🔤',
+    what: 'LLMs don\'t read text character by character — they read tokens. A token is a chunk of text that the model\'s vocabulary recognises as a unit: sometimes a whole word, sometimes a sub-word, sometimes a single character or punctuation mark. Tiktoken is OpenAI\'s tokeniser library. This tab tokenises any text live, colour-codes each token in the original text, and shows the token ID, decoded text, and raw bytes for every token.',
+    how: [
+      'Text typed → debounced 300 ms → POST /api/tokenise',
+      'Backend loads the correct tiktoken encoding for the selected model',
+      'enc.encode(text) returns a list of integer token IDs',
+      'Each ID decoded back to bytes and UTF-8 text for display',
+      'Context window usage computed: token_count / context_window × 100%',
+      'Estimated input cost: token_count / 1,000,000 × price_per_1M',
+      'Results streamed back; UI updates without a full page reload',
+    ],
+    limitations: [
+      'Different models use different encodings (cl100k_base vs o200k_base) — the same text tokenises differently',
+      'Token count is exact for the selected model\'s encoding; actual API usage may differ slightly for chat messages due to message formatting overhead',
+      'Cost estimates use May 2025 list prices — check OpenAI pricing for current rates',
+      'The highlighted text reconstructs tokens by joining their decoded text, which may differ from the original for multi-byte characters',
+    ],
+    stack: ['tiktoken (OpenAI tokeniser library)', 'FastAPI', 'React debounced live update'],
+    questions: [
+      'Try: "Hello, world!" — how many tokens?',
+      'Try the same word in English vs French vs Japanese',
+      'Try a code snippet — notice how indentation tokenises',
+      'Try numbers: 1234 vs 1,234 vs $1,234.56',
+    ],
+  },
   embeddings: {
     title: 'Embeddings Explorer',
     subtitle: 'Visualise semantic similarity and 2-D PCA projections of text embeddings',

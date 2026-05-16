@@ -68,6 +68,113 @@ async def chat(body: ChatRequest):
 
 
 # ---------------------------------------------------------------------------
+# Demo: Token Counter
+# ---------------------------------------------------------------------------
+
+# Encoding names for common OpenAI models
+_MODEL_ENCODINGS = {
+    "gpt-4o":              "o200k_base",
+    "gpt-4o-mini":         "o200k_base",
+    "gpt-4":               "cl100k_base",
+    "gpt-4-turbo":         "cl100k_base",
+    "gpt-3.5-turbo":       "cl100k_base",
+    "text-embedding-3-small": "cl100k_base",
+    "text-embedding-3-large": "cl100k_base",
+    "text-embedding-ada-002": "cl100k_base",
+}
+
+# Context-window sizes (input tokens) for reference
+_MODEL_CONTEXT = {
+    "gpt-4o":              128_000,
+    "gpt-4o-mini":         128_000,
+    "gpt-4":                 8_192,
+    "gpt-4-turbo":         128_000,
+    "gpt-3.5-turbo":        16_385,
+    "text-embedding-3-small": 8_191,
+    "text-embedding-3-large": 8_191,
+    "text-embedding-ada-002": 8_191,
+}
+
+# Approximate cost per 1 M tokens (input / output) in USD, May 2025
+_MODEL_COST = {
+    "gpt-4o":          (2.50, 10.00),
+    "gpt-4o-mini":     (0.15,  0.60),
+    "gpt-4":          (30.00, 60.00),
+    "gpt-4-turbo":    (10.00, 30.00),
+    "gpt-3.5-turbo":   (0.50,  1.50),
+    "text-embedding-3-small": (0.02, 0.00),
+    "text-embedding-3-large": (0.13, 0.00),
+    "text-embedding-ada-002": (0.10, 0.00),
+}
+
+
+class TokeniseRequest(BaseModel):
+    text: str
+    model: str = "gpt-4o-mini"
+
+
+@app.post("/api/tokenise")
+async def tokenise(body: TokeniseRequest):
+    """Tokenise text with tiktoken and return per-token detail.
+
+    Returns:
+    - The list of tokens with their IDs, decoded bytes, and display text
+    - Total token count
+    - Character count and char-per-token ratio
+    - Context window size for the requested model
+    - Estimated cost for this text as input (and output if applicable)
+    """
+    import tiktoken
+
+    if not body.text:
+        raise HTTPException(status_code=400, detail="Text is required.")
+
+    model = body.model if body.model in _MODEL_ENCODINGS else "gpt-4o-mini"
+    encoding_name = _MODEL_ENCODINGS[model]
+
+    try:
+        enc = tiktoken.get_encoding(encoding_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Encoding error: {e}")
+
+    token_ids = enc.encode(body.text)
+
+    tokens = []
+    for tid in token_ids:
+        raw_bytes = enc.decode_single_token_bytes(tid)
+        try:
+            display = raw_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            display = repr(raw_bytes)
+        tokens.append({
+            "id": tid,
+            "bytes": list(raw_bytes),
+            "text": display,
+        })
+
+    n_tokens = len(token_ids)
+    n_chars = len(body.text)
+    context = _MODEL_CONTEXT.get(model, 0)
+    cost_in, cost_out = _MODEL_COST.get(model, (0.0, 0.0))
+    cost_estimate_input = round((n_tokens / 1_000_000) * cost_in, 6)
+
+    return {
+        "model": model,
+        "encoding": encoding_name,
+        "token_count": n_tokens,
+        "char_count": n_chars,
+        "chars_per_token": round(n_chars / n_tokens, 2) if n_tokens else 0,
+        "context_window": context,
+        "context_used_pct": round((n_tokens / context) * 100, 2) if context else 0,
+        "cost_per_1m_input": cost_in,
+        "cost_per_1m_output": cost_out,
+        "cost_estimate_input_usd": cost_estimate_input,
+        "tokens": tokens,
+        "available_models": list(_MODEL_ENCODINGS.keys()),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Demo: Embeddings Explorer
 # ---------------------------------------------------------------------------
 

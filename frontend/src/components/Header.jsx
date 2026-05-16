@@ -18,6 +18,7 @@ const CONCEPT_TABS = [
   { id: 'hyde',       label: '💡 HyDE' },
   { id: 'evaluate',   label: '⚖️ LLM-as-Judge' },
   { id: 'summarise',  label: '📄 Summarisation' },
+  { id: 'tokens',     label: '🔤 Token Counter' },
 ]
 
 const Header = ({ activeTab, onTabChange, action }) => {

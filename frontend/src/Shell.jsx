@@ -14,6 +14,7 @@ import AppEmbeddings from './AppEmbeddings'
 import AppChatHyde from './AppChatHyde'
 import AppChatEvaluate from './AppChatEvaluate'
 import AppSummarise from './AppSummarise'
+import AppTokens from './AppTokens'
 
 function Shell() {
   const [activeTab, setActiveTab] = useState('chat')
@@ -36,6 +37,7 @@ function Shell() {
         {activeTab === 'hyde'       && <AppChatHyde       key="hyde"       />}
         {activeTab === 'evaluate'   && <AppChatEvaluate   key="evaluate"   />}
         {activeTab === 'summarise'  && <AppSummarise      key="summarise"  />}
+        {activeTab === 'tokens'     && <AppTokens         key="tokens"     />}
         <InfoPanel tab={activeTab} />
       </div>
     </div>
