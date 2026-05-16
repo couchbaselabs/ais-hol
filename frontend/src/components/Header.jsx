@@ -6,8 +6,8 @@ const Header = ({ activeTab, onTabChange, action }) => {
     <header className="header">
       <div className="header-content">
         <div className="header-title">
-          <h1>AI Workshop</h1>
-          <p>Powered by Couchbase &amp; OpenAI</p>
+          <h1>AI Services Demo</h1>
+          <p>Couchbase · OpenAI · LangGraph — three approaches compared</p>
         </div>
         <div className="header-right">
           {onTabChange && (
@@ -16,19 +16,19 @@ const Header = ({ activeTab, onTabChange, action }) => {
                 className={`tab-btn ${activeTab === 'chat' ? 'tab-btn--active' : ''}`}
                 onClick={() => onTabChange('chat')}
               >
-                Simple Chat
+                💬 Simple Chat
               </button>
               <button
                 className={`tab-btn ${activeTab === 'rag' ? 'tab-btn--active' : ''}`}
                 onClick={() => onTabChange('rag')}
               >
-                RAG Chat
+                🔍 RAG Chat
               </button>
               <button
                 className={`tab-btn ${activeTab === 'agent' ? 'tab-btn--active' : ''}`}
                 onClick={() => onTabChange('agent')}
               >
-                Agent Chat
+                🤖 Multi-Agent
               </button>
             </nav>
           )}
