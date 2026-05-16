@@ -14,6 +14,10 @@ const CONCEPT_TABS = [
   { id: 'structured', label: '🧩 Structured Output' },
   { id: 'rerank',     label: '📊 Reranking' },
   { id: 'prompt',     label: '✏️ Prompt Engineering' },
+  { id: 'embeddings', label: '🔢 Embeddings' },
+  { id: 'hyde',       label: '💡 HyDE' },
+  { id: 'evaluate',   label: '⚖️ LLM-as-Judge' },
+  { id: 'summarise',  label: '📄 Summarisation' },
 ]
 
 const Header = ({ activeTab, onTabChange, action }) => {

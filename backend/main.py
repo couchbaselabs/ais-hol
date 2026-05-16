@@ -68,6 +68,377 @@ async def chat(body: ChatRequest):
 
 
 # ---------------------------------------------------------------------------
+# Demo: Embeddings Explorer
+# ---------------------------------------------------------------------------
+
+
+class EmbeddingsCompareRequest(BaseModel):
+    phrases: list[str]  # 2–8 phrases to embed and compare
+
+
+@app.post("/api/embeddings-compare")
+async def embeddings_compare(body: EmbeddingsCompareRequest):
+    """Embed multiple phrases and return pairwise cosine similarities.
+
+    Also returns the raw embedding dimension and a 2-D PCA projection
+    (computed server-side) so the UI can plot the phrases in 2-D space.
+    """
+    import asyncio
+    import math
+
+    phrases = body.phrases[:8]  # cap at 8
+    if len(phrases) < 2:
+        raise HTTPException(status_code=400, detail="At least 2 phrases required.")
+
+    # Embed all phrases in parallel
+    embeddings = await asyncio.gather(*[get_embedding(p) for p in phrases])
+
+    def cosine(a: list[float], b: list[float]) -> float:
+        dot = sum(x * y for x, y in zip(a, b))
+        na = math.sqrt(sum(x * x for x in a))
+        nb = math.sqrt(sum(x * x for x in b))
+        return round(dot / (na * nb + 1e-10), 4)
+
+    # Pairwise similarity matrix
+    n = len(phrases)
+    matrix = [[cosine(embeddings[i], embeddings[j]) for j in range(n)] for i in range(n)]
+
+    # Naive 2-D PCA (power iteration, no numpy dependency)
+    def pca_2d(vecs):
+        k = len(vecs)
+        d = len(vecs[0])
+        # Centre
+        mean = [sum(v[i] for v in vecs) / k for i in range(d)]
+        centred = [[v[i] - mean[i] for i in range(d)] for v in vecs]
+
+        def dot_vv(a, b): return sum(x * y for x, y in zip(a, b))
+        def scale(v, s): return [x * s for x in v]
+        def add_vv(a, b): return [x + y for x, y in zip(a, b)]
+        def norm(v): return math.sqrt(dot_vv(v, v)) + 1e-10
+
+        # Power iteration for first two principal components
+        components = []
+        residual = [row[:] for row in centred]
+        for _ in range(2):
+            # Random-ish init using first residual vector
+            pc = residual[0][:]
+            for _iter in range(20):
+                # Project all residuals onto pc, accumulate
+                new_pc = [0.0] * d
+                for row in residual:
+                    s = dot_vv(row, pc)
+                    new_pc = add_vv(new_pc, scale(row, s))
+                n_ = norm(new_pc)
+                pc = scale(new_pc, 1.0 / n_)
+            components.append(pc)
+            # Deflate
+            residual = [
+                [row[i] - dot_vv(row, pc) * pc[i] for i in range(d)]
+                for row in residual
+            ]
+
+        # Project
+        points = [
+            [round(dot_vv(centred[i], components[0]), 4),
+             round(dot_vv(centred[i], components[1]), 4)]
+            for i in range(k)
+        ]
+        return points
+
+    points_2d = pca_2d(embeddings)
+
+    return {
+        "phrases": phrases,
+        "dimension": len(embeddings[0]),
+        "similarity_matrix": matrix,
+        "points_2d": points_2d,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Demo: HyDE (Hypothetical Document Embedding)
+# ---------------------------------------------------------------------------
+
+
+class HydeRequest(BaseModel):
+    q: str
+
+
+@app.post("/api/chat-hyde")
+async def chat_hyde(body: HydeRequest):
+    """RAG with HyDE: embed a hypothetical answer instead of the raw query.
+
+    Standard RAG embeds the user's question and searches for similar documents.
+    HyDE first asks the LLM to write a short hypothetical answer, then embeds
+    that answer for retrieval. Because the hypothetical answer uses the same
+    vocabulary and style as real documents, it often retrieves better results.
+
+    Returns both the standard retrieval and the HyDE retrieval so the UI can
+    compare them side by side.
+    """
+    if not body.q or not body.q.strip():
+        raise HTTPException(status_code=400, detail="Query is required.")
+
+    from openai import AsyncOpenAI
+    import asyncio
+
+    client = AsyncOpenAI(
+        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
+        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
+    )
+
+    # Step 1: generate hypothetical answer
+    hyp_completion = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "Write a short, factual paragraph (3–5 sentences) that directly answers "
+                    "the question as if it were a documentation excerpt. "
+                    "Do not say 'I' or reference yourself. Write in third person, present tense."
+                ),
+            },
+            {"role": "user", "content": body.q},
+        ],
+        temperature=0.3,
+        max_tokens=200,
+    )
+    hypothetical_doc = hyp_completion.choices[0].message.content.strip()
+
+    # Step 2: embed both query and hypothetical doc, retrieve in parallel
+    query_emb, hyde_emb = await asyncio.gather(
+        get_embedding(body.q),
+        get_embedding(hypothetical_doc),
+    )
+
+    standard_docs, hyde_docs = await asyncio.gather(
+        get_relevant_documents(query_emb),
+        get_relevant_documents(hyde_emb),
+    )
+
+    # Step 3: generate answer from HyDE-retrieved docs
+    context = "\n\n".join(
+        f"[{d['filepath']}]\n{d['content']}" for d in hyde_docs
+    )
+    answer_completion = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[
+            {"role": "system", "content": "Answer using only the provided documents. Be concise."},
+            {"role": "user", "content": f"Documents:\n{context}\n\nQuestion: {body.q}"},
+        ],
+        temperature=0.7,
+    )
+    answer = answer_completion.choices[0].message.content.strip()
+
+    def fmt_docs(docs):
+        return [{"id": d["id"], "filepath": d["filepath"],
+                 "content": d["content"], "score": round(d["score"], 4)} for d in docs]
+
+    return {
+        "query": body.q,
+        "hypothetical_doc": hypothetical_doc,
+        "standard_docs": fmt_docs(standard_docs),
+        "hyde_docs": fmt_docs(hyde_docs),
+        "answer": answer,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Demo: LLM-as-Judge (RAG evaluation)
+# ---------------------------------------------------------------------------
+
+
+class EvaluateRequest(BaseModel):
+    q: str
+
+
+@app.post("/api/chat-evaluate")
+async def chat_evaluate(body: EvaluateRequest):
+    """RAG answer generation followed by LLM-as-Judge evaluation.
+
+    Step 1: embed query, retrieve docs, generate answer (standard RAG).
+    Step 2: ask a second LLM call to score the answer on three dimensions:
+      - faithfulness: is every claim in the answer supported by the retrieved docs?
+      - relevance:    does the answer actually address the question?
+      - completeness: does the answer cover all key aspects of the question?
+    Returns the answer, the retrieved docs, and the evaluation scores with reasoning.
+    """
+    if not body.q or not body.q.strip():
+        raise HTTPException(status_code=400, detail="Query is required.")
+
+    import json as _json
+    from openai import AsyncOpenAI
+
+    client = AsyncOpenAI(
+        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
+        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
+    )
+
+    # Step 1: RAG
+    embedding = await get_embedding(body.q)
+    docs = await get_relevant_documents(embedding)
+    context = "\n\n".join(
+        f"[Doc {i+1} — {d['filepath']}]\n{d['content']}" for i, d in enumerate(docs)
+    )
+    answer_completion = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[
+            {"role": "system", "content": "Answer using only the provided documents. Be concise and factual."},
+            {"role": "user", "content": f"Documents:\n{context}\n\nQuestion: {body.q}"},
+        ],
+        temperature=0.7,
+    )
+    answer = answer_completion.choices[0].message.content.strip()
+
+    # Step 2: evaluate
+    eval_prompt = (
+        f"You are an impartial evaluator of RAG (Retrieval-Augmented Generation) systems.\n\n"
+        f"QUESTION: {body.q}\n\n"
+        f"RETRIEVED DOCUMENTS:\n{context}\n\n"
+        f"GENERATED ANSWER:\n{answer}\n\n"
+        "Score the answer on three dimensions, each from 1 to 5:\n"
+        "- faithfulness (1–5): every claim is supported by the documents (5 = fully grounded, 1 = hallucinated)\n"
+        "- relevance (1–5): the answer addresses the question (5 = directly answers, 1 = off-topic)\n"
+        "- completeness (1–5): all key aspects of the question are covered (5 = thorough, 1 = missing most)\n\n"
+        "Return a JSON object with keys: faithfulness, relevance, completeness (each an int 1–5), "
+        "and reasoning (a string explaining each score in 1–2 sentences per dimension).\n"
+        "Return only valid JSON."
+    )
+    eval_completion = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[
+            {"role": "system", "content": "You are a strict but fair RAG evaluator. Return only valid JSON."},
+            {"role": "user", "content": eval_prompt},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0,
+    )
+    raw = eval_completion.choices[0].message.content.strip()
+    try:
+        evaluation = _json.loads(raw)
+    except Exception:
+        evaluation = {"parse_error": True, "raw": raw}
+
+    return {
+        "query": body.q,
+        "answer": answer,
+        "docs": [{"id": d["id"], "filepath": d["filepath"],
+                  "content": d["content"], "score": round(d["score"], 4)} for d in docs],
+        "evaluation": evaluation,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Demo: Long-context Summarisation (map-reduce)
+# ---------------------------------------------------------------------------
+
+_CHUNK_SIZE = 800   # words per chunk
+_CHUNK_OVERLAP = 50
+
+
+def _split_into_chunks(text: str, chunk_size: int = _CHUNK_SIZE, overlap: int = _CHUNK_OVERLAP) -> list[str]:
+    words = text.split()
+    chunks, i = [], 0
+    while i < len(words):
+        chunks.append(" ".join(words[i: i + chunk_size]))
+        i += chunk_size - overlap
+    return chunks
+
+
+class SummariseRequest(BaseModel):
+    text: str
+    focus: str | None = None   # optional focus instruction
+
+
+@app.post("/api/summarise")
+async def summarise(body: SummariseRequest):
+    """Map-reduce summarisation for long documents.
+
+    Step 1 (Map): split the text into overlapping chunks and summarise each
+                  chunk independently in parallel.
+    Step 2 (Reduce): combine all chunk summaries into a single final summary.
+
+    Returns the chunk summaries and the final summary so the UI can show
+    the full map-reduce pipeline.
+    """
+    if not body.text or not body.text.strip():
+        raise HTTPException(status_code=400, detail="Text is required.")
+
+    import asyncio
+    from openai import AsyncOpenAI
+
+    client = AsyncOpenAI(
+        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
+        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
+    )
+
+    focus_clause = f" Focus on: {body.focus}." if body.focus else ""
+    chunks = _split_into_chunks(body.text)
+
+    # Map: summarise each chunk
+    async def summarise_chunk(i: int, chunk: str) -> dict:
+        completion = await client.chat.completions.create(
+            model=INFERENCE_MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        f"Summarise the following text excerpt in 2–4 sentences.{focus_clause} "
+                        "Be concise and preserve key facts."
+                    ),
+                },
+                {"role": "user", "content": chunk},
+            ],
+            temperature=0.3,
+            max_tokens=200,
+        )
+        return {
+            "index": i,
+            "word_count": len(chunk.split()),
+            "summary": completion.choices[0].message.content.strip(),
+            "tokens": completion.usage.completion_tokens,
+        }
+
+    chunk_results = await asyncio.gather(*[summarise_chunk(i, c) for i, c in enumerate(chunks)])
+    chunk_results = sorted(chunk_results, key=lambda x: x["index"])
+
+    # Reduce: combine chunk summaries
+    combined = "\n\n".join(f"Part {r['index']+1}: {r['summary']}" for r in chunk_results)
+    reduce_completion = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    f"You are given summaries of consecutive parts of a document.{focus_clause} "
+                    "Write a single coherent summary of the whole document in 3–6 sentences."
+                ),
+            },
+            {"role": "user", "content": combined},
+        ],
+        temperature=0.3,
+        max_tokens=400,
+    )
+    final_summary = reduce_completion.choices[0].message.content.strip()
+
+    total_words = len(body.text.split())
+    total_tokens = sum(r["tokens"] for r in chunk_results) + reduce_completion.usage.completion_tokens
+
+    return {
+        "total_words": total_words,
+        "num_chunks": len(chunks),
+        "chunk_summaries": chunk_results,
+        "final_summary": final_summary,
+        "total_tokens_used": total_tokens,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Demo: Streaming Chat
 # ---------------------------------------------------------------------------
 
