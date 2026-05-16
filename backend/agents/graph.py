@@ -23,6 +23,7 @@ from agents.state import AgentState
 from agents.router_agent import router_node
 from agents.math_agent import math_agent_node
 from agents.faq_search_agent import faq_search_agent_node
+from agents.rag_agent import rag_agent_node
 
 
 class AgentGraph(agentc_langgraph.graph.GraphRunnable):
@@ -37,7 +38,7 @@ class AgentGraph(agentc_langgraph.graph.GraphRunnable):
         # router_node has no catalog/span dependency — add as-is.
         builder.add_node("router", router_node)
 
-        # math and FAQ nodes receive catalog + span via partial injection.
+        # Specialised agent nodes receive catalog + span via partial injection.
         builder.add_node(
             "math_agent",
             functools.partial(math_agent_node, catalog=catalog, span=span),
@@ -45,6 +46,10 @@ class AgentGraph(agentc_langgraph.graph.GraphRunnable):
         builder.add_node(
             "faq_search_agent",
             functools.partial(faq_search_agent_node, catalog=catalog, span=span),
+        )
+        builder.add_node(
+            "rag_agent",
+            functools.partial(rag_agent_node, catalog=catalog, span=span),
         )
 
         builder.set_entry_point("router")

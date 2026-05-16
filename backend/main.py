@@ -304,30 +304,59 @@ async def clear_history(body: ClearRequest):
 
 class AgentRequest(BaseModel):
     message: str
+    session_id: str | None = None
 
 
 @app.post("/api/agent")
 async def agent(body: AgentRequest):
-    """Multi-agent endpoint — routes to math agent or FAQ search agent.
+    """Multi-agent endpoint — routes to math, RAG, or FAQ search agent.
 
-    Exercise 6: router classifies the message; math questions go to the
-                math agent, general questions are answered directly.
-    Exercise 7: FAQ questions are matched against the FAQ catalog via
-                vector similarity and routed to the FAQ search agent.
-                When no FAQ matches, an informative message is returned.
+    Routes:
+      direct         — router answers from general knowledge
+      math           — math agent with arithmetic tools
+      rag            — RAG agent searches MDN documentation
+      faq            — FAQ search agent with hybrid vector + FTS search
+      faq_missing    — no matching FAQ collection found
+
+    Conversation history is stored in Couchbase and injected into each
+    agent invocation so agents can reference prior turns.
+    Trace steps (route decision, tool calls, tool results) are returned
+    alongside the final answer for display in the UI.
     """
     if not body.message or not body.message.strip():
         raise HTTPException(status_code=400, detail="Message is required.")
 
     from agents.graph import agent_graph
 
-    result = await agent_graph.ainvoke({"message": body.message, "previous_node": None})
+    session_id = body.session_id or "agent-default-session"
+
+    # Load conversation history for memory
+    raw_history = await get_conversation_history(session_id, limit=10)
+    conversation_history = [
+        (m["role"], m["content"]) for m in raw_history
+    ]
+
+    # Store user message
+    await add_message(session_id, body.message, "user")
+
+    result = await agent_graph.ainvoke({
+        "message": body.message,
+        "conversation_history": conversation_history,
+        "trace_steps": [],
+        "previous_node": None,
+    })
+
+    answer = result.get("answer", "")
+
+    # Store assistant response
+    await add_message(session_id, answer, "assistant")
 
     return {
-        "response": result.get("answer", ""),
+        "response": answer,
         "routed_to": result.get("routed_to", "router"),
         "faq_collection": result.get("faq_collection"),
         "missing_topic": result.get("missing_topic"),
+        "trace_steps": result.get("trace_steps") or [],
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 

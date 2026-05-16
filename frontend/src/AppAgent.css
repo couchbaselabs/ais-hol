@@ -1,0 +1,101 @@
+/* ── Routing badges ─────────────────────────────────────────────────────── */
+
+.badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+}
+
+.badge--router  { background: #e0e7ff; color: #3730a3; border: 1px solid #a5b4fc; }
+.badge--math    { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+.badge--faq     { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.badge--rag     { background: #e0f2fe; color: #0c4a6e; border: 1px solid #7dd3fc; }
+.badge--missing { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+/* ── Reasoning trace panel ──────────────────────────────────────────────── */
+
+.trace-panel {
+  margin-top: 0.5rem;
+}
+
+.trace-toggle {
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.72rem;
+  color: #6b7280;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.trace-toggle:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.trace-body {
+  margin-top: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  border-left: 2px solid #e5e7eb;
+  padding-left: 0.75rem;
+}
+
+/* Individual step types */
+
+.trace-step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.trace-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+}
+
+.trace-value {
+  font-size: 0.78rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.trace-step--route .trace-value {
+  color: #7c3aed;
+  font-weight: 600;
+}
+
+.trace-step--tool-call .trace-label { color: #d97706; }
+.trace-step--tool-result .trace-label { color: #059669; }
+.trace-step--thought .trace-label { color: #6366f1; }
+
+.trace-pre {
+  margin: 0;
+  font-size: 0.72rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #374151;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.trace-text {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #374151;
+  line-height: 1.5;
+  font-style: italic;
+}
