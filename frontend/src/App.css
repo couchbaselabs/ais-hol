@@ -5,3 +5,39 @@
   background-color: #f5f5f5;
   overflow: hidden;
 }
+
+.app-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.toolbar-btn {
+  padding: 0.3rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.toolbar-btn--danger {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+
+.toolbar-btn--danger:hover {
+  background: #fecaca;
+}
+
+.toolbar-session {
+  font-size: 0.72rem;
+  color: #9ca3af;
+  font-family: monospace;
+}

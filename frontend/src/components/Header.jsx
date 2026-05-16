@@ -19,10 +19,22 @@ const Header = ({ activeTab, onTabChange, action }) => {
                 💬 Simple Chat
               </button>
               <button
+                className={`tab-btn ${activeTab === 'cached' ? 'tab-btn--active' : ''}`}
+                onClick={() => onTabChange('cached')}
+              >
+                ⚡ + Cache
+              </button>
+              <button
+                className={`tab-btn ${activeTab === 'history' ? 'tab-btn--active' : ''}`}
+                onClick={() => onTabChange('history')}
+              >
+                🧠 + Memory
+              </button>
+              <button
                 className={`tab-btn ${activeTab === 'rag' ? 'tab-btn--active' : ''}`}
                 onClick={() => onTabChange('rag')}
               >
-                🔍 RAG Chat
+                🔍 + RAG
               </button>
               <button
                 className={`tab-btn ${activeTab === 'agent' ? 'tab-btn--active' : ''}`}

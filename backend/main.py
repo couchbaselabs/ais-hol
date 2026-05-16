@@ -68,6 +68,150 @@ async def chat(body: ChatRequest):
 
 
 # ---------------------------------------------------------------------------
+# Demo: Simple Chat + Semantic Cache
+# ---------------------------------------------------------------------------
+
+
+class CachedChatRequest(BaseModel):
+    message: str
+    systemPrompt: str | None = None
+
+
+@app.post("/api/chat-cached")
+async def chat_cached(body: CachedChatRequest):
+    """Simple chat with semantic cache — returns JSON with cache_hit flag."""
+    if not body.message or not body.message.strip():
+        raise HTTPException(status_code=400, detail="Message is required.")
+
+    system_prompt = body.systemPrompt or "You are a helpful AI assistant. Be concise and friendly."
+    llm_sig = create_llm_signature(INFERENCE_MODEL, 0.7, 1000, system_prompt)
+    embedding = await get_embedding(body.message)
+
+    cached = await cache_get(body.message, embedding, llm_sig)
+    if cached:
+        return {
+            "response": cached,
+            "cache_hit": True,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+    response = await generate_response(body.message, system_prompt)
+    await cache_put(body.message, embedding, llm_sig, response)
+    return {
+        "response": response,
+        "cache_hit": False,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Demo: Simple Chat + Cache + Conversation History
+# ---------------------------------------------------------------------------
+
+
+class HistoryChatRequest(BaseModel):
+    message: str
+    session_id: str | None = None
+    systemPrompt: str | None = None
+
+
+@app.post("/api/chat-history")
+async def chat_history(body: HistoryChatRequest):
+    """Chat with semantic cache and Couchbase conversation history."""
+    if not body.message or not body.message.strip():
+        raise HTTPException(status_code=400, detail="Message is required.")
+
+    session_id = body.session_id or "default-session"
+    system_prompt = body.systemPrompt or "You are a helpful AI assistant. Be concise and friendly."
+    llm_sig = create_llm_signature(INFERENCE_MODEL, 0.7, 1000, system_prompt)
+    embedding = await get_embedding(body.message)
+
+    cached = await cache_get(body.message, embedding, llm_sig)
+    if cached:
+        return {
+            "response": cached,
+            "cache_hit": True,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+    await add_message(session_id, body.message, "user")
+    history = await get_conversation_history(session_id)
+    formatted = format_conversation_history(history)
+
+    prompt = (
+        f"{system_prompt}\n\n"
+        f"CONVERSATION HISTORY:\n{formatted}\n\n"
+        f"CURRENT MESSAGE: {body.message}"
+    )
+    response = await generate_response(prompt)
+    await add_message(session_id, response, "assistant")
+    await cache_put(body.message, embedding, llm_sig, response)
+
+    return {
+        "response": response,
+        "cache_hit": False,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Demo: Simple Chat + Cache + Conversation + RAG (streaming)
+# ---------------------------------------------------------------------------
+
+
+class RagChatRequest(BaseModel):
+    message: str
+    session_id: str | None = None
+
+
+@app.post("/api/chat-rag")
+async def chat_rag(body: RagChatRequest):
+    """RAG chat with cache and conversation history — streams the response."""
+    if not body.message or not body.message.strip():
+        raise HTTPException(status_code=400, detail="Message is required.")
+
+    session_id = body.session_id or "default-session"
+    llm_sig = create_llm_signature(INFERENCE_MODEL, 0.7, 1000, "MDN expert")
+    embedding = await get_embedding(body.message)
+
+    cached = await cache_get(body.message, embedding, llm_sig)
+    if cached:
+        async def from_cache():
+            yield cached
+        return StreamingResponse(from_cache(), media_type="text/plain; charset=utf-8",
+                                 headers={"X-Cache-Hit": "true"})
+
+    await add_message(session_id, body.message, "user")
+    formatted_history = await summarize_conversation(session_id)
+    documents = await get_relevant_documents(embedding)
+
+    document_list = "\n\n".join(
+        f"Document {i+1}:\n  ID: {doc['id']}\n  Filepath: {doc['filepath']}\n  Score: {doc['score']}\n  Content: {doc['content']}"
+        for i, doc in enumerate(documents)
+    )
+    prompt = (
+        "You are a Web MDN Documentation expert with access to conversation history.\n\n"
+        f"CONVERSATION SUMMARY:\n{formatted_history}\n\n"
+        f"RELEVANT DOCUMENTS:\n{document_list}\n\n"
+        f"CURRENT QUERY: {body.message}\n\n"
+        "Answer using the documents and history. Reference document IDs and filepaths where relevant."
+    )
+
+    async def generate_and_store():
+        full_response = ""
+        async for token in stream_completion(prompt):
+            full_response += token
+            yield token
+        await add_message(session_id, full_response, "assistant")
+        await cache_put(body.message, embedding, llm_sig, full_response)
+
+    return StreamingResponse(
+        generate_and_store(), media_type="text/plain; charset=utf-8",
+        headers={"X-Cache-Hit": "false"}
+    )
+
+
+# ---------------------------------------------------------------------------
 # Exercise 3 — RAG query
 # ---------------------------------------------------------------------------
 
