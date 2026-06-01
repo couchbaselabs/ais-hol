@@ -905,6 +905,33 @@ async def generate_and_store():
 return StreamingResponse(generate_and_store(), media_type="text/plain")`,
       },
       {
+        title: 'backend/services/couchbase_service.py — ANN vector search',
+        language: 'python',
+        code: `async def get_relevant_documents(embedding: list[float]) -> list[dict]:
+    """SQL++ VECTOR INDEX query — must use ORDER BY ANN_DISTANCE(),
+    not the FTS API, because the index is a GSI vector index."""
+    sql = f"""
+        SELECT META(d).id AS id,
+               d.filepath,
+               d.content,
+               ANN_DISTANCE(d.vector, $embedding, "L2") AS score
+        FROM \`{bucket_name}\`.\`{SCOPE_NAME}\`.documentation AS d
+        USE INDEX ({index_name} USING GSI)
+        ORDER BY ANN_DISTANCE(d.vector, $embedding, "L2")
+        LIMIT 4
+    """
+    result = cluster.query(
+        sql,
+        QueryOptions(named_parameters={"embedding": embedding}),
+    )
+    return [
+        {"id": r["id"], "filepath": r["filepath"],
+         "content": r["content"], "score": r["score"]}
+        for r in result.rows()
+    ]
+# score is L2 distance — lower = more similar`,
+      },
+      {
         title: 'backend/services/couchbase_service.py — Capella ai_summary()',
         language: 'python',
         code: `async def summarize_conversation(session_id: str) -> str:
@@ -922,10 +949,7 @@ return StreamingResponse(generate_and_store(), media_type="text/plain")`,
         QueryOptions(positional_parameters=[session_id]),
     )
     rows = [r for r in result.rows()]
-    return rows[0] if rows else ""
-
-# The summary is injected into the RAG prompt:
-# "HISTORY SUMMARY:\\n{summary}\\n\\nDOCUMENTS:\\n{docs}\\n\\nQUESTION: {q}"`,
+    return rows[0] if rows else ""`,
       },
     ],
   },
