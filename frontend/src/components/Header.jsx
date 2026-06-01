@@ -67,7 +67,7 @@ const Header = ({ activeTab, onTabChange, action }) => {
             </nav>
           </div>
           <div className="tab-row">
-            <span className="tab-row-label">Capella AI</span>
+            <span className="tab-row-label">Capella AI Functions</span>
             <nav className="header-tabs">
               {CAPELLA_TABS.map(t => (
                 <button
