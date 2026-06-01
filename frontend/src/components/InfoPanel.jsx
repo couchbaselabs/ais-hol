@@ -50,31 +50,26 @@ for tid in token_ids:
 # id=0    bytes=[100, 33]                  text='d!'`,
       },
       {
-        title: 'frontend — debounced live update',
-        language: 'jsx',
-        code: `// Debounce prevents a request on every keystroke
-function useDebounce(value, delay) {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay)
-    return () => clearTimeout(t)   // cancel on next keystroke
-  }, [value, delay])
-  return debounced
+        title: 'backend/main.py — model encoding map',
+        language: 'python',
+        code: `# Different models use different BPE vocabularies
+MODEL_ENCODINGS = {
+    "gpt-4o":          "o200k_base",   # 200k token vocabulary
+    "gpt-4o-mini":     "o200k_base",
+    "gpt-4":           "cl100k_base",  # 100k token vocabulary
+    "gpt-3.5-turbo":   "cl100k_base",
+    "text-davinci-003":"p50k_base",    # legacy
 }
 
-// AbortController cancels in-flight requests when text changes
-const abortRef = useRef(null)
-const tokenise = async (text) => {
-  if (abortRef.current) abortRef.current.abort()
-  const ctrl = new AbortController()
-  abortRef.current = ctrl
-  const res = await fetch('/api/tokenise', {
-    method: 'POST',
-    body: JSON.stringify({ text, model }),
-    signal: ctrl.signal,
-  })
-  setResult(await res.json())
-}`,
+enc = tiktoken.get_encoding(
+    MODEL_ENCODINGS.get(model, "cl100k_base")
+)
+
+# Chat messages add overhead beyond raw text tokens:
+# every message costs 3 tokens for role/content framing,
+# plus 3 tokens for the reply primer.
+CHAT_OVERHEAD_PER_MSG = 3
+REPLY_PRIMER          = 3`,
       },
     ],
   },
@@ -200,6 +195,25 @@ standard_docs, hyde_docs = await asyncio.gather(
     get_relevant_documents(query_emb),
     get_relevant_documents(hyde_emb),
 )`,
+      },
+      {
+        title: 'backend/services/couchbase_service.py — ANN vector search',
+        language: 'python',
+        code: `async def get_relevant_documents(embedding: list[float],
+                                  limit: int = 3) -> list[dict]:
+    result = cluster.query(
+        f"""
+        SELECT id, content, filepath,
+               VECTOR_DISTANCE(embedding, $vec) AS score
+        FROM \`{BUCKET}\`.\`{SCOPE}\`.\`{COLLECTION}\`
+        ORDER BY VECTOR_DISTANCE(embedding, $vec)
+        LIMIT $limit
+        """,
+        QueryOptions(named_parameters={"vec": embedding, "limit": limit}),
+    )
+    return [r for r in result.rows()]
+# VECTOR_DISTANCE uses L2 (Euclidean) by default.
+# Lower score = closer = more relevant.`,
       },
     ],
   },
@@ -372,21 +386,35 @@ async def chat_stream(req: ChatRequest):
     return StreamingResponse(token_generator(), media_type="text/plain")`,
       },
       {
-        title: 'frontend — read stream with getReader()',
-        language: 'javascript',
-        code: `const res = await fetch('/api/chat-stream', {
-  method: 'POST',
-  body: JSON.stringify({ message }),
-});
-const reader = res.body.getReader();
-const decoder = new TextDecoder();
+        title: 'backend/main.py — measure time-to-first-token',
+        language: 'python',
+        code: `import time
 
-while (true) {
-  const { done, value } = await reader.read();
-  if (done) break;
-  const token = decoder.decode(value);
-  setResponse(prev => prev + token);  // append each token as it arrives
-}`,
+@app.post("/api/chat-stream")
+async def chat_stream(req: ChatRequest):
+    start = time.perf_counter()
+    ttft  = None
+
+    async def token_generator():
+        nonlocal ttft
+        stream = await client.chat.completions.create(
+            model=INFERENCE_MODEL,
+            messages=[{"role": "user", "content": req.message}],
+            stream=True,
+        )
+        async for chunk in stream:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                if ttft is None:
+                    ttft = time.perf_counter() - start  # first token latency
+                yield delta
+
+    headers = {}  # ttft added as trailer after stream completes
+    return StreamingResponse(
+        token_generator(),
+        media_type="text/plain",
+        headers=headers,
+    )`,
       },
     ],
   },
@@ -437,6 +465,33 @@ result = json.loads(completion.choices[0].message.content)
 # result["sentiment"]       → "positive"
 # result["entities"]        → [{"text": "Apple", "type": "org"}, ...]
 # result["sentiment_score"] → 0.91`,
+      },
+      {
+        title: 'backend/main.py — Pydantic validation layer',
+        language: 'python',
+        code: `from pydantic import BaseModel, Field, field_validator
+from typing import Literal
+
+class Entity(BaseModel):
+    text: str
+    type: Literal["person", "org", "location", "date", "other"]
+
+class AnalysisResult(BaseModel):
+    sentiment:       Literal["positive", "negative", "neutral", "mixed"]
+    sentiment_score: float = Field(ge=0.0, le=1.0)
+    summary:         str
+    topics:          list[str]
+    entities:        list[Entity]
+    language:        str          # ISO 639-1 code, e.g. "en"
+
+    @field_validator("sentiment_score")
+    def round_score(cls, v):
+        return round(v, 2)
+
+# Parse and validate in one step — raises ValidationError on bad output
+result = AnalysisResult.model_validate(
+    json.loads(completion.choices[0].message.content)
+)`,
       },
     ],
   },
@@ -609,19 +664,30 @@ async def chat(body: ChatRequest):
     return {"response": response.choices[0].message.content}`,
       },
       {
-        title: 'frontend — send and display',
-        language: 'jsx',
-        code: `const sendMessage = async (text) => {
-  const res = await fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: text }),
-  })
-  const data = await res.json()
-  setMessages(prev => [...prev, {
-    sender: 'bot', text: data.response
-  }])
-}`,
+        title: 'backend/services/openai_service.py — client init',
+        language: 'python',
+        code: `from openai import AsyncOpenAI
+
+# Base URL and key are read from env — swap to any OpenAI-compatible
+# endpoint (Ollama, Azure, Capella AI, etc.) without code changes.
+client = AsyncOpenAI(
+    base_url=os.environ["INFERENCE_MODEL_BASE_URL"],
+    api_key=os.environ["INFERENCE_MODEL_API_KEY"],
+)
+
+async def generate_response(prompt: str, system: str = "") -> str:
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+
+    resp = await client.chat.completions.create(
+        model=os.environ["INFERENCE_MODEL"],
+        messages=messages,
+        temperature=0.7,
+        max_tokens=1000,
+    )
+    return resp.choices[0].message.content`,
       },
     ],
   },
@@ -820,26 +886,27 @@ async def generate_and_store():
 return StreamingResponse(generate_and_store(), media_type="text/plain")`,
       },
       {
-        title: 'frontend — read streaming response',
-        language: 'jsx',
-        code: `const res = await fetch('/api/chat-rag', {
-  method: 'POST',
-  body: JSON.stringify({ message, session_id }),
-})
-const cacheHit = res.headers.get('X-Cache-Hit') === 'true'
-const reader   = res.body.getReader()
-const decoder  = new TextDecoder()
-let text = ''
+        title: 'backend/services/couchbase_service.py — Capella ai_summary()',
+        language: 'python',
+        code: `async def summarize_conversation(session_id: str) -> str:
+    """Use Capella's built-in ai_summary() to condense history.
+    ai_summary() runs inside the database — no extra LLM call needed."""
+    result = cluster.query(
+        f"""
+        SELECT RAW ai_summary(
+            ARRAY_AGG(role || ': ' || content
+                      ORDER BY timestamp ASC)
+        )
+        FROM \`{BUCKET}\`.\`{SCOPE}\`.conversations
+        WHERE session_id = $1
+        """,
+        QueryOptions(positional_parameters=[session_id]),
+    )
+    rows = [r for r in result.rows()]
+    return rows[0] if rows else ""
 
-while (true) {
-  const { value, done } = await reader.read()
-  if (done) break
-  text += decoder.decode(value, { stream: true })
-  // Update the message bubble on every chunk
-  setMessages(prev => prev.map(m =>
-    m.id === botId ? { ...m, text } : m
-  ))
-}`,
+# The summary is injected into the RAG prompt:
+# "HISTORY SUMMARY:\\n{summary}\\n\\nDOCUMENTS:\\n{docs}\\n\\nQUESTION: {q}"`,
       },
     ],
   },
