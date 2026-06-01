@@ -1099,7 +1099,7 @@ def hybrid_faq_search(query: str, collection_name: str) -> list[dict]:
     subtitle: 'default:ai_summary() — summarisation runs inside the database as a SQL++ query',
     color: '#b45309',
     icon: '🗄️',
-    what: 'Couchbase Capella AI Functions expose LLM capabilities as SQL++ built-in functions. Calling default:ai_summary() sends text to the configured LLM (OpenAI, Bedrock, or Capella Model Service) from inside the query engine — the backend issues a single SQL++ SELECT and gets a summary back. No extra HTTP call to an LLM API is needed from application code.',
+    what: 'Couchbase Capella AI Functions expose LLM capabilities as SQL++ built-in functions. Calling default:ai_summary() sends text to the configured LLM (OpenAI, Bedrock, or Capella Model Service) from inside the query engine — the backend issues a single SQL++ SELECT and gets a summary back. No extra HTTP call to an LLM API, and no server-side endpoint or SDK integration to deploy — the function is just SQL.',
     how: [
       'Text submitted → POST /api/capella-summarise',
       'Backend issues: SELECT default:ai_summary({"text": $text, "max_words": $n}) AS result',
@@ -1172,7 +1172,7 @@ summary = rows[0]["result"][0]["response"]
     subtitle: 'default:ai_sentiment() — sentiment analysis runs inside the database as a SQL++ query',
     color: '#b45309',
     icon: '🗄️',
-    what: 'Like ai_summary(), the ai_sentiment() function is a SQL++ built-in that runs inside the Couchbase query engine. It returns a sentiment label (positive / negative / neutral / mixed), a confidence score, and an explanation — all from a single SELECT statement. This pattern lets you run AI enrichment directly on stored documents at query time without any application-side LLM calls.',
+    what: 'Like ai_summary(), the ai_sentiment() function is a SQL++ built-in that runs inside the Couchbase query engine. It returns a sentiment label (positive / negative / neutral / mixed), a confidence score, and an explanation — all from a single SELECT statement. No extra HTTP call to an LLM API, and no server-side endpoint or SDK integration to deploy. You can even run it over an entire collection in one query to enrich stored documents at query time.',
     how: [
       'Text submitted → POST /api/capella-sentiment',
       'Backend issues: SELECT default:ai_sentiment({"text": $text}) AS result',

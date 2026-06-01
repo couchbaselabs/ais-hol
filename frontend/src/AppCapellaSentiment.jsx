@@ -137,7 +137,7 @@ export default function AppCapellaSentiment() {
           {!isLoading && !error && !result && (
             <div className="capella-placeholder">
               The sentiment result will appear here. Analysis runs as a SQL++ query
-              inside Couchbase — no extra LLM call from the backend.
+              inside Couchbase — no extra LLM call and no server endpoint to deploy.
             </div>
           )}
         </div>

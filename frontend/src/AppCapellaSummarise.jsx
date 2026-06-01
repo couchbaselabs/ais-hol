@@ -121,7 +121,7 @@ export default function AppCapellaSummarise() {
           {!isLoading && !error && !result && (
             <div className="capella-placeholder">
               The summary will appear here. Summarisation runs as a SQL++ query
-              inside Couchbase — no extra LLM call from the backend.
+              inside Couchbase — no extra LLM call and no server endpoint to deploy.
             </div>
           )}
         </div>
