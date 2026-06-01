@@ -952,46 +952,102 @@ return StreamingResponse(generate_and_store(), media_type="text/plain")`,
     ],
     snippets: [
       {
-        title: 'backend/agents/router_agent.py — classify intent',
+        title: 'backend/agents/state.py — shared graph state',
+        language: 'python',
+        code: `class AgentState(TypedDict, total=False):
+    message:              str
+    answer:               str
+    routed_to:            str        # "router" | "math_agent" | "rag_agent" | "faq_search_agent"
+    faq_collection:       str | None # Couchbase collection matched by FAQ catalog
+    missing_topic:        str | None # set when no FAQ collection covers the topic
+    conversation_history: list[tuple[str, str]] | None  # (role, content) prior turns
+    trace_steps:          list[dict] | None  # routing decisions, tool calls, thoughts
+    previous_node:        list[str]  | None  # used by agentc for span edge logging`,
+      },
+      {
+        title: 'backend/agents/router_agent.py — structured routing',
         language: 'python',
         code: `class RouterDecision(BaseModel):
-    route: Literal["direct", "math", "faq", "rag"]
-    answer: str | None = None   # only for "direct"
+    route:  Literal["direct", "math", "faq", "rag"]
+    answer: str | None = None   # populated only when route == "direct"
 
 async def router_node(state: AgentState) -> Command:
-    decision = await llm.with_structured_output(RouterDecision).ainvoke([
-        SystemMessage(_SYSTEM_PROMPT),
-        HumanMessage(state["message"]),
+    embedding = await get_embedding(state["message"])   # reused for FAQ lookup
+
+    llm = _get_llm().with_structured_output(RouterDecision)
+    decision: RouterDecision = await llm.ainvoke([
+        {"role": "system", "content": _SYSTEM_PROMPT},
+        {"role": "user",   "content": state["message"]},
     ])
+
+    if decision.route == "direct":
+        return Command(goto="__end__",
+                       update={"answer": decision.answer, "routed_to": "router"})
     if decision.route == "math":
         return Command(goto="math_agent", update={"routed_to": "math_agent"})
     if decision.route == "rag":
         return Command(goto="rag_agent",  update={"routed_to": "rag_agent"})
-    if decision.route == "faq":
-        best = await find_best_faq_collection(embedding)
+
+    # faq — find the best matching collection in the catalog
+    best_faq = await find_best_faq(embedding)
+    if best_faq:
         return Command(goto="faq_search_agent",
-                       update={"faq_collection": best["collection_name"]})
-    # direct — answer immediately without a specialised agent
-    return Command(goto="__end__", update={"answer": decision.answer})`,
+                       update={"faq_collection": best_faq["collection_name"]})
+    # no matching FAQ — respond with a helpful "please ingest" message
+    return Command(goto="__end__", update={"answer": ..., "missing_topic": ...})`,
       },
       {
-        title: 'backend/agents/graph.py — LangGraph StateGraph',
+        title: 'backend/agents/math_agent.py — ReAct agent via agentc',
         language: 'python',
-        code: `builder = StateGraph(AgentState)
-builder.add_node("router",           router_node)
-builder.add_node("math_agent",       partial(math_agent_node,  catalog, span))
-builder.add_node("faq_search_agent", partial(faq_agent_node,   catalog, span))
-builder.add_node("rag_agent",        partial(rag_agent_node,   catalog, span))
-builder.set_entry_point("router")
-graph = builder.compile()
+        code: `class MathAgent(agentc_langgraph.agent.ReActAgent):
+    def __init__(self, catalog: agentc.Catalog, span: agentc.Span):
+        super().__init__(
+            chat_model=_get_llm(),
+            catalog=catalog,
+            span=span,
+            prompt_name="math_agent",  # prompt + tools fetched from Agent Catalog
+        )
 
-# Each agent node returns Command(goto="__end__", update={...})
-# so the graph terminates after exactly one agent runs.
-result = await graph.ainvoke({
-    "message":              user_message,
-    "conversation_history": prior_turns,
-    "trace_steps":          [],
-})`,
+    async def _ainvoke(self, span, state: AgentState, config) -> Command:
+        agent = self.create_react_agent(span)
+        result = await agent.ainvoke(
+            {"messages": [("user", state["message"])], "is_last_step": False},
+        )
+        # Collect tool_call / tool_result / thought steps for the trace
+        steps = []
+        for msg in result["messages"]:
+            for tc in getattr(msg, "tool_calls", []):
+                steps.append({"type": "tool_call",   "tool": tc["name"], "input": tc["args"]})
+            if msg.__class__.__name__ == "ToolMessage":
+                steps.append({"type": "tool_result", "content": msg.content})
+        return Command(goto="__end__",
+                       update={"answer": result["messages"][-1].content,
+                               "trace_steps": (state.get("trace_steps") or []) + steps})`,
+      },
+      {
+        title: 'backend/agents/faq_search_tools.py — hybrid vector + FTS',
+        language: 'python',
+        code: `@agentc_tool
+def hybrid_faq_search(query: str, collection_name: str) -> list[dict]:
+    """Combine vector similarity and full-text search over a FAQ collection."""
+    embedding = _run_async(get_embedding(query))
+    scope = cluster.bucket(BUCKET_NAME()).scope("public")
+
+    # Run both searches against their respective indexes
+    vector_hits = _vector_search(scope, collection_name, embedding,
+                                 f"{BUCKET_NAME()}.public.{collection_name}_vector_idx")
+    fts_hits    = _fts_search(scope, collection_name, query,
+                               f"{BUCKET_NAME()}.public.{collection_name}_fts_idx")
+
+    # Merge: add scores for docs that appear in both result sets
+    merged: dict[str, dict] = {}
+    for doc_id, data in {**vector_hits, **fts_hits}.items():
+        if doc_id in merged:
+            merged[doc_id]["score"] += data.get("fts_score", data.get("vector_score", 0))
+        else:
+            merged[doc_id] = {"id": doc_id, "content": data["content"],
+                               "score": data.get("vector_score", data.get("fts_score", 0))}
+    return sorted(merged.values(), key=lambda x: x["score"], reverse=True)[:5]`,
       },
     ],
   },
