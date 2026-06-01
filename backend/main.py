@@ -23,6 +23,16 @@ from services.semantic_cache_service import cache_get, cache_put, create_llm_sig
 EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small")
 INFERENCE_MODEL = os.environ.get("INFERENCE_MODEL", "gpt-4o-mini")
 
+# ---------------------------------------------------------------------------
+# Mock mode — patch Couchbase services with in-memory stubs when MOCK_MODE=true.
+# The mock OpenAI server (mock_openai.py) must also be running on port 9999.
+# Start with:  cp .env.mock .env && python mock_openai.py &
+# ---------------------------------------------------------------------------
+if os.environ.get("MOCK_MODE", "").lower() == "true":
+    import mock_couchbase
+    mock_couchbase._apply()
+    print("[main] Running in MOCK MODE — no real Couchbase or OpenAI keys needed.")
+
 app = FastAPI(title="AI Workshop Backend")
 
 app.add_middleware(

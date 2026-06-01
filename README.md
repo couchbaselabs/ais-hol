@@ -822,6 +822,57 @@ npm run dev
 
 The app runs at [http://localhost:3000](http://localhost:3000).
 
+---
+
+## Running without API keys (mock mode)
+
+A local mock server implements the OpenAI wire protocol and an in-memory
+Couchbase stub so every demo tab works without any credentials.
+
+**Terminal 1 — mock OpenAI server**
+```bash
+cd backend
+eval $(poetry env activate)
+python mock_openai.py          # listens on http://localhost:9999
+```
+
+**Terminal 2 — main backend in mock mode**
+```bash
+cd backend
+eval $(poetry env activate)
+cp .env.mock .env              # use mock env (overwrites .env — keep a backup)
+uvicorn main:app --reload --port 5000
+```
+
+**Terminal 3 — frontend**
+```bash
+cd frontend
+npm run dev
+```
+
+What works in mock mode:
+
+| Tab | Status | Notes |
+|---|---|---|
+| Simple Chat | ✅ | Echoes message with canned prefix |
+| Streaming | ✅ | Streams word-by-word with 20 ms delay |
+| + Cache | ✅ | In-memory cache; second identical query returns cache hit |
+| + Memory | ✅ | In-memory conversation history |
+| + RAG | ✅ | Returns 4 stub MDN documents |
+| Multi-Agent | ✅ | Router classifies math/rag/direct; agents return stub answers |
+| Structured Output | ✅ | Returns fixed sentiment/entity JSON |
+| Reranking | ✅ | Stub docs with descending rerank scores |
+| Prompt Engineering | ✅ | Parallel calls all return mock responses |
+| Embeddings Explorer | ✅ | Deterministic unit vectors; similarity matrix works |
+| HyDE | ✅ | Generates mock hypothetical doc; both retrieval paths return stub docs |
+| LLM-as-Judge | ✅ | Returns fixed scores (faithfulness 4, relevance 4, completeness 3) |
+| Summarisation | ✅ | Per-chunk and final summaries are mock text |
+| Token Counter | ✅ | Uses tiktoken locally — no API call needed at all |
+
+> **Note:** Embeddings in mock mode are deterministic but not semantically
+> meaningful. Cosine similarity scores in the Embeddings Explorer will not
+> reflect real semantic relationships.
+
 - **Simple Chat tab** — Exercise 1 chatbot
 - **RAG Chat tab** — Exercises 3–5 RAG application
 - **Agent Chat tab** — Exercises 6–7 multi-agent system
