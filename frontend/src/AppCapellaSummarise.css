@@ -1,0 +1,210 @@
+/* Shared layout for Capella AI tabs */
+.capella-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  height: 100%;
+  padding: 1.25rem;
+  box-sizing: border-box;
+}
+
+@media (max-width: 800px) {
+  .capella-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.capella-input-panel,
+.capella-output-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.capella-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.capella-textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  line-height: 1.5;
+  color: #111827;
+  box-sizing: border-box;
+}
+.capella-textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+.capella-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.capella-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.capella-number {
+  width: 70px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.capella-btn {
+  padding: 0.45rem 1.1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s;
+}
+.capella-btn--primary {
+  background: #6366f1;
+  color: #fff;
+}
+.capella-btn--primary:hover:not(:disabled) {
+  background: #4f46e5;
+}
+.capella-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.capella-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+.examples-label {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.example-btn {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.78rem;
+  color: #374151;
+  text-align: left;
+  cursor: pointer;
+  font-style: italic;
+  line-height: 1.4;
+  transition: background 0.12s;
+}
+.example-btn:hover {
+  background: #f3f4f6;
+}
+
+/* Badge */
+.capella-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.capella-badge--db {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+/* Loading */
+.capella-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+  padding: 1rem 0;
+}
+.capella-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Error */
+.capella-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+/* Result */
+.capella-result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.capella-result-text {
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: #111827;
+  margin: 0;
+}
+.capella-result-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #f3f4f6;
+}
+.capella-source-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #5b21b6;
+  background: #ede9fe;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+}
+
+/* Placeholder */
+.capella-placeholder {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  padding: 1rem 0;
+}
+
+/* Word count */
+.word-count {
+  font-size: 0.78rem;
+  color: #9ca3af;
+}

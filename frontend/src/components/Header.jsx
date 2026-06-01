@@ -11,14 +11,19 @@ const PIPELINE_TABS = [
 ]
 
 const CONCEPT_TABS = [
-  { id: 'structured', label: '🧩 Structured Output' },
-  { id: 'rerank',     label: '📊 Reranking' },
-  { id: 'prompt',     label: '✏️ Prompt Engineering' },
-  { id: 'embeddings', label: '🔢 Embeddings' },
-  { id: 'hyde',       label: '💡 HyDE' },
-  { id: 'evaluate',   label: '⚖️ LLM-as-Judge' },
-  { id: 'summarise',  label: '📄 Summarisation' },
-  { id: 'tokens',     label: '🔤 Token Counter' },
+  { id: 'structured',        label: '🧩 Structured Output' },
+  { id: 'rerank',            label: '📊 Reranking' },
+  { id: 'prompt',            label: '✏️ Prompt Engineering' },
+  { id: 'embeddings',        label: '🔢 Embeddings' },
+  { id: 'hyde',              label: '💡 HyDE' },
+  { id: 'evaluate',          label: '⚖️ LLM-as-Judge' },
+  { id: 'summarise',         label: '📄 Summarisation' },
+  { id: 'tokens',            label: '🔤 Token Counter' },
+]
+
+const CAPELLA_TABS = [
+  { id: 'capella-summarise', label: '🗄️ AI Summarisation' },
+  { id: 'capella-sentiment', label: '🗄️ AI Sentiment' },
 ]
 
 const Header = ({ activeTab, onTabChange, action }) => {
@@ -54,6 +59,20 @@ const Header = ({ activeTab, onTabChange, action }) => {
                 <button
                   key={t.id}
                   className={`tab-btn ${activeTab === t.id ? 'tab-btn--active' : ''}`}
+                  onClick={() => onTabChange(t.id)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+          <div className="tab-row">
+            <span className="tab-row-label">Capella AI</span>
+            <nav className="header-tabs">
+              {CAPELLA_TABS.map(t => (
+                <button
+                  key={t.id}
+                  className={`tab-btn tab-btn--capella ${activeTab === t.id ? 'tab-btn--active' : ''}`}
                   onClick={() => onTabChange(t.id)}
                 >
                   {t.label}

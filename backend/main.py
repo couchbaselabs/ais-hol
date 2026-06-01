@@ -1151,6 +1151,128 @@ async def agent(body: AgentRequest):
 
 
 # ---------------------------------------------------------------------------
+# Capella AI Functions — summarisation and sentiment analysis
+# ---------------------------------------------------------------------------
+
+
+class CapellaSummariseRequest(BaseModel):
+    text: str
+    max_words: int = 150
+
+
+class CapellaSentimentRequest(BaseModel):
+    text: str
+
+
+_MOCK_MODE = os.environ.get("MOCK_MODE", "").lower() == "true"
+
+
+@app.post("/api/capella-summarise")
+async def capella_summarise(body: CapellaSummariseRequest):
+    """Summarise text using Couchbase Capella's built-in ai_summary() SQL++ function.
+
+    The summarisation runs inside the database — no extra LLM API call from
+    the backend. Requires the Summarization AI Function to be enabled on the
+    Capella cluster (AI Services → AI Functions → Summarization).
+    """
+    if not body.text.strip():
+        raise HTTPException(status_code=400, detail="text is required.")
+
+    if _MOCK_MODE:
+        word_count = len(body.text.split())
+        return {
+            "summary": (
+                f"[Mock] This {word_count}-word passage covers key ideas and concepts. "
+                "In a real Capella cluster, default:ai_summary() runs the summarisation "
+                "inside the database using the configured LLM — no extra API call needed."
+            ),
+            "source": "capella_ai_summary",
+        }
+
+    from services.conversation_service import _get_cluster
+    from couchbase.options import QueryOptions
+
+    cluster = _get_cluster()
+    sql = """
+        SELECT default:ai_summary({
+            "text":        $text,
+            "max_words":   $max_words,
+            "temperature": 0.3
+        }) AS result
+    """
+    try:
+        rows = list(
+            cluster.query(
+                sql,
+                QueryOptions(named_parameters={"text": body.text, "max_words": body.max_words}),
+            ).rows()
+        )
+        summary = rows[0]["result"][0]["response"]
+        return {"summary": summary, "source": "capella_ai_summary"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ai_summary() failed: {e}")
+
+
+@app.post("/api/capella-sentiment")
+async def capella_sentiment(body: CapellaSentimentRequest):
+    """Analyse sentiment using Couchbase Capella's built-in ai_sentiment() SQL++ function.
+
+    The analysis runs inside the database — no extra LLM API call from the
+    backend. Requires the Sentiment Analysis AI Function to be enabled on the
+    Capella cluster (AI Services → AI Functions → Sentiment Analysis).
+    """
+    if not body.text.strip():
+        raise HTTPException(status_code=400, detail="text is required.")
+
+    if _MOCK_MODE:
+        text_lower = body.text.lower()
+        pos = sum(1 for w in ("love", "great", "good", "happy", "excellent", "amazing") if w in text_lower)
+        neg = sum(1 for w in ("hate", "bad", "terrible", "awful", "horrible", "slow", "poor") if w in text_lower)
+        if pos > neg:
+            sentiment, score = "positive", round(min(0.6 + pos * 0.1, 0.99), 2)
+        elif neg > pos:
+            sentiment, score = "negative", round(min(0.6 + neg * 0.1, 0.99), 2)
+        else:
+            sentiment, score = "neutral", 0.5
+        return {
+            "sentiment":       sentiment,
+            "sentiment_score": score,
+            "explanation":     (
+                f"[Mock] Detected {sentiment} tone based on keyword matching. "
+                "In a real Capella cluster, default:ai_sentiment() runs inside "
+                "the database using the configured LLM."
+            ),
+            "source": "capella_ai_sentiment",
+        }
+
+    from services.conversation_service import _get_cluster
+    from couchbase.options import QueryOptions
+
+    cluster = _get_cluster()
+    sql = """
+        SELECT default:ai_sentiment({
+            "text": $text
+        }) AS result
+    """
+    try:
+        rows = list(
+            cluster.query(
+                sql,
+                QueryOptions(named_parameters={"text": body.text}),
+            ).rows()
+        )
+        result = rows[0]["result"][0]
+        return {
+            "sentiment":       result.get("sentiment", "unknown"),
+            "sentiment_score": result.get("score", 0.0),
+            "explanation":     result.get("explanation", ""),
+            "source":          "capella_ai_sentiment",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ai_sentiment() failed: {e}")
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 

@@ -15,6 +15,8 @@ import AppChatHyde from './AppChatHyde'
 import AppChatEvaluate from './AppChatEvaluate'
 import AppSummarise from './AppSummarise'
 import AppTokens from './AppTokens'
+import AppCapellaSummarise from './AppCapellaSummarise'
+import AppCapellaSentiment from './AppCapellaSentiment'
 
 function Shell() {
   const [activeTab, setActiveTab] = useState('chat')
@@ -37,7 +39,9 @@ function Shell() {
         {activeTab === 'hyde'       && <AppChatHyde       key="hyde"       />}
         {activeTab === 'evaluate'   && <AppChatEvaluate   key="evaluate"   />}
         {activeTab === 'summarise'  && <AppSummarise      key="summarise"  />}
-        {activeTab === 'tokens'     && <AppTokens         key="tokens"     />}
+        {activeTab === 'tokens'            && <AppTokens          key="tokens"            />}
+        {activeTab === 'capella-summarise' && <AppCapellaSummarise key="capella-summarise" />}
+        {activeTab === 'capella-sentiment' && <AppCapellaSentiment key="capella-sentiment" />}
         <InfoPanel tab={activeTab} />
       </div>
     </div>

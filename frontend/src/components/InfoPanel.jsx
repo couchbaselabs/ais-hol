@@ -1094,6 +1094,147 @@ def hybrid_faq_search(query: str, collection_name: str) -> list[dict]:
       },
     ],
   },
+  'capella-summarise': {
+    title: 'Capella AI Summarisation',
+    subtitle: 'default:ai_summary() — summarisation runs inside the database as a SQL++ query',
+    color: '#b45309',
+    icon: '🗄️',
+    what: 'Couchbase Capella AI Functions expose LLM capabilities as SQL++ built-in functions. Calling default:ai_summary() sends text to the configured LLM (OpenAI, Bedrock, or Capella Model Service) from inside the query engine — the backend issues a single SQL++ SELECT and gets a summary back. No extra HTTP call to an LLM API is needed from application code.',
+    how: [
+      'Text submitted → POST /api/capella-summarise',
+      'Backend issues: SELECT default:ai_summary({"text": $text, "max_words": $n}) AS result',
+      'Capella query engine calls the configured LLM internally',
+      'Summary returned in the SQL++ result row',
+      'Backend returns {"summary": "...", "source": "capella_ai_summary"}',
+    ],
+    limitations: [
+      'Requires the Summarization AI Function to be enabled on the Capella cluster',
+      'Requires the query_external_access role on the database user',
+      'LLM provider and credentials are configured in Capella, not in application code',
+      'Not available on self-managed Couchbase Server — Capella only',
+    ],
+    stack: ['Couchbase Capella AI Functions', 'default:ai_summary() SQL++ built-in', 'FastAPI'],
+    questions: [
+      'Paste any article or documentation paragraph',
+      'Try adjusting max_words to 40 vs 200',
+      'Compare the output to the map-reduce Summarisation tab',
+    ],
+    snippets: [
+      {
+        title: 'backend/main.py — ai_summary() as SQL++',
+        language: 'python',
+        code: `sql = """
+    SELECT default:ai_summary({
+        "text":        $text,
+        "max_words":   $max_words,
+        "temperature": 0.3
+    }) AS result
+"""
+rows = list(
+    cluster.query(
+        sql,
+        QueryOptions(named_parameters={"text": body.text,
+                                       "max_words": body.max_words}),
+    ).rows()
+)
+summary = rows[0]["result"][0]["response"]
+# The LLM call happens inside Couchbase — no openai.chat.completions here`,
+      },
+      {
+        title: 'backend/services/conversation_service.py — history summarisation',
+        language: 'python',
+        code: `async def summarize_conversation(session_id: str, max_words: int = 150) -> str:
+    history = await get_conversation_history(session_id)
+    text = "\\n".join(
+        f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content']}"
+        for m in history
+    )
+    sql = """
+        SELECT default:ai_summary({
+            "text":      $text,
+            "max_words": $max_words,
+            "temperature": 0.3
+        }) AS summary
+    """
+    try:
+        rows = list(cluster.query(
+            sql, QueryOptions(named_parameters={"text": text, "max_words": max_words})
+        ).rows())
+        return rows[0]["summary"][0]["response"]
+    except Exception:
+        # Falls back to raw history if AI Functions are not enabled
+        return format_conversation_history(history)`,
+      },
+    ],
+  },
+  'capella-sentiment': {
+    title: 'Capella AI Sentiment',
+    subtitle: 'default:ai_sentiment() — sentiment analysis runs inside the database as a SQL++ query',
+    color: '#b45309',
+    icon: '🗄️',
+    what: 'Like ai_summary(), the ai_sentiment() function is a SQL++ built-in that runs inside the Couchbase query engine. It returns a sentiment label (positive / negative / neutral / mixed), a confidence score, and an explanation — all from a single SELECT statement. This pattern lets you run AI enrichment directly on stored documents at query time without any application-side LLM calls.',
+    how: [
+      'Text submitted → POST /api/capella-sentiment',
+      'Backend issues: SELECT default:ai_sentiment({"text": $text}) AS result',
+      'Capella query engine calls the configured LLM internally',
+      'Sentiment label, score, and explanation returned in the result row',
+      'Backend returns {"sentiment": "...", "sentiment_score": 0.91, "explanation": "..."}',
+    ],
+    limitations: [
+      'Requires the Sentiment Analysis AI Function to be enabled on the Capella cluster',
+      'Requires the query_external_access role on the database user',
+      'Score scale and label vocabulary depend on the configured LLM',
+      'Not available on self-managed Couchbase Server — Capella only',
+    ],
+    stack: ['Couchbase Capella AI Functions', 'default:ai_sentiment() SQL++ built-in', 'FastAPI'],
+    questions: [
+      'Apple announced record quarterly earnings today.',
+      'I absolutely loved the new restaurant — the pasta was incredible but the service was slow.',
+      'The earthquake caused minor damage but no casualties.',
+      'This software update is terrible — it broke everything.',
+    ],
+    snippets: [
+      {
+        title: 'backend/main.py — ai_sentiment() as SQL++',
+        language: 'python',
+        code: `sql = """
+    SELECT default:ai_sentiment({
+        "text": $text
+    }) AS result
+"""
+rows = list(
+    cluster.query(
+        sql,
+        QueryOptions(named_parameters={"text": body.text}),
+    ).rows()
+)
+result = rows[0]["result"][0]
+return {
+    "sentiment":       result.get("sentiment", "unknown"),
+    "sentiment_score": result.get("score", 0.0),
+    "explanation":     result.get("explanation", ""),
+    "source":          "capella_ai_sentiment",
+}`,
+      },
+      {
+        title: 'SQL++ — bulk sentiment enrichment at query time',
+        language: 'sql',
+        code: `-- Run sentiment analysis over every review document in a collection.
+-- AI enrichment happens inside the database — no application loop needed.
+SELECT
+    r.id,
+    r.text,
+    default:ai_sentiment({"text": r.text}) AS sentiment
+FROM \`my-bucket\`.\`_default\`.reviews AS r
+WHERE r.type = "product_review"
+  AND r.analysed IS MISSING
+LIMIT 100;
+
+-- The result rows include the full sentiment object:
+-- { "sentiment": "positive", "score": 0.91, "explanation": "..." }`,
+      },
+    ],
+  },
 }
 
 export default function InfoPanel({ tab }) {

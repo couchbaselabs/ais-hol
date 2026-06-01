@@ -82,3 +82,16 @@
   border-color: white;
   font-weight: 700;
 }
+
+.tab-btn--capella {
+  background: rgba(234, 179, 8, 0.2);
+  border-color: rgba(234, 179, 8, 0.5);
+}
+.tab-btn--capella:hover {
+  background: rgba(234, 179, 8, 0.35);
+}
+.tab-btn--capella.tab-btn--active {
+  background: #fef9c3;
+  color: #713f12;
+  border-color: #fef9c3;
+}
