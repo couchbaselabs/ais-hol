@@ -733,16 +733,35 @@ await cache_put(message, embedding, llm_sig, response)
 return {"response": response, "cache_hit": False}`,
       },
       {
-        title: 'backend — cache lookup (Couchbase SQL++ ANN)',
+        title: 'backend/services/semantic_cache_service.py — signature + ANN lookup',
         language: 'python',
-        code: `# Semantic cache uses vector similarity, not exact string match
-query = f"""
-  SELECT response FROM \`{CACHE_BUCKET}\`.\`{CACHE_SCOPE}\`.\`{CACHE_COLLECTION}\`
-  WHERE llm_signature = $sig
-  ORDER BY ANN_DISTANCE(embedding, $vec, "L2") LIMIT 1
-"""
-# If the nearest cached embedding is within the similarity threshold,
-# return the stored response — no LLM call needed.`,
+        code: `import hashlib
+
+def create_llm_signature(model: str, temperature: float,
+                         max_tokens: int, system_prompt: str) -> str:
+    """Hash the LLM config so cache entries are never shared across
+    different models, temperatures, or system prompts."""
+    raw = f"{model}:{temperature}:{max_tokens}:{system_prompt}"
+    return hashlib.md5(raw.encode()).hexdigest()
+
+async def cache_get(prompt: str, embedding: list[float],
+                    llm_signature: str,
+                    similarity_threshold: float = 0.85,
+                    k: int = 3) -> str | None:
+    sql = f"""
+        SELECT c.llm_signature, c.response,
+               ANN_DISTANCE(c.vector, $embedding, "L2") AS score
+        FROM \`{CACHE_BUCKET}\`.\`{CACHE_SCOPE}\`.\`{CACHE_COLLECTION}\` AS c
+        USE INDEX ({CACHE_INDEX} USING GSI)
+        ORDER BY ANN_DISTANCE(c.vector, $embedding, "L2")
+        LIMIT {k}
+    """
+    for row in cluster.query(sql, QueryOptions(named_parameters={"embedding": embedding})).rows():
+        if row["score"] > similarity_threshold:
+            continue                          # too dissimilar — skip
+        if row["llm_signature"] == llm_signature:
+            return row["response"]            # cache HIT
+    return None                               # cache MISS`,
       },
     ],
   },
