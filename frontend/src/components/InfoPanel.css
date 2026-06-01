@@ -185,6 +185,13 @@
   line-height: 1.4;
 }
 
+/* Code snippets */
+.info-section__snippets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
 /* Scrollbar */
 .info-panel__body::-webkit-scrollbar {
   width: 4px;

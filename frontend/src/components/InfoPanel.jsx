@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import './InfoPanel.css'
+import CodeBlock from './CodeBlock'
 
 const TAB_INFO = {
   tokens: {
@@ -30,6 +31,52 @@ const TAB_INFO = {
       'Try a code snippet — notice how indentation tokenises',
       'Try numbers: 1234 vs 1,234 vs $1,234.56',
     ],
+    snippets: [
+      {
+        title: 'backend/main.py — tokenise endpoint',
+        language: 'python',
+        code: `import tiktoken
+
+enc = tiktoken.get_encoding("cl100k_base")  # or o200k_base for gpt-4o
+token_ids = enc.encode("Hello, world!")
+
+for tid in token_ids:
+    raw_bytes = enc.decode_single_token_bytes(tid)
+    text = raw_bytes.decode("utf-8")
+    print(f"id={tid}  bytes={list(raw_bytes)}  text={repr(text)}")
+# id=9906  bytes=[72, 101, 108, 108, 111]  text='Hello'
+# id=11   bytes=[44]                        text=','
+# id=1917 bytes=[32, 119, 111, 114, 108]   text=' worl'
+# id=0    bytes=[100, 33]                  text='d!'`,
+      },
+      {
+        title: 'frontend — debounced live update',
+        language: 'jsx',
+        code: `// Debounce prevents a request on every keystroke
+function useDebounce(value, delay) {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(t)   // cancel on next keystroke
+  }, [value, delay])
+  return debounced
+}
+
+// AbortController cancels in-flight requests when text changes
+const abortRef = useRef(null)
+const tokenise = async (text) => {
+  if (abortRef.current) abortRef.current.abort()
+  const ctrl = new AbortController()
+  abortRef.current = ctrl
+  const res = await fetch('/api/tokenise', {
+    method: 'POST',
+    body: JSON.stringify({ text, model }),
+    signal: ctrl.signal,
+  })
+  setResult(await res.json())
+}`,
+      },
+    ],
   },
   embeddings: {
     title: 'Embeddings Explorer',
@@ -54,6 +101,52 @@ const TAB_INFO = {
       'Try: king, queen, man, woman (classic analogy)',
       'Try: happy, joyful, sad, miserable (synonyms vs antonyms)',
       'Try: Python, JavaScript, Rust, SQL (programming languages)',
+    ],
+    snippets: [
+      {
+        title: 'backend/main.py — embed and compare',
+        language: 'python',
+        code: `import math
+
+async def cosine(a, b):
+    dot = sum(x * y for x, y in zip(a, b))
+    na  = math.sqrt(sum(x*x for x in a))
+    nb  = math.sqrt(sum(x*x for x in b))
+    return dot / (na * nb)
+
+# Embed two phrases in parallel
+emb_a, emb_b = await asyncio.gather(
+    get_embedding("king"),
+    get_embedding("queen"),
+)
+similarity = await cosine(emb_a, emb_b)
+# → ~0.85  (semantically close)`,
+      },
+      {
+        title: 'backend/main.py — 2-D PCA (power iteration)',
+        language: 'python',
+        code: `def pca_2d(vecs):
+    k, d = len(vecs), len(vecs[0])
+    mean = [sum(v[i] for v in vecs)/k for i in range(d)]
+    centred = [[v[i]-mean[i] for i in range(d)] for v in vecs]
+
+    components = []
+    residual = [row[:] for row in centred]
+    for _ in range(2):                    # find 2 principal components
+        pc = residual[0][:]
+        for _ in range(20):               # power iteration
+            new_pc = [sum(r[i]*pc[i] for i in range(d))*r[j]
+                      for j in range(d)]  # simplified
+            n = math.sqrt(sum(x*x for x in new_pc)) + 1e-10
+            pc = [x/n for x in new_pc]
+        components.append(pc)
+        # deflate: remove this component from residual
+        residual = [[r[i] - sum(r[j]*pc[j] for j in range(d))*pc[i]
+                     for i in range(d)] for r in residual]
+
+    return [[sum(c[i]*pc[i] for i in range(d)) for pc in components]
+            for c in centred]`,
+      },
     ],
   },
   hyde: {
@@ -81,6 +174,33 @@ const TAB_INFO = {
       'What is the difference between let and const?',
       'Explain the Fetch API',
       'How do Promises work in JavaScript?',
+    ],
+    snippets: [
+      {
+        title: 'backend/main.py — generate hypothetical doc then embed',
+        language: 'python',
+        code: `# Step 1: ask the LLM to write a hypothetical answer
+hyp = await client.chat.completions.create(
+    model=INFERENCE_MODEL,
+    messages=[{
+        "role": "system",
+        "content": "Write a short factual paragraph that directly answers "
+                   "the question as if it were a documentation excerpt.",
+    }, {"role": "user", "content": query}],
+    temperature=0.3, max_tokens=200,
+)
+hypothetical_doc = hyp.choices[0].message.content
+
+# Step 2: embed both in parallel and retrieve
+query_emb, hyde_emb = await asyncio.gather(
+    get_embedding(query),
+    get_embedding(hypothetical_doc),   # ← this is what makes HyDE different
+)
+standard_docs, hyde_docs = await asyncio.gather(
+    get_relevant_documents(query_emb),
+    get_relevant_documents(hyde_emb),
+)`,
+      },
     ],
   },
   evaluate: {
@@ -110,6 +230,33 @@ const TAB_INFO = {
       'Explain the Fetch API',
       'What are Web Workers?',
     ],
+    snippets: [
+      {
+        title: 'backend/main.py — RAG then judge',
+        language: 'python',
+        code: `# Step 1: standard RAG answer
+embedding = await get_embedding(query)
+docs = await get_relevant_documents(embedding)
+context = "\\n\\n".join(f"[{d['filepath']}]\\n{d['content']}" for d in docs)
+answer = (await client.chat.completions.create(
+    model=INFERENCE_MODEL,
+    messages=[
+        {"role": "system", "content": "Answer using only the provided documents."},
+        {"role": "user",   "content": f"Documents:\\n{context}\\n\\nQuestion: {query}"},
+    ],
+)).choices[0].message.content
+
+# Step 2: LLM-as-Judge — score faithfulness, relevance, completeness
+evaluation = (await client.chat.completions.create(
+    model=INFERENCE_MODEL,
+    messages=[{"role": "user", "content":
+        f"QUESTION: {query}\\nDOCUMENTS: {context}\\nANSWER: {answer}\\n"
+        "Score faithfulness, relevance, completeness 1-5. Return JSON."}],
+    response_format={"type": "json_object"},
+    temperature=0,
+)).choices[0].message.content`,
+      },
+    ],
   },
   summarise: {
     title: 'Long-context Summarisation',
@@ -136,6 +283,47 @@ const TAB_INFO = {
       'Load the sample text and try with no focus',
       'Load the sample text with focus: "technical standards"',
       'Paste any Wikipedia article or documentation page',
+    ],
+    snippets: [
+      {
+        title: 'backend/main.py — map-reduce pipeline',
+        language: 'python',
+        code: `def split_into_chunks(text, chunk_size=800, overlap=50):
+    words = text.split()
+    chunks, i = [], 0
+    while i < len(words):
+        chunks.append(" ".join(words[i : i + chunk_size]))
+        i += chunk_size - overlap   # overlap avoids cutting mid-sentence
+    return chunks
+
+# Map: summarise every chunk in parallel
+async def summarise_chunk(i, chunk):
+    completion = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[
+            {"role": "system", "content": "Summarise in 2-4 sentences."},
+            {"role": "user",   "content": chunk},
+        ],
+        max_tokens=200,
+    )
+    return {"index": i, "summary": completion.choices[0].message.content}
+
+chunks = split_into_chunks(text)
+chunk_summaries = await asyncio.gather(
+    *[summarise_chunk(i, c) for i, c in enumerate(chunks)]
+)
+
+# Reduce: combine all chunk summaries into one
+combined = "\\n\\n".join(f"Part {r['index']+1}: {r['summary']}"
+                         for r in sorted(chunk_summaries, key=lambda x: x["index"]))
+final = await client.chat.completions.create(
+    model=INFERENCE_MODEL,
+    messages=[
+        {"role": "system", "content": "Write a single coherent summary."},
+        {"role": "user",   "content": combined},
+    ],
+)`,
+      },
     ],
   },
   stream: {
@@ -164,6 +352,43 @@ const TAB_INFO = {
       'Write a short story about a robot',
       'What are the main differences between SQL and NoSQL databases?',
     ],
+    snippets: [
+      {
+        title: 'backend/main.py — StreamingResponse',
+        language: 'python',
+        code: `@app.post("/api/chat-stream")
+async def chat_stream(req: ChatRequest):
+    async def token_generator():
+        stream = await client.chat.completions.create(
+            model=INFERENCE_MODEL,
+            messages=[{"role": "user", "content": req.message}],
+            stream=True,          # ← enables token-by-token delivery
+        )
+        async for chunk in stream:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta       # each token sent immediately
+
+    return StreamingResponse(token_generator(), media_type="text/plain")`,
+      },
+      {
+        title: 'frontend — read stream with getReader()',
+        language: 'javascript',
+        code: `const res = await fetch('/api/chat-stream', {
+  method: 'POST',
+  body: JSON.stringify({ message }),
+});
+const reader = res.body.getReader();
+const decoder = new TextDecoder();
+
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  const token = decoder.decode(value);
+  setResponse(prev => prev + token);  // append each token as it arrives
+}`,
+      },
+    ],
   },
   structured: {
     title: 'Structured Output',
@@ -190,6 +415,29 @@ const TAB_INFO = {
       'Apple announced record quarterly earnings today, with CEO Tim Cook calling it a landmark moment.',
       'I absolutely loved the new restaurant — the pasta was incredible but the service was slow.',
       'The earthquake measuring 6.2 struck near Tokyo, causing minor damage but no casualties.',
+    ],
+    snippets: [
+      {
+        title: 'backend/main.py — json_object mode',
+        language: 'python',
+        code: `completion = await client.chat.completions.create(
+    model=INFERENCE_MODEL,
+    messages=[
+        {"role": "system", "content":
+            "Analyse the text and return JSON with keys: "
+            "sentiment, sentiment_score, summary, topics, entities, language. "
+            "Return only valid JSON."},
+        {"role": "user", "content": text},
+    ],
+    response_format={"type": "json_object"},  # ← forces valid JSON output
+    temperature=0,
+)
+import json
+result = json.loads(completion.choices[0].message.content)
+# result["sentiment"]       → "positive"
+# result["entities"]        → [{"text": "Apple", "type": "org"}, ...]
+# result["sentiment_score"] → 0.91`,
+      },
     ],
   },
   rerank: {
@@ -219,6 +467,49 @@ const TAB_INFO = {
       'Explain the Fetch API',
       'What are Web Workers?',
     ],
+    snippets: [
+      {
+        title: 'backend/main.py — two-stage retrieval',
+        language: 'python',
+        code: `# Stage 1: broad ANN fetch (more candidates than needed)
+rows = cluster.query("""
+    SELECT id, content,
+           VECTOR_DISTANCE(embedding, $vec) AS dist
+    FROM   docs
+    ORDER BY VECTOR_DISTANCE(embedding, $vec)
+    LIMIT  $broad_k
+""", QueryOptions(named_parameters={"vec": query_vec, "broad_k": 12}))
+candidates = [r for r in rows]
+
+# Stage 2: LLM reranker — score each candidate 0-10
+scores = await asyncio.gather(*[
+    score_relevance(query, c["content"]) for c in candidates
+])
+reranked = sorted(zip(candidates, scores),
+                  key=lambda x: x[1], reverse=True)
+top_docs = [doc for doc, _ in reranked[:top_k]]`,
+      },
+      {
+        title: 'backend/main.py — LLM relevance scorer',
+        language: 'python',
+        code: `async def score_relevance(query: str, doc: str) -> float:
+    resp = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[{
+            "role": "system",
+            "content": "Rate how well the document answers the query. "
+                       "Reply with a single integer 0-10.",
+        }, {
+            "role": "user",
+            "content": f"Query: {query}\\nDocument: {doc[:400]}",
+        }],
+        response_format={"type": "json_object"},
+        temperature=0,
+    )
+    data = json.loads(resp.choices[0].message.content)
+    return float(data.get("score", 0))`,
+      },
+    ],
   },
   prompt: {
     title: 'Prompt Engineering',
@@ -246,6 +537,36 @@ const TAB_INFO = {
       'What is a database index?',
       'Explain closures in JavaScript',
     ],
+    snippets: [
+      {
+        title: 'backend/main.py — parallel preset calls',
+        language: 'python',
+        code: `PRESETS = {
+    "concise":   "Answer in one sentence.",
+    "detailed":  "Give a thorough explanation with examples.",
+    "eli5":      "Explain like I'm five years old.",
+    "socratic":  "Do not answer directly. Ask guiding questions instead.",
+    "adversarial": "Challenge the premise of the question.",
+}
+
+async def call_preset(preset_name: str, message: str):
+    system = PRESETS[preset_name]
+    resp = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user",   "content": message},
+        ],
+        temperature=0.7,
+    )
+    return {"preset": preset_name, "response": resp.choices[0].message.content}
+
+# Run all selected presets in parallel
+results = await asyncio.gather(*[
+    call_preset(p, req.message) for p in req.presets
+])`,
+      },
+    ],
   },
   chat: {
     title: 'Simple Chat',
@@ -269,6 +590,39 @@ const TAB_INFO = {
       'What is JavaScript?',
       'Explain the difference between null and undefined',
       'What does Array.map() do?',
+    ],
+    snippets: [
+      {
+        title: 'backend/main.py — single-turn chat',
+        language: 'python',
+        code: `@app.post("/api/chat")
+async def chat(body: ChatRequest):
+    response = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[
+            {"role": "system", "content": body.systemPrompt},
+            {"role": "user",   "content": body.message},
+        ],
+        temperature=0.7,
+        max_tokens=1000,
+    )
+    return {"response": response.choices[0].message.content}`,
+      },
+      {
+        title: 'frontend — send and display',
+        language: 'jsx',
+        code: `const sendMessage = async (text) => {
+  const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: text }),
+  })
+  const data = await res.json()
+  setMessages(prev => [...prev, {
+    sender: 'bot', text: data.response
+  }])
+}`,
+      },
     ],
   },
   cached: {
@@ -295,6 +649,36 @@ const TAB_INFO = {
       'Explain closures in JavaScript',
       'What is a Promise?',
     ],
+    snippets: [
+      {
+        title: 'backend/main.py — cache check before LLM call',
+        language: 'python',
+        code: `embedding = await get_embedding(message)
+llm_sig   = create_llm_signature(model, temperature, max_tokens, system_prompt)
+
+# Check cache first — returns stored response if similarity > threshold
+cached = await cache_get(message, embedding, llm_sig)
+if cached:
+    return {"response": cached, "cache_hit": True}
+
+# Cache miss — call LLM and store result
+response = await generate_response(message, system_prompt)
+await cache_put(message, embedding, llm_sig, response)
+return {"response": response, "cache_hit": False}`,
+      },
+      {
+        title: 'backend — cache lookup (Couchbase SQL++ ANN)',
+        language: 'python',
+        code: `# Semantic cache uses vector similarity, not exact string match
+query = f"""
+  SELECT response FROM \`{CACHE_BUCKET}\`.\`{CACHE_SCOPE}\`.\`{CACHE_COLLECTION}\`
+  WHERE llm_signature = $sig
+  ORDER BY ANN_DISTANCE(embedding, $vec, "L2") LIMIT 1
+"""
+# If the nearest cached embedding is within the similarity threshold,
+# return the stored response — no LLM call needed.`,
+      },
+    ],
   },
   history: {
     title: 'Simple Chat + Cache + Memory',
@@ -320,6 +704,50 @@ const TAB_INFO = {
       'My name is Alex. Remember that.',
       'What is my name? (tests memory)',
       'What did I just tell you?',
+    ],
+    snippets: [
+      {
+        title: 'backend/main.py — load history, call LLM, store turn',
+        language: 'python',
+        code: `# Load prior turns from Couchbase KV
+history = await get_conversation_history(session_id)
+formatted = format_conversation_history(history)
+
+# Inject history into the prompt
+prompt = (
+    f"{system_prompt}\\n\\n"
+    f"CONVERSATION HISTORY:\\n{formatted}\\n\\n"
+    f"CURRENT MESSAGE: {message}"
+)
+response = await generate_response(prompt)
+
+# Persist both turns for next request
+await add_message(session_id, message,  "user")
+await add_message(session_id, response, "assistant")`,
+      },
+      {
+        title: 'backend/services/conversation_service.py',
+        language: 'python',
+        code: `async def add_message(session_id: str, content: str, role: str):
+    collection = get_collection()
+    doc_id = f"{session_id}::{uuid.uuid4()}"
+    collection.upsert(doc_id, {
+        "session_id": session_id,
+        "role":       role,
+        "content":    content,
+        "timestamp":  datetime.now(timezone.utc).isoformat(),
+    })
+
+async def get_conversation_history(session_id: str, limit: int = 20):
+    result = cluster.query(
+        "SELECT role, content, timestamp "
+        "FROM conversations "
+        "WHERE session_id = $1 "
+        "ORDER BY timestamp ASC LIMIT $2",
+        QueryOptions(positional_parameters=[session_id, limit]),
+    )
+    return [r for r in result.rows()]`,
+      },
     ],
   },
   rag: {
@@ -349,6 +777,70 @@ const TAB_INFO = {
       'What is the difference between let, const, and var?',
       'Explain the Fetch API and how to handle errors',
       'What are Web Workers used for?',
+    ],
+    snippets: [
+      {
+        title: 'backend/main.py — full RAG pipeline',
+        language: 'python',
+        code: `embedding = await get_embedding(message)
+
+# Cache check — hit skips retrieval and LLM entirely
+cached = await cache_get(message, embedding, llm_sig)
+if cached:
+    async def from_cache():
+        yield cached
+    return StreamingResponse(from_cache(), media_type="text/plain",
+                             headers={"X-Cache-Hit": "true"})
+
+# Retrieve relevant MDN docs via ANN vector search
+docs = await get_relevant_documents(embedding)
+doc_context = "\\n\\n".join(
+    f"[{d['filepath']}]\\n{d['content']}" for d in docs
+)
+
+# Summarise conversation history using Capella ai_summary()
+history_summary = await summarize_conversation(session_id)
+
+prompt = (
+    "You are an MDN documentation expert.\\n\\n"
+    f"HISTORY SUMMARY:\\n{history_summary}\\n\\n"
+    f"DOCUMENTS:\\n{doc_context}\\n\\n"
+    f"QUESTION: {message}"
+)
+
+# Stream response token-by-token
+async def generate_and_store():
+    full = ""
+    async for token in stream_completion(prompt):
+        full += token
+        yield token                          # ← sent to browser immediately
+    await add_message(session_id, full, "assistant")
+    await cache_put(message, embedding, llm_sig, full)
+
+return StreamingResponse(generate_and_store(), media_type="text/plain")`,
+      },
+      {
+        title: 'frontend — read streaming response',
+        language: 'jsx',
+        code: `const res = await fetch('/api/chat-rag', {
+  method: 'POST',
+  body: JSON.stringify({ message, session_id }),
+})
+const cacheHit = res.headers.get('X-Cache-Hit') === 'true'
+const reader   = res.body.getReader()
+const decoder  = new TextDecoder()
+let text = ''
+
+while (true) {
+  const { value, done } = await reader.read()
+  if (done) break
+  text += decoder.decode(value, { stream: true })
+  // Update the message bubble on every chunk
+  setMessages(prev => prev.map(m =>
+    m.id === botId ? { ...m, text } : m
+  ))
+}`,
+      },
     ],
   },
   agent: {
@@ -390,6 +882,50 @@ const TAB_INFO = {
       'How does the CSS flexbox model work?',
       'What is the vacation policy?',
       'My name is Alex — what is my name? (tests memory)',
+    ],
+    snippets: [
+      {
+        title: 'backend/agents/router_agent.py — classify intent',
+        language: 'python',
+        code: `class RouterDecision(BaseModel):
+    route: Literal["direct", "math", "faq", "rag"]
+    answer: str | None = None   # only for "direct"
+
+async def router_node(state: AgentState) -> Command:
+    decision = await llm.with_structured_output(RouterDecision).ainvoke([
+        SystemMessage(_SYSTEM_PROMPT),
+        HumanMessage(state["message"]),
+    ])
+    if decision.route == "math":
+        return Command(goto="math_agent", update={"routed_to": "math_agent"})
+    if decision.route == "rag":
+        return Command(goto="rag_agent",  update={"routed_to": "rag_agent"})
+    if decision.route == "faq":
+        best = await find_best_faq_collection(embedding)
+        return Command(goto="faq_search_agent",
+                       update={"faq_collection": best["collection_name"]})
+    # direct — answer immediately without a specialised agent
+    return Command(goto="__end__", update={"answer": decision.answer})`,
+      },
+      {
+        title: 'backend/agents/graph.py — LangGraph StateGraph',
+        language: 'python',
+        code: `builder = StateGraph(AgentState)
+builder.add_node("router",           router_node)
+builder.add_node("math_agent",       partial(math_agent_node,  catalog, span))
+builder.add_node("faq_search_agent", partial(faq_agent_node,   catalog, span))
+builder.add_node("rag_agent",        partial(rag_agent_node,   catalog, span))
+builder.set_entry_point("router")
+graph = builder.compile()
+
+# Each agent node returns Command(goto="__end__", update={...})
+# so the graph terminates after exactly one agent runs.
+result = await graph.ainvoke({
+    "message":              user_message,
+    "conversation_history": prior_turns,
+    "trace_steps":          [],
+})`,
+      },
     ],
   },
 }
@@ -460,6 +996,17 @@ export default function InfoPanel({ tab }) {
               ))}
             </ul>
           </section>
+
+          {info.snippets && info.snippets.length > 0 && (
+            <section className="info-section">
+              <h3 className="info-section__heading">Key code</h3>
+              <div className="info-section__snippets">
+                {info.snippets.map((s, i) => (
+                  <CodeBlock key={i} title={s.title} language={s.language} code={s.code} />
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       )}
     </aside>
