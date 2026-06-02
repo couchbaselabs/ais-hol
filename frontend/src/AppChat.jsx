@@ -89,12 +89,19 @@ function AppChat({ onHeaderAction }) {
     }
   }
 
+  const examples = [
+    'What is JavaScript?',
+    'Explain the difference between null and undefined',
+    'What does Array.map() do?',
+  ]
+
   return (
     <div className="app">
       <ChatWindow 
         messages={messages} 
         onSendMessage={sendMessage}
         isLoading={isLoading}
+        examples={examples}
       />
       {showSystemPrompt && (
         <SystemPrompt

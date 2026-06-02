@@ -66,6 +66,17 @@ function AppSummarise() {
   return (
     <div className="app summarise-app">
       <div className="summarise-controls">
+        <div className="summarise-examples">
+          <span className="examples-label">Try an example:</span>
+          {[
+            'Load the sample text and try with no focus',
+            'Load the sample text with focus: "technical standards"',
+          ].map((ex, i) => (
+            <button key={i} className="example-btn" onClick={() => { setText(SAMPLE_TEXT); setFocus(i === 1 ? 'technical standards' : '') }}>
+              {ex}
+            </button>
+          ))}
+        </div>
         <div className="summarise-input-row">
           <textarea
             className="summarise-textarea"

@@ -103,7 +103,16 @@ function AppChatRag() {
         </button>
         <span className="toolbar-session">Session: {sessionId.slice(0, 8)}…</span>
       </div>
-      <ChatWindow messages={messages} onSendMessage={sendMessage} isLoading={isLoading} />
+      <ChatWindow
+        messages={messages}
+        onSendMessage={sendMessage}
+        isLoading={isLoading}
+        examples={[
+          'How does the CSS box model work?',
+          'What is the difference between let, const, and var?',
+          'Explain the Fetch API and how to handle errors',
+        ]}
+      />
     </div>
   )
 }

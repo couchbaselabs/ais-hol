@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import MessageBubble from './MessageBubble'
 import './ChatWindow.css'
 
-const ChatWindow = ({ messages, onSendMessage, isLoading }) => {
+const ChatWindow = ({ messages, onSendMessage, isLoading, examples }) => {
   const [inputMessage, setInputMessage] = useState('')
   const messagesEndRef = useRef(null)
 
@@ -48,6 +48,24 @@ const ChatWindow = ({ messages, onSendMessage, isLoading }) => {
         <div ref={messagesEndRef} />
       </div>
       
+      {examples && examples.length > 0 && (
+        <div className="chat-examples">
+          <span className="chat-examples__label">Try an example:</span>
+          <div className="chat-examples__list">
+            {examples.map((ex, i) => (
+              <button
+                key={i}
+                className="example-btn"
+                onClick={() => { setInputMessage(ex); onSendMessage(ex) }}
+                disabled={isLoading}
+              >
+                {ex}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <form className="input-form" onSubmit={handleSubmit}>
         <div className="input-container">
           <input

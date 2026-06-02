@@ -86,7 +86,16 @@ function AppChatHistory() {
         </button>
         <span className="toolbar-session">Session: {sessionId.slice(0, 8)}…</span>
       </div>
-      <ChatWindow messages={messages} onSendMessage={sendMessage} isLoading={isLoading} />
+      <ChatWindow
+        messages={messages}
+        onSendMessage={sendMessage}
+        isLoading={isLoading}
+        examples={[
+          'My name is Alex. Remember that.',
+          'What is my name? (tests memory)',
+          'What did I just tell you?',
+        ]}
+      />
     </div>
   )
 }

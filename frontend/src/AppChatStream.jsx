@@ -97,12 +97,19 @@ function AppChatStream() {
     }
   })
 
+  const examples = [
+    'Explain the history of the internet',
+    'Write a short story about a robot',
+    'What are the main differences between SQL and NoSQL databases?',
+  ]
+
   return (
     <div className="app">
       <ChatWindow
         messages={messagesWithBadges}
         onSendMessage={sendMessage}
         isLoading={isLoading}
+        examples={examples}
       />
     </div>
   )

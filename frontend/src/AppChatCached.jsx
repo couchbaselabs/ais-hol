@@ -56,7 +56,16 @@ function AppChatCached() {
 
   return (
     <div className="app">
-      <ChatWindow messages={messages} onSendMessage={sendMessage} isLoading={isLoading} />
+      <ChatWindow
+        messages={messages}
+        onSendMessage={sendMessage}
+        isLoading={isLoading}
+        examples={[
+          'What is JavaScript? (ask twice to see a cache hit)',
+          'Explain closures in JavaScript',
+          'What is a Promise?',
+        ]}
+      />
     </div>
   )
 }

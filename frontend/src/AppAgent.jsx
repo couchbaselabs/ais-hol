@@ -210,6 +210,12 @@ function AppAgent() {
         messages={messagesWithExtras}
         onSendMessage={sendMessage}
         isLoading={isLoading}
+        examples={[
+          'What is 1337 multiplied by 42?',
+          'How does the CSS flexbox model work?',
+          'What is the vacation policy?',
+          'My name is Alex — what is my name?',
+        ]}
       />
     </div>
   )
