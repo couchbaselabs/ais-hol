@@ -309,6 +309,33 @@ fly deploy
 
 ---
 
+## Render (free tier)
+
+A `render.yaml` Blueprint is included in the repo root. It uses the same `Dockerfile` as the Fly.io deploy.
+
+### First deploy
+
+1. Push the repo to GitHub or GitLab.
+2. Go to [dashboard.render.com](https://dashboard.render.com) → **New** → **Blueprint**.
+3. Connect your repo — Render detects `render.yaml` automatically.
+4. Render will prompt for the `sync: false` secrets. Fill in:
+   - `INFERENCE_MODEL_BASE_URL` / `INFERENCE_MODEL_API_KEY`
+   - `EMBEDDING_MODEL_BASE_URL` / `EMBEDDING_MODEL_API_KEY`
+   - `COUCHBASE_CONNECTION_STRING` / `COUCHBASE_USERNAME` / `COUCHBASE_PASSWORD`
+5. Click **Apply**.
+
+### Subsequent deploys
+
+Push to the connected branch — Render redeploys automatically.
+
+### Notes
+
+- The free tier spins down after 15 minutes of inactivity. First request after sleep takes ~30 seconds.
+- Free tier has 512 MB RAM — sufficient for this app but tight with sentence-transformers loaded.
+  If you hit OOM errors, upgrade to the `starter` plan in `render.yaml`.
+
+---
+
 ## Environment variable reference
 
 See `backend/.env.example` for the full list with comments. The variables are grouped by exercise — you only need the ones for the exercises you intend to run.

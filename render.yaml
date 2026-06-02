@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: ais-hol
+    runtime: docker
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: INFERENCE_MODEL
+        value: gpt-4o-mini
+      - key: EMBEDDING_MODEL
+        value: text-embedding-3-small
+      - key: COUCHBASE_BUCKET_NAME
+        value: shared
+      - key: COUCHBASE_SEARCH_INDEX_NAME
+        value: documentation
+      - key: COUCHBASE_CONVERSATION_SCOPE
+        value: _default
+      - key: COUCHBASE_CONVERSATION_COLLECTION
+        value: conversations
+      - key: CACHE_BUCKET
+        value: cache
+      - key: CACHE_SCOPE
+        value: _default
+      - key: CACHE_COLLECTION
+        value: semantic
+      - key: CACHE_INDEX
+        value: semantic_cache_vector_idx
+      # Set these in the Render dashboard — do not commit values
+      - key: INFERENCE_MODEL_BASE_URL
+        sync: false
+      - key: INFERENCE_MODEL_API_KEY
+        sync: false
+      - key: EMBEDDING_MODEL_BASE_URL
+        sync: false
+      - key: EMBEDDING_MODEL_API_KEY
+        sync: false
+      - key: COUCHBASE_CONNECTION_STRING
+        sync: false
+      - key: COUCHBASE_USERNAME
+        sync: false
+      - key: COUCHBASE_PASSWORD
+        sync: false
