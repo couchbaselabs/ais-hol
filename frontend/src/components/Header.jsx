@@ -28,13 +28,14 @@ const PROMPTING_TABS = [
   { id: 'prompt-injection', label: '💉 Prompt Injection' },
 ]
 
-// ── Row 4: RAG lifecycle ──────────────────────────────────────────────────────
+// ── Row 4: RAG lifecycle (embed → chunk → ingest → retrieve → improve → automate) ──
 const RAG_TABS = [
   { id: 'embeddings',       label: '🔢 Embeddings' },
   { id: 'chunking',         label: '✂️ Chunking' },
   { id: 'ingestion',        label: '📥 Ingestion' },
   { id: 'rerank',           label: '📈 Reranking' },
   { id: 'hyde',             label: '💡 HyDE' },
+  { id: 'query-expansion',  label: '🔀 Query Expansion' },
   { id: 'agentic-rag',      label: '🔄 Agentic RAG' },
 ]
 
@@ -53,7 +54,6 @@ const PRODUCTION_TABS = [
   { id: 'cost-latency',     label: '💰 Cost & Latency' },
   { id: 'guardrails',       label: '🛡️ Guardrails' },
   { id: 'hallucination',    label: '🔎 Hallucination' },
-  { id: 'query-expansion',  label: '🔀 Query Expansion' },
 ]
 
 // ── Row 7: Voice ──────────────────────────────────────────────────────────────
