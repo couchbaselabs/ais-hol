@@ -7,46 +7,75 @@
 
 ## Hook
 
+> 🎬 **SHOW:** Semantic Cache tab open, chat input ready, response area empty. The ⚡/🔄 badge area is visible but empty.
+
 A user asks: *"What is JavaScript?"* You call the LLM, pay for the tokens, wait for the response. Five minutes later, a different user asks: *"Can you explain what JavaScript is?"* You call the LLM again. Same answer, same cost, same wait. A semantic cache recognises that these two questions mean the same thing and returns the stored answer instantly — zero LLM cost, sub-millisecond latency.
 
 ---
 
 ## Concept
 
+> 🎬 **SHOW:** Slide — flow diagram: new question → embed → ANN search against cache → similarity check → if hit: return cached response; if miss: call LLM → store in cache → return response.
+
 A **semantic cache** stores question-answer pairs as vectors. When a new question arrives, it's embedded and compared against cached questions using vector similarity. If a sufficiently similar question was already answered, the cached response is returned without calling the LLM.
 
 This is different from a traditional exact-match cache. *"What is JavaScript?"* and *"Can you explain what JavaScript is?"* are different strings — an exact-match cache misses them. But their embeddings are very close in vector space, so a semantic cache hits.
 
-The cache key has two components:
-1. **Semantic similarity**: the embedding distance between the new question and cached questions.
-2. **LLM signature**: a hash of the model name, temperature, max tokens, and system prompt. This ensures that the same question answered by GPT-4o at temperature 0 doesn't return a cached answer from GPT-4o-mini at temperature 0.7.
+> 🎬 **SHOW:** Slide — the cache key shown as two components: a vector similarity circle and an LLM signature hash. Both must match for a cache hit.
 
-The similarity threshold is a critical tuning parameter:
-- **Too tight** (e.g. 0.99): almost nothing hits the cache. You're paying for near-duplicate questions.
-- **Too loose** (e.g. 0.70): wrong answers get returned. *"What is Java?"* might hit the cache for *"What is JavaScript?"*
-- **0.85** is a reasonable starting point for most applications.
+The cache key has two components: semantic similarity (embedding distance) and an LLM signature (hash of model, temperature, max tokens, system prompt). This ensures that the same question answered by different models or configurations doesn't cross-contaminate.
+
+> 🎬 **SHOW:** Slide — a dial labelled "Similarity threshold" with three zones: too tight (few hits), sweet spot (~0.85), too loose (wrong answers).
+
+The similarity threshold is the critical tuning parameter. 0.85 is a reasonable starting point.
 
 ---
 
 ## Demo Walkthrough
 
-Open the **Semantic Cache** tab. Each response shows a ⚡ cache hit or 🔄 generated badge.
+> 🎬 **SHOW:** Semantic Cache tab, chat input ready.
 
-1. Ask: *"What is JavaScript?"* — first time, it's a cache miss. The LLM is called, the response is stored.
+1. Ask: *"What is JavaScript?"*
 
-2. Ask the exact same question again. ⚡ Cache hit — instant response, no LLM call.
+   > 🎬 **SHOW:** Send. Point to the 🔄 "generated" badge — this is a cache miss, the LLM was called.
 
-3. Ask: *"Can you explain what JavaScript is?"* — different wording, same meaning. Does it hit the cache? It should, because the embeddings are similar.
+   First time — cache miss. The LLM is called, the response is stored.
 
-4. Ask: *"What is TypeScript?"* — different topic. Should be a cache miss.
+2. Ask the exact same question again.
 
-5. Ask: *"What is Java?"* — similar words to JavaScript but different meaning. Does it incorrectly hit the JavaScript cache? This is the threshold tuning problem in action.
+   > 🎬 **SHOW:** Send the identical question. Point to the ⚡ "cache hit" badge appearing almost instantly — no loading delay.
 
-6. Change the system prompt and ask the same question. Cache miss — the LLM signature changed.
+   ⚡ Cache hit — instant response, no LLM call.
+
+3. Ask: *"Can you explain what JavaScript is?"*
+
+   > 🎬 **SHOW:** Send the rephrased question. Point to whether it hits or misses. If it hits, highlight that different wording still matched.
+
+   Different wording, same meaning. Does it hit the cache? It should, because the embeddings are similar.
+
+4. Ask: *"What is TypeScript?"*
+
+   > 🎬 **SHOW:** Send. Point to the 🔄 badge — different topic, cache miss.
+
+   Different topic — cache miss.
+
+5. Ask: *"What is Java?"*
+
+   > 🎬 **SHOW:** Send. Watch carefully — does it incorrectly hit the JavaScript cache? Point to the result either way and explain the threshold tradeoff.
+
+   Similar words to JavaScript but different meaning. This is the threshold tuning problem in action.
+
+6. Change the system prompt and ask the same question.
+
+   > 🎬 **SHOW:** Edit the system prompt field, then resend "What is JavaScript?". Point to the 🔄 badge — the LLM signature changed, so it's a cache miss.
+
+   Cache miss — the LLM signature changed.
 
 ---
 
 ## Code Deep-Dive
+
+> 🎬 **SHOW:** Open `backend/main.py`, scrolled to the cached chat endpoint. Highlight the cache check before the LLM call.
 
 The cache check happens before every LLM call:
 
@@ -65,6 +94,8 @@ await cache_put(message, embedding, llm_sig, response)
 return {"response": response, "cache_hit": False}
 ```
 
+> 🎬 **SHOW:** Open `backend/services/semantic_cache_service.py`. Highlight the `create_llm_signature` function.
+
 The LLM signature is an MD5 hash of the configuration:
 
 ```python
@@ -73,19 +104,14 @@ def create_llm_signature(model, temperature, max_tokens, system_prompt) -> str:
     return hashlib.md5(raw.encode()).hexdigest()
 ```
 
-The cache lookup uses Couchbase's ANN vector search — the same vector index used for RAG:
+> 🎬 **SHOW:** Scroll to the `cache_get` function. Highlight the ANN query and the `similarity_threshold` check.
+
+The cache lookup uses Couchbase's ANN vector search — the same vector index infrastructure used for RAG:
 
 ```python
 async def cache_get(prompt, embedding, llm_signature,
                     similarity_threshold=0.85, k=3) -> str | None:
-    sql = f"""
-        SELECT c.llm_signature, c.response,
-               ANN_DISTANCE(c.vector, $embedding, "L2") AS score
-        FROM `{CACHE_BUCKET}`.`{CACHE_SCOPE}`.`{CACHE_COLLECTION}` AS c
-        USE INDEX ({CACHE_INDEX} USING GSI)
-        ORDER BY ANN_DISTANCE(c.vector, $embedding, "L2")
-        LIMIT {k}
-    """
+    # ANN search against the cache collection
     for row in cluster.query(sql, ...).rows():
         if row["score"] > similarity_threshold:
             continue                          # too dissimilar — skip
@@ -94,11 +120,11 @@ async def cache_get(prompt, embedding, llm_signature,
     return None                               # cache MISS
 ```
 
-The L2 distance threshold of 0.85 means: if the nearest cached question is more than 0.85 units away in embedding space, it's not similar enough. Lower L2 distance = more similar.
-
 ---
 
 ## Key Takeaways
+
+> 🎬 **SHOW:** Return to the tab showing a ⚡ cache hit response — instant, no loading indicator.
 
 - A semantic cache stores question-answer pairs as vectors and returns cached answers for semantically similar questions.
 - The cache key combines vector similarity (for semantic matching) and an LLM signature (to prevent cross-configuration hits).
@@ -109,5 +135,7 @@ The L2 distance threshold of 0.85 means: if the nearest cached question is more 
 ---
 
 ## What's Next
+
+> 🎬 **SHOW:** Click "Conversation Memory" in the sidebar.
 
 The cache eliminates redundant LLM calls. But the model still has no memory of the conversation — each turn is independent. The next tab adds conversation history stored in Couchbase, so the model remembers what was said earlier in the session.

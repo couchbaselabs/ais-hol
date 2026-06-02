@@ -7,52 +7,61 @@
 
 ## Hook
 
+> 🎬 **SHOW:** Chain-of-Thought tab open, two-column layout visible — "Direct" on the left, "Chain-of-Thought" on the right, both empty.
+
 A bat and a ball cost $1.10 in total. The bat costs $1.00 more than the ball. How much does the ball cost? Most people say 10 cents — and most LLMs, asked directly, say the same. It's wrong. The answer is 5 cents. Chain-of-thought prompting is what makes the model get it right.
 
 ---
 
 ## Concept
 
+> 🎬 **SHOW:** Slide — two paths from the same question: "Direct" jumps straight to an answer (wrong), "CoT" shows intermediate steps leading to the correct answer.
+
 Chain-of-thought (CoT) prompting asks the model to reason through a problem step by step before giving a final answer. The instruction is simple: *"Think step by step before answering."*
 
 Why does this work? When the model generates a reasoning trace, each step becomes part of the context for the next step. The model can catch its own errors mid-reasoning in a way it can't when jumping straight to an answer. It's the difference between mental arithmetic and writing out the working.
 
-CoT helps most on:
-- Multi-step maths and logic problems
-- Code analysis and debugging
-- Problems where the answer depends on intermediate conclusions
+> 🎬 **SHOW:** Slide — "CoT helps" column: multi-step maths, logic puzzles, code analysis. "CoT doesn't help" column: factual recall, simple questions, creative writing.
 
-CoT helps least on:
-- Simple factual recall — the model knows the answer or it doesn't
-- Tasks where the reasoning trace itself is the output (e.g. writing)
-- Very short, obvious questions
+CoT helps most on multi-step maths, logic, and code analysis. It adds little value for factual recall or simple questions.
 
 The cost: CoT produces more output tokens. A reasoning trace might be 200 tokens before the 10-token answer. For high-volume applications, that's a real cost increase. Use it selectively.
-
-One important caveat: **the reasoning trace is not verified**. The model can reason incorrectly and still reach a wrong answer. CoT improves accuracy on average, but it's not a guarantee. Some newer models (o1, o3) do chain-of-thought internally — explicit CoT prompting is less necessary for those.
 
 ---
 
 ## Demo Walkthrough
 
-Open the **Chain-of-Thought** tab. It runs the same question with two system prompts in parallel: direct (answer only) and CoT (think step by step).
+> 🎬 **SHOW:** Chain-of-Thought tab, question input ready, both columns visible.
 
 1. Try the bat-and-ball problem: *"A bat and a ball cost $1.10 in total. The bat costs $1.00 more than the ball. How much does the ball cost?"*
-   - Direct: likely says "10 cents" — wrong.
-   - CoT: sets up the equation, solves it, arrives at "5 cents" — correct.
+
+   > 🎬 **SHOW:** Type the question, click Run. Watch both columns populate. Point to the Direct column — likely says "10 cents". Point to the CoT column — it should set up the equation and arrive at "5 cents".
+
+   Direct: likely says "10 cents" — wrong. CoT: sets up the equation, solves it, arrives at "5 cents" — correct.
 
 2. Try: *"If I have 3 apples and give away half, then buy 4 more, how many do I have?"*
-   - Direct: might get this right or wrong depending on the model.
-   - CoT: shows each step clearly.
+
+   > 🎬 **SHOW:** Clear and run. Point to the CoT reasoning trace showing each arithmetic step.
+
+   CoT shows each step clearly.
 
 3. Try a factual question: *"What is the capital of Australia?"*
-   - Both should say "Canberra". CoT adds no value here — just extra tokens.
 
-4. Look at the token counts. How many extra tokens does the reasoning trace cost? Is the accuracy improvement worth it for your use case?
+   > 🎬 **SHOW:** Clear and run. Both columns should say "Canberra". Point to the CoT column — it adds reasoning but the answer is the same.
+
+   Both should say "Canberra". CoT adds no value here — just extra tokens.
+
+4. Look at the token counts.
+
+   > 🎬 **SHOW:** Point to the token count badges on both cards. The CoT card should show significantly more output tokens.
+
+   How many extra tokens does the reasoning trace cost? Is the accuracy improvement worth it for your use case?
 
 ---
 
 ## Code Deep-Dive
+
+> 🎬 **SHOW:** Open `backend/main.py`, scrolled to the chain-of-thought endpoint. Show the two system prompt strings side by side.
 
 The implementation is two parallel calls with different system prompts:
 
@@ -74,28 +83,19 @@ direct, cot = await asyncio.gather(
 )
 ```
 
-The UI then parses the CoT response to separate the reasoning trace from the final answer. It looks for patterns like "Therefore," or "The answer is" to split the response. This parsing is heuristic — in production, you'd use structured output (a later tab) to get the reasoning and answer as separate JSON fields.
+> 🎬 **SHOW:** Highlight the two system prompt strings — point out how minimal the CoT instruction is: just "think step by step".
 
-A production pattern for CoT with structured output:
+The instruction is minimal — "think step by step" is enough. The model knows what to do.
 
-```python
-# Ask for reasoning + answer as structured JSON
-completion = await client.chat.completions.create(
-    model=INFERENCE_MODEL,
-    messages=[{"role": "user", "content": question}],
-    response_format={"type": "json_object"},
-    # system prompt asks for: {"reasoning": "...", "answer": "..."}
-)
-result = json.loads(completion.choices[0].message.content)
-reasoning = result["reasoning"]
-answer = result["answer"]
-```
+> 🎬 **SHOW:** Scroll down to show how the UI splits the CoT response — looking for "Therefore," or "The answer is" to separate reasoning from conclusion.
 
-This gives you clean separation without fragile string parsing.
+The UI parses the CoT response to separate the reasoning trace from the final answer. In production, you'd use structured output to get them as separate JSON fields — cleaner than string parsing.
 
 ---
 
 ## Key Takeaways
+
+> 🎬 **SHOW:** Return to the tab with the bat-and-ball problem — Direct showing "10 cents" (wrong), CoT showing the correct working and "5 cents".
 
 - CoT prompting asks the model to show its reasoning before answering, improving accuracy on multi-step problems.
 - The instruction is simple: *"Think step by step."* The model knows what to do.
@@ -106,5 +106,7 @@ This gives you clean separation without fragile string parsing.
 ---
 
 ## What's Next
+
+> 🎬 **SHOW:** Click "Personas" in the sidebar.
 
 You've learned how to shape model behaviour through instructions and reasoning. The next technique is more subtle: using the system prompt to give the model a complete identity — a persona — that shapes not just what it says but how it says it.

@@ -7,44 +7,63 @@
 
 ## Hook
 
+> 🎬 **SHOW:** Query Expansion tab open, query input at the top, an "Expansions" panel in the middle (empty), and merged retrieval results below.
+
 A user types: *"db performance"*. Your RAG system searches for chunks similar to that embedding. But the relevant documentation uses words like "query optimisation", "index efficiency", "execution plan". The embeddings are close but not identical — and you might miss the best chunks. Query expansion generates multiple phrasings of the same intent and retrieves documents for all of them, dramatically improving recall.
 
 ---
 
 ## Concept
 
+> 🎬 **SHOW:** Slide — one original query at the top, branching into 4 alternative phrasings, each with its own ANN search arrow going into the database, all results merging into one deduplicated list at the bottom.
+
 **Query expansion** addresses the vocabulary mismatch problem: the user's query and the relevant documents may use different words to express the same concept.
 
-The approach:
+The approach: expand the query into N alternative phrasings, embed all of them in parallel, retrieve documents for each, then merge — keeping the best score for each document across all queries.
 
-1. **Expand**: Ask the LLM to generate N alternative phrasings of the original query.
-2. **Embed all**: Embed the original query and all expansions in parallel.
-3. **Retrieve all**: Run ANN search for each embedding in parallel.
-4. **Merge**: Combine all result sets, keeping the best (lowest L2 distance) score for each document ID.
+> 🎬 **SHOW:** Slide — "Expansion improves recall. Combine with reranking to also improve precision."
 
-The merge step is important: the same document may appear in multiple result sets. You keep it once, with the best score across all queries. This prevents the final list from being dominated by one query's results.
+Query expansion improves **recall** — you find more relevant documents. It doesn't directly improve **precision** — you may also retrieve more irrelevant documents. Combining expansion with reranking gives you both.
 
-Query expansion improves **recall** — you find more relevant documents. It doesn't directly improve **precision** — you may also retrieve more irrelevant documents. Combining expansion with reranking (previous tab) gives you both: high recall from expansion, high precision from reranking.
+> 🎬 **SHOW:** Slide — cost note: "1 LLM call for expansion + N parallel embedding calls + N parallel ANN searches. Total latency ≈ 2 LLM calls."
 
-The cost: N+1 embedding calls and N+1 ANN queries per request. At typical embedding prices, this is cheap. The LLM call to generate expansions is the main cost — one extra call per request.
+The cost: one LLM call to generate expansions, then all embeddings and retrievals run in parallel. Total latency is roughly two LLM calls.
 
 ---
 
 ## Demo Walkthrough
 
-Open the **Query Expansion** tab. It shows the original query, the generated expansions, and the merged retrieval results.
+> 🎬 **SHOW:** Query Expansion tab, query input ready.
 
-1. Try: *"db performance"* — watch the LLM generate expansions like *"database query optimisation"*, *"improving SQL query speed"*, *"database index performance"*. Each expansion covers a different vocabulary cluster.
+1. Try: *"db performance"*
 
-2. Try a technical acronym: *"CORS"* — expansions might include *"Cross-Origin Resource Sharing"*, *"browser security policy"*, *"HTTP headers for cross-origin requests"*. The acronym alone has a poor embedding; the expanded forms retrieve much better.
+   > 🎬 **SHOW:** Type and send. Watch the expansions panel populate — read the generated alternatives aloud: "database query optimisation", "improving SQL query speed", "database index performance". Then watch the merged results appear below.
 
-3. Try a query in a different language. Does the LLM expand it in the same language? Does it also generate English expansions?
+   Watch the LLM generate expansions like *"database query optimisation"*, *"improving SQL query speed"*, *"database index performance"*. Each expansion covers a different vocabulary cluster.
 
-4. Compare the merged results to what standard retrieval (just the original query) would return. Are there documents in the expanded results that wouldn't have been found otherwise?
+2. Try a technical acronym: *"CORS"*
+
+   > 🎬 **SHOW:** Send. Point to the expansions including the full form "Cross-Origin Resource Sharing" and related terms. Compare the merged results to what a single-query search would return.
+
+   Expansions might include *"Cross-Origin Resource Sharing"*, *"browser security policy"*, *"HTTP headers for cross-origin requests"*. The acronym alone has a poor embedding; the expanded forms retrieve much better.
+
+3. Point to the `matched_query` field in the results.
+
+   > 🎬 **SHOW:** Hover over or expand a result card to show which expansion found it. Point to results that were found by an expansion but not by the original query.
+
+   The `matched_query` field shows which expansion found each document — useful for understanding which phrasings are most effective.
+
+4. Compare merged results to standard retrieval.
+
+   > 🎬 **SHOW:** If the tab has a toggle for standard vs expanded, switch between them. Point to documents in the expanded results that wouldn't have been found by the original query alone.
+
+   Are there documents in the expanded results that wouldn't have been found otherwise?
 
 ---
 
 ## Code Deep-Dive
+
+> 🎬 **SHOW:** Open `backend/main.py`, scrolled to the query expansion endpoint. Walk through the four steps.
 
 ```python
 # Step 1: generate alternative phrasings
@@ -78,13 +97,19 @@ for query, results in zip(all_queries, all_results):
 final = sorted(merged.values(), key=lambda x: x["score"])
 ```
 
-`temperature=0.8` for expansion generation — you want genuine variation in phrasings, not near-identical alternatives. The `matched_query` field in the result tells you which expansion found each document, which is useful for debugging retrieval quality.
+> 🎬 **SHOW:** Highlight `temperature=0.8` for expansion generation — explain you want genuine variation, not near-identical alternatives.
 
-The `response_format: json_object` ensures the expansions come back as a parseable list, not free-form text.
+`temperature=0.8` for expansion generation — you want genuine variation in phrasings, not near-identical alternatives.
+
+> 🎬 **SHOW:** Highlight the merge step — specifically `doc["score"] < merged[doc["id"]]["score"]` — explain this keeps the best score across all queries.
+
+The merge step deduplicates results, keeping the best score for each document across all queries.
 
 ---
 
 ## Key Takeaways
+
+> 🎬 **SHOW:** Return to the tab with the "db performance" query — expansions visible in the middle panel, merged results showing documents found by different expansions.
 
 - Query expansion generates multiple phrasings of the same intent to cover vocabulary mismatches between queries and documents.
 - All embeddings and retrievals run in parallel — the latency cost is roughly two LLM calls (expansion + generation), not N+1.
@@ -95,5 +120,7 @@ The `response_format: json_object` ensures the expansions come back as a parseab
 ---
 
 ## What's Next
+
+> 🎬 **SHOW:** Click "Vision" in the sidebar — the first tab of Module 5.
 
 You've completed the RAG module. You can build, ingest, retrieve, rerank, and improve queries. Now we move to LLM capabilities — features that go beyond text: vision, tool calling, and model comparison.

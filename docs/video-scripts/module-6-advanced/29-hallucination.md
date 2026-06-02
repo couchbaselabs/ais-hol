@@ -7,48 +7,71 @@
 
 ## Hook
 
+> 🎬 **SHOW:** Hallucination Detection tab open, question input, optional context field, generated answer area, and verdict panel — all empty.
+
 LLMs are fluent liars. They generate confident, well-structured, grammatically perfect text about things that never happened, people who don't exist, and facts that are simply wrong. This is hallucination — and it's not a bug that will be fixed in the next model version. It's a fundamental property of how these models work. The question isn't how to eliminate it; it's how to detect it.
 
 ---
 
 ## Concept
 
-**Hallucination** occurs when an LLM generates text that is factually incorrect or unsupported by the provided context. It happens because the model is a text predictor, not a fact database — it generates the most plausible-sounding continuation, which is not always the true one.
+> 🎬 **SHOW:** Slide — two categories: "Intrinsic hallucination" (model contradicts the provided context — detectable) vs "Extrinsic hallucination" (model adds information not in context — harder to detect).
 
-Two categories:
+**Hallucination** occurs when an LLM generates text that is factually incorrect or unsupported by the provided context. Two categories:
 
-**Intrinsic hallucination**: the model contradicts information in the provided context. *"The document says X, but the model says not-X."* This is detectable by comparing the answer to the context.
+**Intrinsic**: the model contradicts information in the provided context. Detectable by comparing the answer to the context.
 
-**Extrinsic hallucination**: the model adds information not present in the context — information that may or may not be true. *"The document doesn't mention Y, but the model asserts Y."* This is harder to detect without external knowledge.
+**Extrinsic**: the model adds information not present in the context — information that may or may not be true. Harder to detect without external knowledge.
 
-The two-step detection pattern:
+> 🎬 **SHOW:** Slide — two-step pattern: "1. Generate answer → 2. Verify answer against context". Verdict: grounded / hallucinated / uncertain.
 
-1. **Generate**: produce an answer (with or without grounding context).
-2. **Verify**: use a second LLM call to fact-check the answer against the context (or against the model's own knowledge).
+The two-step detection pattern: generate an answer, then use a second LLM call to fact-check it against the context. The verifier returns a verdict: `grounded`, `hallucinated`, or `uncertain`.
 
-The verifier returns a verdict: `grounded` (answer is supported by context), `hallucinated` (answer contradicts or extends beyond context), or `uncertain` (can't determine).
+> 🎬 **SHOW:** Slide — "This pattern detects hallucination, it doesn't eliminate it. The application decides what to do: show with warning, regenerate, or refuse."
 
-This pattern doesn't eliminate hallucination — it detects it. The application can then decide: show the answer with a warning, regenerate, or refuse to answer.
+This pattern doesn't eliminate hallucination — it detects it. The application can then decide what to do.
 
 ---
 
 ## Demo Walkthrough
 
-Open the **Hallucination Detection** tab. It shows the question, optional grounding context, the generated answer, and the verifier's verdict.
+> 🎬 **SHOW:** Hallucination Detection tab, all fields visible.
 
-1. **No context, obscure fact**: ask about a real but obscure historical event. Does the model hallucinate details? Is the verifier confident in its verdict?
+1. **No context, obscure fact**: ask about a real but obscure historical event.
 
-2. **With correct context**: provide a paragraph about CSS flexbox. Ask a question answered by the context. The answer should be grounded — the verifier should say `grounded` with high confidence.
+   > 🎬 **SHOW:** Leave context empty, ask about something obscure. Submit. Point to the generated answer — does it sound confident? Point to the verdict — is the verifier confident it's hallucinated or uncertain?
 
-3. **With correct context, off-topic question**: provide the same CSS context. Ask about CSS grid (not in the context). The model may hallucinate grid information. The verifier should flag `hallucinated` or `uncertain`.
+   Does the model hallucinate details? Is the verifier confident in its verdict?
 
-4. **Deliberately wrong context**: provide a paragraph with intentionally incorrect information (e.g. *"CSS flexbox was invented in 2020"*). Ask when flexbox was invented. Does the model follow the wrong context or correct it from training? What does the verifier say?
+2. **With correct context**: provide a paragraph about CSS flexbox. Ask a question answered by the context.
 
-5. **Fictional person**: ask about a fictional person as if they were real. What does the model invent? Is the verifier confident it's hallucinated?
+   > 🎬 **SHOW:** Paste a CSS flexbox paragraph in the context field. Ask "What does `flex-direction: row` do?" Submit. Point to the `grounded` verdict — the answer is supported by the context.
+
+   The answer should be grounded — the verifier should say `grounded` with high confidence.
+
+3. **With correct context, off-topic question**: provide the same CSS context. Ask about CSS grid.
+
+   > 🎬 **SHOW:** Keep the flexbox context, change the question to ask about CSS grid. Submit. Point to the `hallucinated` or `uncertain` verdict — the model added information not in the context.
+
+   The model may hallucinate grid information. The verifier should flag `hallucinated` or `uncertain`.
+
+4. **Deliberately wrong context**: provide a paragraph with intentionally incorrect information.
+
+   > 🎬 **SHOW:** Paste a context that says something factually wrong (e.g. "CSS flexbox was invented in 2020"). Ask when flexbox was invented. Point to whether the model follows the wrong context or corrects it from training.
+
+   Does the model follow the wrong context or correct it from training? What does the verifier say?
+
+5. **Fictional person**: ask about a fictional person as if they were real.
+
+   > 🎬 **SHOW:** Ask about a made-up person with a plausible name. Point to the model inventing a biography. Point to the verifier flagging it as hallucinated.
+
+   What does the model invent? Is the verifier confident it's hallucinated?
 
 ---
 
 ## Code Deep-Dive
+
+> 🎬 **SHOW:** Open `backend/main.py`, scrolled to the hallucination detection endpoint. Show the two-step structure clearly.
 
 The two-step generate-then-verify pattern:
 
@@ -60,8 +83,7 @@ answer_completion = await client.chat.completions.create(
         "role": "system",
         "content": (
             f"Answer based on this context:\n{context}\n\n"
-            if context else
-            "Answer the question."
+            if context else "Answer the question."
         ),
     }, {"role": "user", "content": question}],
     temperature=0.3,
@@ -82,21 +104,21 @@ check = await client.chat.completions.create(
     temperature=0,
 )
 result = json.loads(check.choices[0].message.content)
-# result = {
-#   "verdict": "grounded" | "hallucinated" | "uncertain",
-#   "confidence": 0.0-1.0,
-#   "issues": ["specific claim X is not in context", ...],
-#   "explanation": "..."
-# }
 ```
 
-The verifier uses temperature 0 for consistent verdicts. The `issues` list identifies specific claims that are problematic — useful for showing the user exactly what to be skeptical of.
+> 🎬 **SHOW:** Highlight `temperature=0` for the verifier — consistent verdicts. Highlight `temperature=0.3` for generation — slightly creative but still grounded.
 
-In production, you'd combine this with RAG: if the verifier flags `hallucinated`, regenerate with a stricter system prompt that says *"Only answer from the provided context. If the context doesn't contain the answer, say so."*
+The verifier uses temperature 0 for consistent verdicts. Generation uses 0.3 — slightly creative but still grounded.
+
+> 🎬 **SHOW:** Highlight the `issues` field in the result — explain it identifies specific claims that are problematic.
+
+The `issues` list identifies specific claims that are problematic — useful for showing the user exactly what to be skeptical of.
 
 ---
 
 ## Key Takeaways
+
+> 🎬 **SHOW:** Return to the tab with the off-topic question — `hallucinated` verdict visible, issues list showing the specific claims that weren't in the context.
 
 - Hallucination is a fundamental property of LLMs — they generate plausible text, not necessarily true text.
 - Intrinsic hallucination (contradicts context) is detectable; extrinsic hallucination (adds unsupported information) is harder.
@@ -107,5 +129,7 @@ In production, you'd combine this with RAG: if the verifier flags `hallucinated`
 ---
 
 ## What's Next
+
+> 🎬 **SHOW:** Click "Cost & Latency" in the sidebar — the first tab of Module 7.
 
 You've completed the Advanced Patterns module. Now we move to Production — the concerns that matter when your system handles real traffic: cost and latency optimisation, and safety guardrails that protect both users and your application.

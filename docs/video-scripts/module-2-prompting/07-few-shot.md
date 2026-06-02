@@ -7,53 +7,68 @@
 
 ## Hook
 
+> 🎬 **SHOW:** Few-Shot tab open, showing the task description field, examples editor (empty), and the two-column zero-shot vs few-shot comparison layout.
+
 Sometimes you can't describe what you want in words. You know it when you see it — but writing instructions for it is hard. Few-shot prompting solves this: instead of describing the pattern, you show it. Three examples often outperform three paragraphs of instructions.
 
 ---
 
 ## Concept
 
+> 🎬 **SHOW:** Slide — left column "Zero-shot": task description + query → response. Right column "Few-shot": task description + example 1 + example 2 + example 3 + query → response. Arrow pointing to the examples labelled "in-context learning".
+
 **Zero-shot** prompting sends the model a task with no examples. The model relies entirely on its training to understand what you want.
 
 **Few-shot** prompting provides input/output examples before the actual query. The model infers the pattern from the examples and applies it to new inputs — without any weight updates or fine-tuning. It's in-context learning.
 
-Why does it work? The model has seen enormous amounts of text during training, including many examples of "here are some examples, now do the same thing". It's learned to recognise and continue that pattern.
+> 🎬 **SHOW:** Slide — "When to use few-shot" checklist: output format hard to describe, domain-specific conventions, zero-shot gives inconsistent results.
 
-When to use few-shot:
-- The output format is hard to describe but easy to demonstrate (e.g. a specific JSON structure, a particular writing style).
-- The task involves a domain-specific convention the model might not know.
-- Zero-shot gives inconsistent results and you need more reliability.
+When to use few-shot: the output format is hard to describe but easy to demonstrate, the task involves domain-specific conventions, or zero-shot gives inconsistent results.
 
-When not to use few-shot:
-- The task is simple and zero-shot already works well — examples add tokens for no benefit.
-- You have many examples — at some point, fine-tuning is more efficient than a very long prompt.
-- Your examples are low quality — bad examples actively hurt performance.
+When not to use it: the task is simple and zero-shot already works, you have many examples (fine-tuning is more efficient), or your examples are low quality — bad examples actively hurt performance.
 
 ---
 
 ## Demo Walkthrough
 
-Open the **Few-Shot** tab. It shows a task description, an examples editor, and a query input. It runs zero-shot and few-shot in parallel.
+> 🎬 **SHOW:** Few-Shot tab, SQL generation preset selected, examples editor visible.
 
-1. Use the **SQL generation** preset. The task is: convert natural language to SQL. Add 2-3 examples like:
+1. Use the **SQL generation** preset. Add 2-3 examples:
+
+   > 🎬 **SHOW:** Click "Add example", type the input and output for each. Show the examples appearing in the list.
+
    - Input: *"Find all users over 30"* → Output: `SELECT * FROM users WHERE age > 30`
    - Input: *"Count orders from last week"* → Output: `SELECT COUNT(*) FROM orders WHERE created_at > NOW() - INTERVAL 7 DAY`
 
-   Now query: *"Get the top 5 products by revenue"*. Compare zero-shot vs few-shot. Few-shot should produce SQL that matches your schema conventions.
+   Now query: *"Get the top 5 products by revenue"*
 
-2. Try the **sentiment classification** preset. Examples:
-   - *"I love this product!"* → `positive`
-   - *"Terrible experience."* → `negative`
+   > 🎬 **SHOW:** Type the query, click Run. Point to both columns — zero-shot on the left, few-shot on the right. The few-shot result should match the schema conventions from the examples.
 
-   Query: *"It was okay, nothing special."* Zero-shot might say "neutral" or "mixed". Few-shot will match your label vocabulary exactly.
+   Few-shot should produce SQL that matches your schema conventions.
 
-3. Add a **contradictory example** — one that goes against the pattern. Does the model follow it? Usually yes, which is both the power and the risk of few-shot.
+2. Try the **sentiment classification** preset.
 
-4. Try with 1 example vs 3 examples. Does quality improve? For simple patterns, 1-2 examples is often enough.
+   > 🎬 **SHOW:** Switch to the sentiment preset. Show the examples: "I love this!" → positive, "Terrible." → negative. Run with "It was okay, nothing special."
+
+   Zero-shot might say "neutral" or "mixed". Few-shot will match your label vocabulary exactly.
+
+3. Add a **contradictory example**.
+
+   > 🎬 **SHOW:** Add an example that goes against the pattern — e.g. a positive sentence labelled "negative". Run the query. Point to the model following the contradictory example.
+
+   Does the model follow it? Usually yes — which is both the power and the risk of few-shot.
+
+4. Try with 1 example vs 3 examples.
+
+   > 🎬 **SHOW:** Delete two examples, run, then add them back and run again. Compare the outputs side by side.
+
+   For simple patterns, 1-2 examples is often enough.
 
 ---
 
 ## Code Deep-Dive
+
+> 🎬 **SHOW:** Open `backend/main.py`, scrolled to the few-shot endpoint. Highlight the loop that builds the messages array.
 
 The key is how examples are injected into the message list:
 
@@ -75,25 +90,17 @@ completion = await client.chat.completions.create(
 )
 ```
 
+> 🎬 **SHOW:** Highlight the alternating `user`/`assistant` pattern in the loop. Then highlight `temperature=0`.
+
 The examples are formatted as a conversation: user says the input, assistant says the output. The model sees this as a conversation history and continues the pattern for the new user message.
 
 Temperature 0 is used here because few-shot tasks usually want consistent, pattern-following output — not creative variation.
 
-The zero-shot call is identical but with the examples list empty:
-
-```python
-# Zero-shot: same structure, no examples
-messages = [
-    {"role": "system", "content": f"Task: {task}"},
-    {"role": "user",   "content": user_input},
-]
-```
-
-Both calls run in parallel with `asyncio.gather` so you see the comparison immediately.
-
 ---
 
 ## Key Takeaways
+
+> 🎬 **SHOW:** Return to the tab with the SQL generation examples visible and a successful few-shot result.
 
 - Few-shot prompting teaches the model a pattern through examples, not instructions.
 - Examples are injected as alternating user/assistant messages before the real query.
@@ -104,5 +111,7 @@ Both calls run in parallel with `asyncio.gather` so you see the comparison immed
 ---
 
 ## What's Next
+
+> 🎬 **SHOW:** Click "Chain-of-Thought" in the sidebar.
 
 Few-shot helps with pattern and format. But for tasks that require multi-step reasoning — maths, logic, code analysis — there's a more powerful technique: asking the model to show its work before giving an answer.

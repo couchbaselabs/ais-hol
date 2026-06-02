@@ -7,49 +7,63 @@
 
 ## Hook
 
+> 🎬 **SHOW:** Prompt Engineering tab open, five preset cards visible side by side, all empty — waiting for a prompt.
+
 Two developers build the same feature. One gets mediocre results and concludes the model isn't good enough. The other gets excellent results from the same model. The difference is almost always the system prompt. Prompt engineering isn't a soft skill — it's the primary interface between your application and the model.
 
 ---
 
 ## Concept
 
+> 🎬 **SHOW:** Slide — a single user question at the top, five arrows branching down to five different system prompts, each producing a different response style.
+
 The system prompt is evaluated before any user input. It sets the model's persona, constraints, output format, and reasoning style. A well-written system prompt can make a weak model perform like a strong one. A poorly written one can make a strong model perform poorly.
 
-The key insight: **the model is a text completion engine**. It predicts what text should come next given everything it has seen. Your system prompt is the beginning of that context. If your system prompt reads like a confident, precise expert, the model will complete it like a confident, precise expert.
+The key insight: the model is a text completion engine. It predicts what text should come next given everything it has seen. Your system prompt is the beginning of that context. If your system prompt reads like a confident, precise expert, the model will complete it like a confident, precise expert.
 
-Effective system prompts tend to:
-- State the role explicitly: *"You are a senior Python engineer."*
-- Specify the output format: *"Respond in bullet points."* or *"Return only valid JSON."*
-- Set constraints: *"Never mention competitor products."*
-- Provide examples of good responses (that's few-shot, covered next tab).
+> 🎬 **SHOW:** Slide — two columns: "Works well" (explicit role, output format, constraints) vs "Doesn't work" (vague instructions, contradictions, negative-only rules).
 
-What doesn't work well:
-- Vague instructions: *"Be helpful."* (the model already tries to be helpful)
-- Contradictory constraints: *"Be concise but thorough."*
-- Negative-only instructions: *"Don't be rude."* — tell it what to do, not just what not to do.
+Effective system prompts state the role explicitly, specify the output format, and set constraints. What doesn't work: vague instructions like "be helpful", contradictory constraints, or negative-only instructions. Tell it what to do, not just what not to do.
 
 ---
 
 ## Demo Walkthrough
 
-Open the **Prompt Engineering** tab. It runs the same user question through up to 5 different system prompts in parallel and shows all responses side by side.
+> 🎬 **SHOW:** Prompt Engineering tab, all five preset checkboxes ticked, prompt input ready.
 
 1. Enter the question: *"What is recursion?"* and run all 5 presets.
+
+   > 🎬 **SHOW:** Type the question, click Run. Watch all five cards populate in parallel. Once done, pan slowly across each card left to right as you describe each one.
+
    - **Concise**: one sentence. Useful for tooltips, summaries.
    - **Detailed**: thorough explanation with examples. Useful for documentation.
    - **ELI5**: explain like I'm five. Useful for onboarding.
-   - **Socratic**: refuses to answer directly, asks guiding questions instead. Useful for tutoring.
-   - **Adversarial**: challenges the premise of the question. Useful for stress-testing assumptions.
+   - **Socratic**: refuses to answer directly, asks guiding questions instead.
+   - **Adversarial**: challenges the premise of the question.
 
-2. Notice the token counts on each card. The Detailed response costs 3-5x more tokens than Concise. For a high-volume application, that difference is significant.
+2. Notice the token counts on each card.
 
-3. Try: *"How does HTTPS work?"* — the Socratic preset is particularly interesting here. It never answers the question directly.
+   > 🎬 **SHOW:** Point to the token count badge on the Concise card, then the Detailed card. The difference should be 3-5×.
 
-4. Now write your own system prompt. Try: *"You are a grumpy senior engineer who answers every question with exactly one sentence and always ends with 'and that's all you need to know'."* Does the model follow it?
+   The Detailed response costs 3-5× more tokens than Concise. For a high-volume application, that difference is significant.
+
+3. Try: *"How does HTTPS work?"*
+
+   > 🎬 **SHOW:** Clear the input, type the new question, run. Scroll to the Socratic card and read a few of its questions aloud.
+
+   The Socratic preset is particularly interesting here — it never answers the question directly.
+
+4. Write your own system prompt.
+
+   > 🎬 **SHOW:** Click the "Custom" preset option, type a custom system prompt in the text field: "You are a grumpy senior engineer who answers every question correctly but always ends with 'and that's all you need to know'." Run it.
+
+   Does the model follow it? Try to predict what it will say before it responds.
 
 ---
 
 ## Code Deep-Dive
+
+> 🎬 **SHOW:** Open `backend/main.py`, scrolled to the `/api/chat-prompt` endpoint. Highlight the `PRESETS` dictionary.
 
 The backend runs all selected presets concurrently:
 
@@ -79,13 +93,15 @@ results = await asyncio.gather(*[
 ])
 ```
 
-The only difference between the five calls is the system prompt string. Same model, same temperature, same user message. The system prompt is doing all the work.
+> 🎬 **SHOW:** Highlight that the only difference between the five calls is the `system` string — same model, same temperature, same user message.
 
-One cost note: 5 parallel calls means 5× the input tokens. In production, you'd pick one system prompt and stick with it. This tab is for exploration — to help you find the right one.
+The only difference between the five calls is the system prompt string. Same model, same temperature, same user message. The system prompt is doing all the work.
 
 ---
 
 ## Key Takeaways
+
+> 🎬 **SHOW:** Return to the tab with all five cards visible for the "What is recursion?" question.
 
 - The system prompt is the most powerful lever you have over model behaviour.
 - Be specific: state the role, output format, and constraints explicitly.
@@ -96,5 +112,7 @@ One cost note: 5 parallel calls means 5× the input tokens. In production, you'd
 ---
 
 ## What's Next
+
+> 🎬 **SHOW:** Click "Few-Shot" in the sidebar.
 
 You've seen how the system prompt shapes responses. But sometimes you need the model to learn a specific pattern — not from instructions, but from examples. That's few-shot prompting, and it's often more effective than trying to describe the pattern in words.

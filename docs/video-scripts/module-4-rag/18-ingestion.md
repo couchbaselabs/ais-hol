@@ -7,56 +7,61 @@
 
 ## Hook
 
+> 🎬 **SHOW:** Ingestion tab open, document text area with sample content, chunk size controls, and a progress/status area below.
+
 Most RAG tutorials show you the retrieval side — querying a pre-built vector database. But where did those vectors come from? The ingestion pipeline is the write side of RAG, and understanding it is what lets you build RAG over your own documents rather than someone else's demo data.
 
 ---
 
 ## Concept
 
-The ingestion pipeline has three steps:
+> 🎬 **SHOW:** Slide — three-step pipeline: "1. Chunk" (document splits into pieces) → "2. Embed" (each piece gets a vector) → "3. Store" (vector + text stored in Couchbase with a vector index).
 
-1. **Chunk**: Split the document into pieces (covered in the previous tab).
-2. **Embed**: Call the embedding model for each chunk to get a vector.
-3. **Store**: Write each chunk and its vector to Couchbase, where a vector index makes it searchable.
+The ingestion pipeline has three steps: chunk, embed, store. The stored document structure is simple — original text, its vector, and metadata like filepath and title.
 
-The stored document structure is simple:
+> 🎬 **SHOW:** Slide — a JSON document: `{"content": "...", "vector": [0.023, -0.041, ...], "filepath": "css/box-model.md"}`.
 
-```json
-{
-  "content": "The CSS box model defines how elements are sized...",
-  "vector": [0.023, -0.041, 0.118, ...],  // 1536 floats
-  "filepath": "css/box-model.md",
-  "title": "CSS Box Model"
-}
-```
+The `vector` field is what the ANN index operates on. When a query arrives, its embedding is compared against all stored vectors to find the closest matches.
 
-The `vector` field is what the ANN (Approximate Nearest Neighbour) index operates on. When a query arrives, its embedding is compared against all stored vectors to find the closest matches.
+> 🎬 **SHOW:** Slide — two performance notes: "asyncio.gather: 1000 chunks ≈ time of 1 call" and "Re-ingestion creates duplicates — implement deduplication in production."
 
-Two performance considerations:
-
-**Embedding cost scales linearly.** 1000 chunks = 1000 embedding API calls. Use `asyncio.gather` to run them concurrently — the total time is roughly the time of one call, not 1000.
-
-**Re-ingestion creates duplicates.** If you ingest the same document twice, you get duplicate chunks in the database. The retrieval system will return both, wasting context window space. In production, you'd check for existing documents by filepath before ingesting, or use `upsert` with a deterministic document ID derived from the content hash.
+Two performance considerations: use `asyncio.gather` to embed all chunks concurrently, and be aware that re-ingesting the same document creates duplicate chunks.
 
 ---
 
 ## Demo Walkthrough
 
-Open the **Ingestion** tab. It shows a document input, chunk size controls, and a progress display.
+> 🎬 **SHOW:** Ingestion tab, sample document loaded, chunk size set to 150, overlap to 20.
 
-1. Use the sample document (MDN documentation excerpt). Set chunk size to 150 words, overlap to 20. Click **Ingest**.
+1. Click **Ingest**.
 
-2. Watch the progress: chunks appear as they're created, then embedding calls fire in parallel, then storage confirmations appear. The parallel embedding is fast — all chunks embed in roughly the time of one call.
+   > 🎬 **SHOW:** Click Ingest. Watch the progress: chunk cards appear first, then embedding progress indicators fire in parallel, then storage confirmations appear. Point to the parallel embedding — all chunks embed at roughly the same time.
 
-3. Try chunk size 50 vs 300. How does the number of chunks change? How does embedding time scale?
+   Watch the progress: chunks appear, then embedding calls fire in parallel, then storage confirmations appear.
 
-4. After ingestion, switch to the **RAG Pipeline** tab and query the document you just ingested. You're querying your own data.
+2. Try chunk size 50 vs 300.
 
-5. Ingest the same document again. Then query it — do you get duplicate results? This is the deduplication problem.
+   > 🎬 **SHOW:** Change chunk size to 50, click Ingest again. Count the chunks. Then change to 300 and repeat. Point to how embedding time stays roughly constant (parallel) while chunk count changes dramatically.
+
+   How does the number of chunks change? How does embedding time scale?
+
+3. After ingestion, switch to the RAG Pipeline tab and query the document you just ingested.
+
+   > 🎬 **SHOW:** Navigate to the RAG Pipeline tab. Ask a question about the ingested document. Point to the retrieved chunks panel — the chunks you just ingested should appear.
+
+   You're querying your own data.
+
+4. Ingest the same document again. Then query it.
+
+   > 🎬 **SHOW:** Return to Ingestion, click Ingest again without changing anything. Go back to RAG Pipeline and ask the same question. Point to duplicate chunks appearing in the retrieved results.
+
+   Do you get duplicate results? This is the deduplication problem.
 
 ---
 
 ## Code Deep-Dive
+
+> 🎬 **SHOW:** Open `backend/main.py`, scrolled to the ingestion endpoint. Highlight the three-step structure with comments.
 
 The full ingestion pipeline in three steps:
 
@@ -82,7 +87,13 @@ for chunk, vector in zip(chunks, vectors):
     })
 ```
 
-The Couchbase vector index is created once, not per-document. It's a SQL++ GSI (Global Secondary Index) with a vector type:
+> 🎬 **SHOW:** Highlight `asyncio.gather` in step 2 — draw attention to all embedding calls firing simultaneously.
+
+`asyncio.gather` runs all embedding calls concurrently. For 50 chunks, the total embedding time is roughly the time of one call.
+
+> 🎬 **SHOW:** Show the vector index creation SQL on a slide or in a comment.
+
+The Couchbase vector index is created once, not per-document:
 
 ```sql
 CREATE INDEX idx_documentation_vector
@@ -90,22 +101,15 @@ ON `bucket`.`scope`.documentation(vector VECTOR)
 WITH {"dimension": 1536, "similarity": "L2", "nprobes": 3};
 ```
 
-`dimension: 1536` matches `text-embedding-3-small`'s output size. `similarity: "L2"` uses Euclidean distance (lower = more similar). `nprobes: 3` controls the ANN search accuracy/speed tradeoff — higher values are more accurate but slower.
+> 🎬 **SHOW:** Highlight `dimension: 1536` matching the embedding model output size, and `similarity: "L2"`.
 
-Once the index exists, retrieval is a SQL++ query:
-
-```sql
-SELECT content, filepath,
-       ANN_DISTANCE(vector, $embedding, "L2") AS score
-FROM `bucket`.`scope`.documentation
-USE INDEX (idx_documentation_vector USING GSI)
-ORDER BY ANN_DISTANCE(vector, $embedding, "L2")
-LIMIT 4
-```
+`dimension: 1536` matches `text-embedding-3-small`'s output size. Once the index exists, all ingested documents are immediately queryable.
 
 ---
 
 ## Key Takeaways
+
+> 🎬 **SHOW:** Return to the tab showing the completed ingestion — chunk cards with green storage confirmations.
 
 - Ingestion is the write side of RAG: chunk → embed → store.
 - Use `asyncio.gather` to embed all chunks concurrently — linear scaling in time, not sequential.
@@ -116,5 +120,7 @@ LIMIT 4
 ---
 
 ## What's Next
+
+> 🎬 **SHOW:** Click "RAG Pipeline" in the sidebar.
 
 You've built the write side of RAG. Now the read side: the full RAG pipeline that takes a user question, retrieves relevant chunks, and generates a grounded answer. This is where everything from the last three tabs comes together.

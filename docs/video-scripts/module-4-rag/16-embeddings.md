@@ -7,43 +7,63 @@
 
 ## Hook
 
+> 🎬 **SHOW:** Embeddings tab open, phrase input fields empty, similarity matrix and scatter plot areas blank.
+
 How does a search engine know that *"automobile"* and *"car"* mean the same thing, even though they share no letters? How does a RAG system find the right documentation chunk even when the user's question uses completely different words than the document? The answer is embeddings — and understanding them is the prerequisite for everything else in this module.
 
 ---
 
 ## Concept
 
-An **embedding** is a high-dimensional vector — a list of floating-point numbers — that encodes the semantic meaning of a piece of text. The embedding model is trained so that texts with similar meanings produce vectors that point in similar directions in that high-dimensional space.
+> 🎬 **SHOW:** Slide — a 3D vector space with several labelled points: "king", "queen", "man", "woman". King and queen are close together, man and woman are close together, and the four form a rough parallelogram.
 
-Similarity is measured by **cosine similarity**: the cosine of the angle between two vectors. A score of 1.0 means identical direction (same meaning). A score of 0 means perpendicular (unrelated). A score of -1 means opposite directions (antonyms, in theory — though in practice most text embeddings stay positive).
+An **embedding** is a high-dimensional vector — a list of floating-point numbers — that encodes the semantic meaning of a piece of text. The embedding model is trained so that texts with similar meanings produce vectors that point in similar directions.
 
-The classic demonstration: embed "king", "queen", "man", "woman". The vectors for "king" and "queen" are close. The vectors for "man" and "woman" are close. And the famous analogy holds approximately: `king - man + woman ≈ queen`.
+Similarity is measured by **cosine similarity**: the cosine of the angle between two vectors. A score of 1.0 means identical direction. A score of 0 means perpendicular — unrelated.
 
-Why does this matter for RAG?
+> 🎬 **SHOW:** Slide — formula: `cosine(a, b) = dot(a,b) / (|a| × |b|)`. Below it: "king − man + woman ≈ queen".
 
-When a user asks *"How does the CSS box model work?"*, you embed that question and search for document chunks whose embeddings are close to the question's embedding. You're not matching keywords — you're matching meaning. A chunk that says *"The box model defines how elements are sized and spaced"* will score high even though it doesn't contain the words "how does" or "work".
+The classic demonstration: embed "king", "queen", "man", "woman". The famous analogy holds approximately: king minus man plus woman equals queen.
 
-The embedding model is separate from the LLM. Common choices: `text-embedding-3-small` (OpenAI, fast and cheap), `text-embedding-3-large` (higher quality), or open-source models like `nomic-embed-text`. The choice affects retrieval quality — a better embedding model means better RAG.
+> 🎬 **SHOW:** Slide — RAG flow: user question → embed → ANN search → retrieve matching chunks. Highlight the embedding step.
+
+Why does this matter for RAG? When a user asks *"How does the CSS box model work?"*, you embed that question and search for document chunks whose embeddings are close. You're not matching keywords — you're matching meaning.
 
 ---
 
 ## Demo Walkthrough
 
-Open the **Embeddings** tab. Enter up to 8 phrases and see the similarity matrix and 2D projection.
+> 🎬 **SHOW:** Embeddings tab, phrase input fields ready.
 
-1. Enter the classic analogy: *king, queen, man, woman*. Look at the similarity matrix — king/queen should be highly similar, man/woman should be highly similar, and king/man should be moderately similar. The 2D scatter plot should show them clustered by gender and royalty.
+1. Enter the classic analogy: *king, queen, man, woman*. Click **Embed**.
 
-2. Try synonyms and antonyms: *happy, joyful, sad, miserable*. Happy and joyful should cluster together. Sad and miserable should cluster together. The two clusters should be far apart.
+   > 🎬 **SHOW:** Type all four phrases, click Embed. Watch the similarity matrix populate — point to the king/queen cell (high similarity, green), the man/woman cell (high similarity), and the king/man cell (moderate). Then point to the 2D scatter plot showing the four points forming a parallelogram.
 
-3. Try programming languages: *Python, JavaScript, Rust, SQL*. Python and JavaScript should be closer (both general-purpose) than either is to SQL (query language).
+   King/queen should be highly similar. Man/woman should be highly similar. The 2D scatter plot should show them clustered by gender and royalty.
 
-4. Try: *"The dog ran fast"* and *"The canine moved quickly"*. High similarity despite sharing no words.
+2. Try synonyms and antonyms: *happy, joyful, sad, miserable*.
 
-5. Try: *"bank"* (financial institution) and *"river bank"*. Moderate similarity — the embedding captures the dominant meaning but the ambiguity shows up as a lower score than true synonyms.
+   > 🎬 **SHOW:** Clear and enter the four words. Point to the matrix — happy/joyful cluster together (green), sad/miserable cluster together (green), but happy/sad are far apart (red). The scatter plot shows two distinct clusters.
+
+   Happy and joyful cluster together. Sad and miserable cluster together. The two clusters are far apart.
+
+3. Try: *"The dog ran fast"* and *"The canine moved quickly"*.
+
+   > 🎬 **SHOW:** Enter both phrases. Point to the high similarity score despite sharing no words.
+
+   High similarity despite sharing no words — this is semantic search in action.
+
+4. Try: *"bank"* (financial) and *"river bank"*.
+
+   > 🎬 **SHOW:** Enter both. Point to the moderate similarity — the embedding captures the dominant meaning but the ambiguity shows up as a lower score than true synonyms.
+
+   Moderate similarity — the embedding captures the dominant meaning but the ambiguity shows up.
 
 ---
 
 ## Code Deep-Dive
+
+> 🎬 **SHOW:** Open `backend/main.py`, scrolled to the embeddings endpoint. Highlight the `get_embedding` function call and `asyncio.gather`.
 
 Embedding a phrase is a single API call:
 
@@ -56,43 +76,27 @@ async def get_embedding(text: str) -> list[float]:
     return response.data[0].embedding  # list of ~1536 floats
 ```
 
+> 🎬 **SHOW:** Scroll to the cosine similarity function. Highlight the dot product and magnitude calculation.
+
 Cosine similarity between two vectors:
 
 ```python
-import math
-
 async def cosine(a, b):
     dot = sum(x * y for x, y in zip(a, b))
     na  = math.sqrt(sum(x*x for x in a))
     nb  = math.sqrt(sum(x*x for x in b))
     return dot / (na * nb)
-
-# Embed two phrases in parallel
-emb_a, emb_b = await asyncio.gather(
-    get_embedding("king"),
-    get_embedding("queen"),
-)
-similarity = await cosine(emb_a, emb_b)
-# → ~0.85  (semantically close)
 ```
 
-The 2D scatter plot uses PCA — Principal Component Analysis — to project the high-dimensional vectors down to 2 dimensions for visualisation. The backend implements PCA from scratch using power iteration (no numpy dependency):
+> 🎬 **SHOW:** Scroll to the PCA function. Briefly show it — don't go deep, just note it's pure Python with no numpy.
 
-```python
-def pca_2d(vecs):
-    # Centre the vectors
-    mean = [sum(v[i] for v in vecs)/len(vecs) for i in range(len(vecs[0]))]
-    centred = [[v[i]-mean[i] for i in range(len(v))] for v in vecs]
-    # Find 2 principal components via power iteration
-    # ... (see InfoPanel for full implementation)
-    return 2d_coordinates
-```
-
-PCA is a linear projection — it preserves the most variance but loses non-linear structure. The 2D plot is a useful intuition-builder, not a precise representation of the full embedding space.
+The 2D scatter plot uses PCA to project the high-dimensional vectors down to 2 dimensions for visualisation. The backend implements PCA from scratch using power iteration — no numpy dependency. PCA is a linear projection — it preserves the most variance but loses non-linear structure. The 2D plot is a useful intuition-builder, not a precise representation of the full 1536-dimensional space.
 
 ---
 
 ## Key Takeaways
+
+> 🎬 **SHOW:** Return to the tab with the king/queen/man/woman scatter plot visible — the parallelogram shape clearly showing the analogy relationship.
 
 - An embedding is a high-dimensional vector encoding semantic meaning. Similar meanings → similar vectors.
 - Cosine similarity measures the angle between vectors: 1.0 = identical direction, 0 = unrelated.
@@ -103,5 +107,7 @@ PCA is a linear projection — it preserves the most variance but loses non-line
 ---
 
 ## What's Next
+
+> 🎬 **SHOW:** Click "Chunking" in the sidebar.
 
 You understand what embeddings are. Now the question is: what do you embed? A 50-page document can't be embedded as a single vector — the meaning would be too diluted. You need to split it into chunks first. The next tab covers chunking strategies and their tradeoffs.

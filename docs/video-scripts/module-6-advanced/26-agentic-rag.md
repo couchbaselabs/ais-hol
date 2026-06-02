@@ -7,49 +7,61 @@
 
 ## Hook
 
+> 🎬 **SHOW:** Agentic RAG tab open, query input at the top, iteration trace panel below (empty), final answer area at the bottom.
+
 Standard RAG retrieves once and answers. But what if one retrieval isn't enough? What if the first search returns tangentially related documents, and the model needs to refine its query and search again? Agentic RAG gives the model agency over the retrieval process — it decides when it has enough context to answer, and when it needs to search again.
 
 ---
 
 ## Concept
 
-In standard RAG, retrieval is a fixed step: embed the query, fetch top-K documents, generate. The model has no say in whether those documents are sufficient.
+> 🎬 **SHOW:** Slide — a loop diagram: question → model decides (answer or retrieve?) → if retrieve: generate refined query → ANN search → add to context → loop back to model. If answer: generate final response.
 
-**Agentic RAG** turns retrieval into a loop:
+In standard RAG, retrieval is a fixed step. **Agentic RAG** turns retrieval into a loop: the model decides whether it has enough context to answer, or whether it needs to search again with a refined query.
 
-1. The model receives the question and any context retrieved so far.
-2. It decides: **answer** (I have enough context) or **retrieve** (I need more information).
-3. If retrieve: it generates a refined search query — often different from the original question — and fetches more documents.
-4. The loop repeats until the model decides to answer or hits a maximum iteration limit.
+> 🎬 **SHOW:** Slide — "Why it produces better answers": model can refine search based on what it found, can search for multiple sub-topics, stops when it has enough context.
 
-This produces better answers for complex questions because:
-- The model can refine its search based on what it found in the first retrieval.
-- It can search for multiple sub-topics and combine the results.
-- It stops when it has enough context, not after a fixed number of retrievals.
+This produces better answers for complex questions because the model can refine its search based on what it found, search for multiple sub-topics, and stop when it has enough context.
 
-The cost: each iteration adds one LLM call plus one vector search. A question that requires 3 iterations costs 3× the retrieval overhead of standard RAG. The `max_iterations` cap prevents runaway loops.
+> 🎬 **SHOW:** Slide — cost note: "Each iteration = 1 LLM call + 1 vector search. Cap max_iterations to control cost."
 
-The decision step uses structured output — the model returns `{"action": "answer" | "retrieve", "query": "...", "reason": "..."}` — so the application can parse it reliably.
+The cost: each iteration adds one LLM call plus one vector search. The `max_iterations` cap prevents runaway loops.
 
 ---
 
 ## Demo Walkthrough
 
-Open the **Agentic RAG** tab. It shows the iteration trace — each retrieval step, the refined query, and the decision.
+> 🎬 **SHOW:** Agentic RAG tab, query input ready, iteration trace panel visible.
 
-1. Ask a broad question: *"How do I build a responsive layout in CSS?"* — watch the iteration trace. The model may retrieve once on "responsive layout", find general information, then retrieve again on "CSS flexbox" or "CSS grid" for specifics.
+1. Ask a broad question: *"How do I build a responsive layout in CSS?"*
 
-2. Ask a very specific question: *"What is the `box-sizing` property?"* — the model should answer in one iteration. The first retrieval is sufficient.
+   > 🎬 **SHOW:** Type and send. Watch the iteration trace populate step by step. Point to: iteration 1 query, retrieved docs, model's decision ("retrieve again"), iteration 2 refined query, retrieved docs, model's decision ("answer"), final answer.
 
-3. Ask a multi-part question: *"What are the differences between flexbox and grid, and when should I use each?"* — this likely requires multiple retrievals to cover both topics adequately.
+   Watch the iteration trace. The model may retrieve once on "responsive layout", find general information, then retrieve again on "CSS flexbox" or "CSS grid" for specifics.
 
-4. Set `max_iterations` to 1. Ask the broad question again. Does quality drop? Compare the answer to the multi-iteration version.
+2. Ask a very specific question: *"What is the `box-sizing` property?"*
 
-5. Compare the agentic answer to the standard RAG tab answer for the same question. Is the agentic answer more complete?
+   > 🎬 **SHOW:** Send. Point to the trace showing only one iteration — the model decides to answer immediately after the first retrieval.
+
+   The model should answer in one iteration. The first retrieval is sufficient.
+
+3. Ask a multi-part question: *"What are the differences between flexbox and grid, and when should I use each?"*
+
+   > 🎬 **SHOW:** Send. Point to multiple iterations — the model searches for flexbox, then grid, then perhaps a comparison. Point to the refined queries getting more specific with each iteration.
+
+   This likely requires multiple retrievals to cover both topics adequately.
+
+4. Set `max_iterations` to 1. Ask the broad question again.
+
+   > 🎬 **SHOW:** Change the max iterations control to 1, resend the broad question. Compare the answer to the multi-iteration version — point to what's missing.
+
+   Does quality drop? Compare the answer to the multi-iteration version.
 
 ---
 
 ## Code Deep-Dive
+
+> 🎬 **SHOW:** Open `backend/main.py`, scrolled to the agentic RAG endpoint. Highlight the for loop and the structured output decision.
 
 The decide-retrieve loop:
 
@@ -84,17 +96,22 @@ for iteration in range(max_iterations):
     )
     context_so_far += "\n\n" + format_docs(docs)
 
-# Generate final answer from all accumulated context
 answer = await generate(question, context_so_far)
 ```
 
-The refined query in `result["query"]` is often different from the original question. For *"How do I build a responsive layout?"*, the model might generate *"CSS flexbox tutorial"* as its first retrieval query, then *"CSS grid vs flexbox comparison"* as its second. These targeted queries retrieve more relevant documents than the original question would.
+> 🎬 **SHOW:** Highlight `result["query"]` — explain this is the refined query the model generates, often different from the original question.
 
-The `reason` field in the decision is logged to the trace — it shows the model's reasoning for each decision, which is useful for debugging retrieval quality.
+The refined query in `result["query"]` is often different from the original question. For *"How do I build a responsive layout?"*, the model might generate *"CSS flexbox tutorial"* as its first retrieval query, then *"CSS grid vs flexbox comparison"* as its second.
+
+> 🎬 **SHOW:** Highlight `result["reason"]` — explain it's logged to the trace and shown in the UI.
+
+The `reason` field shows the model's reasoning for each decision — visible in the iteration trace panel.
 
 ---
 
 ## Key Takeaways
+
+> 🎬 **SHOW:** Return to the tab with the multi-part question trace — multiple iterations visible, each with a different refined query.
 
 - Agentic RAG lets the model decide when it has enough context, rather than retrieving a fixed number of times.
 - The model generates refined search queries at each iteration — often more targeted than the original question.
@@ -105,5 +122,7 @@ The `reason` field in the decision is logged to the trace — it shows the model
 ---
 
 ## What's Next
+
+> 🎬 **SHOW:** Click "Multi-Agent" in the sidebar.
 
 Agentic RAG is one agent with one tool. The next tab scales this up: a multi-agent system where a router classifies each query and dispatches it to a specialised agent — math, RAG, FAQ — each with its own tools and reasoning loop.

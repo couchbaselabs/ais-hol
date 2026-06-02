@@ -7,42 +7,61 @@
 
 ## Hook
 
+> 🎬 **SHOW:** Model Comparison tab open, model checkboxes visible (GPT-4o, GPT-4o-mini, and others), prompt input ready, response cards area empty.
+
 GPT-4o costs roughly 17× more per token than GPT-4o-mini. Is it 17× better? For some tasks, yes. For others, the cheaper model is indistinguishable. The only way to know which model is right for your use case is to run them side by side on your actual prompts and compare quality, latency, and cost together.
 
 ---
 
 ## Concept
 
+> 🎬 **SHOW:** Slide — a table: model name, input price per 1M tokens, output price per 1M tokens. GPT-4o-mini at $0.15/$0.60, GPT-4o at $2.50/$10.00. The price difference is highlighted.
+
 Model selection is one of the most impactful cost decisions in an AI application. The difference between using GPT-4o and GPT-4o-mini for a high-volume task can be 10-20× in monthly API spend.
 
-The tradeoffs are not linear:
-- **Simple tasks** (classification, extraction, short Q&A): smaller models often match larger ones. The quality gap is small, the cost gap is large.
-- **Complex reasoning** (multi-step maths, code generation, nuanced analysis): larger models have a meaningful quality advantage.
-- **Latency-sensitive applications**: smaller models are faster. GPT-4o-mini typically responds in 1-2 seconds; GPT-4o in 3-5 seconds for the same prompt.
+> 🎬 **SHOW:** Slide — "Simple tasks: smaller models often match larger ones. Complex reasoning: larger models have a meaningful quality advantage."
 
-The right strategy: use the smallest model that meets your quality bar for each task. Many production systems use a tiered approach — route simple queries to a cheap model, escalate complex ones to a powerful model.
+The tradeoffs are not linear. For simple tasks — classification, extraction, short Q&A — smaller models often match larger ones. For complex reasoning — multi-step maths, code generation, nuanced analysis — larger models have a meaningful quality advantage.
 
-This tab measures real wall-clock latency and estimates cost from actual token counts. The latency numbers vary with server load — they're not stable benchmarks, but they give you a realistic sense of the difference.
+> 🎬 **SHOW:** Slide — "The right strategy: use the smallest model that meets your quality bar. Route simple queries to cheap models, escalate complex ones."
+
+The right strategy: use the smallest model that meets your quality bar for each task. Many production systems use a tiered approach.
 
 ---
 
 ## Demo Walkthrough
 
-Open the **Model Comparison** tab. Select up to 4 models and enter a prompt.
+> 🎬 **SHOW:** Model Comparison tab, all available models checked, prompt input ready.
 
-1. **Simple factual question**: *"What is the capital of France?"* — run on GPT-4o, GPT-4o-mini, and a smaller model. All should answer correctly. Compare latency and cost. The cheaper model wins on both.
+1. **Simple factual question**: *"What is the capital of France?"*
 
-2. **Reasoning problem**: *"A train leaves Chicago at 60 mph. Another leaves New York at 80 mph. They're 800 miles apart. When do they meet?"* — does the cheaper model get it right? Does the expensive model? Compare the reasoning quality.
+   > 🎬 **SHOW:** Type and send. Watch all model cards populate in parallel. Point to the latency column — smaller models respond faster. Point to the cost column — dramatically cheaper. Point to the quality — all correct.
 
-3. **Creative writing**: *"Write the opening paragraph of a thriller novel set in Tokyo."* — quality differences are subjective here. Which model do you prefer? Is the quality gap worth the cost difference?
+   All should answer correctly. Compare latency and cost. The cheaper model wins on both.
 
-4. **Code generation**: *"Write a Python function that finds all prime numbers up to N using the Sieve of Eratosthenes."* — compare correctness and code quality across models.
+2. **Reasoning problem**: *"A train leaves Chicago at 60 mph. Another leaves New York at 80 mph. They're 800 miles apart. When do they meet?"*
 
-5. Look at the cost column. For a task you'd run 1 million times per month, what's the monthly cost difference between the cheapest and most expensive model?
+   > 🎬 **SHOW:** Clear and send. Compare the reasoning quality across models. Point to any model that gets it wrong or shows weaker working.
+
+   Does the cheaper model get it right? Does the expensive model? Compare the reasoning quality.
+
+3. **Code generation**: *"Write a Python function that finds all prime numbers up to N using the Sieve of Eratosthenes."*
+
+   > 🎬 **SHOW:** Clear and send. Compare code quality — correctness, style, comments. Point to any differences.
+
+   Compare correctness and code quality across models.
+
+4. Calculate the monthly cost at scale.
+
+   > 🎬 **SHOW:** Point to the cost column. Do the maths on screen or on a slide: "100,000 requests/day × cost per request × 30 days". Show the monthly cost difference between the cheapest and most expensive model.
+
+   If you expect 100,000 requests/day, what's the monthly cost for each model? The cost column shows per-request cost — multiply by your expected volume.
 
 ---
 
 ## Code Deep-Dive
+
+> 🎬 **SHOW:** Open `backend/main.py`, scrolled to the model comparison endpoint. Highlight `asyncio.gather` and the `MODEL_PRICING` dictionary.
 
 All model calls run concurrently:
 
@@ -50,7 +69,6 @@ All model calls run concurrently:
 MODEL_PRICING = {
     "gpt-4o-mini":   {"input": 0.15,  "output": 0.60},   # USD per 1M tokens
     "gpt-4o":        {"input": 2.50,  "output": 10.00},
-    "llama-3.1-70b": {"input": 0.88,  "output": 0.88},
 }
 
 async def call_model(model: str) -> dict:
@@ -82,13 +100,19 @@ async def call_model(model: str) -> dict:
 results = await asyncio.gather(*[call_model(m) for m in valid_models])
 ```
 
-`time.perf_counter()` measures wall-clock time including network round-trip. This is real-world latency, not just model inference time. Network conditions affect the numbers — run multiple times for a more stable estimate.
+> 🎬 **SHOW:** Highlight `time.perf_counter()` — explain this measures real wall-clock latency including network round-trip.
 
-The cost formula: `(input_tokens × input_price + output_tokens × output_price) / 1_000_000`. Prices are per million tokens. A typical 500-token response on GPT-4o-mini costs about $0.0003 — less than a tenth of a cent. At 1 million requests per month, that's $300/month vs $5,000/month for GPT-4o.
+`time.perf_counter()` measures wall-clock time including network round-trip. This is real-world latency, not just model inference time.
+
+> 🎬 **SHOW:** Highlight the cost formula — walk through it: input tokens × input price + output tokens × output price, divided by 1 million.
+
+The cost formula: `(input_tokens × input_price + output_tokens × output_price) / 1_000_000`. Prices are per million tokens.
 
 ---
 
 ## Key Takeaways
+
+> 🎬 **SHOW:** Return to the tab with the reasoning problem — all model cards visible, showing different quality levels and dramatically different costs.
 
 - Model selection is a cost decision as much as a quality decision — the gap can be 10-20× in spend.
 - Smaller models match larger ones on simple tasks; larger models have a meaningful advantage on complex reasoning.
@@ -99,5 +123,7 @@ The cost formula: `(input_tokens × input_price + output_tokens × output_price)
 ---
 
 ## What's Next
+
+> 🎬 **SHOW:** Click "Agentic RAG" in the sidebar — the first tab of Module 6.
 
 You've completed the LLM Capabilities module. Now we move to Advanced Patterns — starting with Agentic RAG, where the model doesn't just retrieve once but decides iteratively whether it has enough context to answer.

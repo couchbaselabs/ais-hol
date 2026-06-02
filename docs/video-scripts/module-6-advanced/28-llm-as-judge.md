@@ -7,49 +7,67 @@
 
 ## Hook
 
+> 🎬 **SHOW:** LLM-as-Judge tab open, three input fields visible: question, context (retrieved documents), and generated answer. Score cards area below empty.
+
 You've built a RAG system. How do you know if it's working? You could read every response manually — but that doesn't scale. You could write unit tests — but LLM output is too variable for exact matching. LLM-as-Judge is the practical answer: use a second LLM call to evaluate the quality of the first one, at scale, automatically.
 
 ---
 
 ## Concept
 
-**LLM-as-Judge** uses an LLM to score generated text on dimensions like:
-- **Faithfulness**: does the answer stay within the provided context, or does it hallucinate?
-- **Relevance**: does the answer address the question that was asked?
-- **Completeness**: does the answer cover all aspects of the question?
-- **Coherence**: is the answer well-structured and readable?
+> 🎬 **SHOW:** Slide — three evaluation dimensions with icons: "Faithfulness" (answer stays within context), "Relevance" (answer addresses the question), "Completeness" (answer covers all aspects). Each scored 0-10.
 
-The judge receives the question, the context (retrieved documents), and the generated answer. It returns a structured score with reasoning. This is the foundation of automated evaluation pipelines — you can run it on thousands of question-answer pairs overnight and get a quality report.
+**LLM-as-Judge** uses an LLM to score generated text on dimensions like faithfulness, relevance, and completeness. The judge receives the question, the context, and the generated answer, and returns a structured score with reasoning.
 
-Why use an LLM as the judge rather than a rule-based system? Because quality is semantic, not syntactic. A rule-based system can check if the answer contains certain keywords. An LLM can reason about whether the answer actually addresses the question, whether it contradicts the context, and whether it's missing important information.
+> 🎬 **SHOW:** Slide — "Why LLM judge vs rule-based? Quality is semantic, not syntactic. An LLM can reason about whether the answer actually addresses the question."
 
-Limitations to be honest about:
-- The judge is itself an LLM — it can be wrong, biased, or inconsistent.
-- Different judge prompts produce different scores for the same answer.
-- High judge scores don't guarantee user satisfaction.
-- This is a tool for relative comparison and regression detection, not absolute quality measurement.
+Why use an LLM as the judge rather than a rule-based system? Because quality is semantic, not syntactic. A rule-based system can check keywords. An LLM can reason about whether the answer actually addresses the question.
+
+> 🎬 **SHOW:** Slide — limitations: "The judge is itself an LLM — it can be wrong. Use scores for relative comparison and regression detection, not absolute quality measurement."
+
+Limitations: the judge can be wrong, different judge prompts produce different scores, and high scores don't guarantee user satisfaction. Use this for relative comparison and regression detection.
 
 ---
 
 ## Demo Walkthrough
 
-Open the **LLM-as-Judge** tab. It shows a question, context, and generated answer, with the judge's evaluation alongside.
+> 🎬 **SHOW:** LLM-as-Judge tab, all three input fields visible.
 
-1. Enter a question and context, then generate an answer. The judge scores it on faithfulness, relevance, and completeness (0-10 each) with a brief explanation for each score.
+1. Enter a question, relevant context, and a good answer. Click **Evaluate**.
 
-2. **Faithfulness test**: provide context about CSS flexbox. Ask a question about CSS grid. The generated answer may hallucinate grid information not in the context. The judge should flag low faithfulness.
+   > 🎬 **SHOW:** Fill in all three fields with a well-matched question/context/answer. Click Evaluate. Watch the three score cards populate with scores and explanations. Point to each score and read the explanation aloud.
 
-3. **Relevance test**: provide good context. Ask a specific question. Generate a vague, generic answer. The judge should score relevance low even if the answer is technically correct.
+   The judge scores it on faithfulness, relevance, and completeness (0-10 each) with a brief explanation for each score.
 
-4. **Completeness test**: ask a multi-part question. Generate an answer that only addresses one part. The judge should note the missing parts.
+2. **Faithfulness test**: provide context about CSS flexbox. Ask a question about CSS grid. Generate an answer that mentions grid properties not in the context.
 
-5. **Good answer**: provide relevant context, ask a clear question, generate a focused answer. All three scores should be high.
+   > 🎬 **SHOW:** Set up the mismatch — flexbox context, grid question, hallucinated answer. Click Evaluate. Point to the low faithfulness score and the explanation identifying the hallucinated claims.
 
-6. Try the same question with different generated answers. Does the judge consistently rank the better answer higher?
+   The judge should flag low faithfulness — the answer contains information not in the context.
+
+3. **Relevance test**: provide good context. Ask a specific question. Enter a vague, generic answer.
+
+   > 🎬 **SHOW:** Enter a vague answer like "CSS is a styling language used for web pages." for a specific question. Point to the low relevance score.
+
+   The judge should score relevance low even if the answer is technically correct.
+
+4. **Completeness test**: ask a multi-part question. Enter an answer that only addresses one part.
+
+   > 🎬 **SHOW:** Ask "What are flexbox and grid, and when should I use each?" Enter an answer that only explains flexbox. Point to the completeness score and the explanation noting the missing grid coverage.
+
+   The judge should note the missing parts.
+
+5. **Good answer**: provide relevant context, ask a clear question, enter a focused answer.
+
+   > 🎬 **SHOW:** Set up a well-matched scenario. Point to all three scores being high (8-10). Read the positive explanations.
+
+   All three scores should be high.
 
 ---
 
 ## Code Deep-Dive
+
+> 🎬 **SHOW:** Open `backend/main.py`, scrolled to the evaluation endpoint. Highlight the evaluation prompt and `response_format`.
 
 The evaluation prompt uses structured output:
 
@@ -66,7 +84,7 @@ Generated answer:
 
 Score the answer on three dimensions (0-10 each):
 - faithfulness: does the answer stay within the provided context?
-- relevance: does the answer address the question?
+- relevance:    does the answer address the question?
 - completeness: does the answer cover all aspects of the question?
 
 Return JSON:
@@ -84,22 +102,24 @@ evaluation = await client.chat.completions.create(
     response_format={"type": "json_object"},
     temperature=0,   # deterministic scoring
 )
-result = json.loads(evaluation.choices[0].message.content)
 ```
+
+> 🎬 **SHOW:** Highlight `temperature=0` — explain why determinism matters for consistent scoring.
 
 Temperature 0 is important for the judge — you want consistent scores, not creative variation.
 
-In a production evaluation pipeline, you'd run this over a golden dataset — a set of questions with known good answers — and track scores over time:
+> 🎬 **SHOW:** Show a slide or code snippet of a batch evaluation loop — the production use case.
+
+In a production evaluation pipeline, you'd run this over a golden dataset and track scores over time:
 
 ```python
-# Batch evaluation
 async def evaluate_batch(qa_pairs: list[dict]) -> list[dict]:
     return await asyncio.gather(*[
         evaluate_single(qa["question"], qa["context"], qa["answer"])
         for qa in qa_pairs
     ])
 
-# Run nightly, alert if average faithfulness drops below threshold
+# Alert if average faithfulness drops below threshold
 results = await evaluate_batch(golden_dataset)
 avg_faithfulness = sum(r["faithfulness"]["score"] for r in results) / len(results)
 if avg_faithfulness < 7.0:
@@ -110,6 +130,8 @@ if avg_faithfulness < 7.0:
 
 ## Key Takeaways
 
+> 🎬 **SHOW:** Return to the tab with the faithfulness test — low faithfulness score visible with the explanation identifying the hallucinated claims.
+
 - LLM-as-Judge uses a second LLM call to score generated text on faithfulness, relevance, and completeness.
 - Use structured output and temperature 0 for consistent, parseable scores.
 - This enables automated evaluation at scale — run over thousands of examples without human review.
@@ -119,5 +141,7 @@ if avg_faithfulness < 7.0:
 ---
 
 ## What's Next
+
+> 🎬 **SHOW:** Click "Hallucination Detection" in the sidebar.
 
 LLM-as-Judge detects quality issues after generation. The next tab addresses a specific quality failure: hallucination — when the model generates plausible-sounding but incorrect facts. We'll look at a two-step pattern for detecting and flagging hallucinated responses.

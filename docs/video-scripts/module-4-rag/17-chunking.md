@@ -7,53 +7,66 @@
 
 ## Hook
 
+> 🎬 **SHOW:** Chunking tab open, text input area with sample text pre-loaded, four strategy tabs visible (Fixed, Sentence, Paragraph, Semantic), chunk cards area empty.
+
 You've decided to build a RAG system. You have your documents. You're about to embed them. But what exactly do you embed? The whole document? Individual sentences? Paragraphs? The answer — chunking strategy — is one of the most consequential decisions in a RAG system, and most tutorials skip it entirely.
 
 ---
 
 ## Concept
 
+> 🎬 **SHOW:** Slide — a long document bar at the top, then four different ways of splitting it below: fixed-size (equal blocks), sentence (variable-size blocks at sentence boundaries), paragraph (larger blocks at blank lines), semantic (splits where topic changes, regardless of structure).
+
 **Chunking** is splitting a document into pieces before embedding. Each chunk becomes one vector in your database. When a query arrives, you retrieve the most relevant chunks — not the whole document.
 
-Why not embed the whole document? Two reasons:
+Why not embed the whole document? Two reasons: embedding quality degrades with length, and you can't inject a 10,000-word document into every prompt.
 
-1. **Embedding quality degrades with length.** A 10,000-word document produces one vector that tries to capture everything. A query about one specific paragraph will score poorly against that diluted vector.
+> 🎬 **SHOW:** Slide — "Overlap" diagram: two adjacent chunks with a shaded overlap region. A sentence that spans the boundary appears in both chunks.
 
-2. **Context window limits.** Even if retrieval worked perfectly, you can't inject a 10,000-word document into every prompt. You need to inject only the relevant parts.
+The overlap between chunks is important: it ensures that information at chunk boundaries isn't lost.
 
-The four main strategies:
+> 🎬 **SHOW:** Slide — a 2×2 grid: Fixed (fast, simple, cuts mid-sentence), Sentence (clean boundaries, variable size), Paragraph (more context, needs structure), Semantic (most coherent, expensive).
 
-**Fixed-size**: Split every N words with optional overlap. Simple, fast, predictable. The overlap ensures that information at chunk boundaries isn't lost — a sentence that spans the boundary between chunk 3 and chunk 4 appears in both.
-
-**Sentence**: Split at sentence boundaries (`.!?`), group up to N words. Keeps sentences intact, which is better for embedding quality. A sentence is a natural unit of meaning.
-
-**Paragraph**: Split at blank lines, group up to N words. Keeps related sentences together. Good for documents with clear paragraph structure.
-
-**Semantic**: Embed each sentence, split where cosine similarity between adjacent sentences drops below a threshold. The most expensive approach (one embedding call per sentence) but produces the most semantically coherent chunks.
-
-The right strategy depends on your document type and query pattern. There's no universal answer.
+The four strategies each have tradeoffs. There's no universal answer — the right strategy depends on your document type and query pattern.
 
 ---
 
 ## Demo Walkthrough
 
-Open the **Chunking** tab. Paste any text and compare all four strategies side by side.
+> 🎬 **SHOW:** Chunking tab, sample text loaded, default settings.
 
-1. Use the sample text (a few paragraphs of technical documentation). Run all four strategies with default settings.
+1. Run all four strategies with default settings.
+
+   > 🎬 **SHOW:** Click each strategy tab one at a time. For each, point to: how many chunks were produced, whether sentences are cut mid-way, and the chunk size variation.
+
    - Fixed-size: notice how chunks cut mid-sentence.
    - Sentence: cleaner boundaries, but chunk sizes vary.
    - Paragraph: larger chunks, more context per chunk.
    - Semantic: splits where the topic changes, regardless of sentence or paragraph boundaries.
 
-2. Try chunk size 50 vs 300. At 50, you get many small chunks — high precision but low context. At 300, fewer larger chunks — more context but lower precision.
+2. Try chunk size 50 vs 300.
 
-3. Try overlap 0 vs 50 words on fixed-size. With overlap 0, a sentence at the boundary is in exactly one chunk. With overlap 50, it appears in two — better recall at the cost of storage.
+   > 🎬 **SHOW:** Change the chunk size slider to 50, run Fixed. Count the chunks. Then change to 300, run again. Point to the dramatic difference in chunk count.
 
-4. Try semantic chunking on a text that switches topics mid-paragraph. Does it split at the topic boundary even though there's no paragraph break?
+   At 50, you get many small chunks — high precision but low context. At 300, fewer larger chunks — more context but lower precision.
+
+3. Try overlap 0 vs 50 words on fixed-size.
+
+   > 🎬 **SHOW:** Set overlap to 0, run. Then set to 50, run. Point to consecutive chunks — with overlap 50, the last 50 words of chunk N are the first 50 words of chunk N+1.
+
+   With overlap 0, a sentence at the boundary is in exactly one chunk. With overlap 50, it appears in two — better recall at the cost of storage.
+
+4. Try semantic chunking on a text that switches topics mid-paragraph.
+
+   > 🎬 **SHOW:** Paste a text that has a clear topic shift mid-paragraph (e.g. starts talking about CSS then switches to JavaScript). Run Semantic. Point to the split occurring at the topic boundary, not at the paragraph break.
+
+   Does it split at the topic boundary even though there's no paragraph break?
 
 ---
 
 ## Code Deep-Dive
+
+> 🎬 **SHOW:** Open `backend/main.py`, scrolled to the chunking endpoint. Show the fixed-size chunking code first.
 
 Fixed-size chunking with overlap:
 
@@ -65,9 +78,13 @@ i = 0
 while i < len(words):
     chunks.append(" ".join(words[i : i + chunk_size]))
     i += step
-# overlap means consecutive chunks share 'overlap' words,
-# so a query matching the boundary region retrieves both chunks.
 ```
+
+> 🎬 **SHOW:** Highlight `step = chunk_size - overlap` — this is what creates the overlap.
+
+`step = chunk_size - overlap` is what creates the overlap. Consecutive chunks start `step` words apart, so they share `overlap` words.
+
+> 🎬 **SHOW:** Scroll to the semantic chunking code. Highlight the cosine similarity check and the threshold.
 
 Semantic chunking — the most interesting approach:
 
@@ -80,20 +97,21 @@ current = [sentences[0]]
 for i in range(1, len(sentences)):
     sim = cosine(embeddings[i-1], embeddings[i])
     if sim < THRESHOLD and len(current) > 1:
-        # Topic shift detected — start a new chunk
         chunks.append(" ".join(current))
         current = [sentences[i]]
     else:
         current.append(sentences[i])
 ```
 
-The threshold `0.82` is the key parameter. If adjacent sentences have cosine similarity below 0.82, they're considered a topic boundary. Too high a threshold and you split too aggressively. Too low and you never split.
+> 🎬 **SHOW:** Highlight `THRESHOLD = 0.82` — explain it's the key tuning parameter.
 
-The cost of semantic chunking: one embedding API call per sentence. For a 100-sentence document, that's 100 embedding calls. At `text-embedding-3-small` pricing (~$0.02 per million tokens), this is cheap — but it's 100x more expensive than fixed-size chunking, which needs zero embedding calls at chunk time.
+The threshold `0.82` is the key parameter. If adjacent sentences have cosine similarity below 0.82, they're considered a topic boundary. The cost: one embedding API call per sentence.
 
 ---
 
 ## Key Takeaways
+
+> 🎬 **SHOW:** Return to the tab with all four strategy results visible side by side for the same text.
 
 - Chunking splits documents into pieces before embedding — each chunk becomes one searchable vector.
 - Fixed-size is simple and fast. Sentence/paragraph preserve natural boundaries. Semantic is most coherent but expensive.
@@ -104,5 +122,7 @@ The cost of semantic chunking: one embedding API call per sentence. For a 100-se
 ---
 
 ## What's Next
+
+> 🎬 **SHOW:** Click "Document Ingestion" in the sidebar.
 
 You know how to split documents into chunks. Now you need to embed each chunk and store it in Couchbase with a vector index so it can be retrieved. That's the ingestion pipeline — the write side of RAG.
