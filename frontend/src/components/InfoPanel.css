@@ -173,9 +173,9 @@
 }
 
 .tag {
-  background: color-mix(in srgb, var(--accent, #4f46e5) 12%, white);
-  color: var(--accent, #4f46e5);
-  border: 1px solid color-mix(in srgb, var(--accent, #4f46e5) 30%, white);
+  background: #f1f5f9;
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
   border-radius: 999px;
   padding: 0.2rem 0.65rem;
   font-size: 0.72rem;
