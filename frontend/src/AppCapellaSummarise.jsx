@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppCapellaSummarise.css'
 
@@ -10,6 +10,11 @@ const EXAMPLES = [
 
 export default function AppCapellaSummarise() {
   const [text, setText] = useState('')
+  useEffect(() => {
+    const h = (e) => setText(e.detail)
+    window.addEventListener('infopanel:question', h)
+    return () => window.removeEventListener('infopanel:question', h)
+  }, [])
   const [maxWords, setMaxWords] = useState(80)
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppChatPrompt.css'
 
@@ -55,6 +55,11 @@ function PresetCard({ result }) {
 
 function AppChatPrompt() {
   const [question, setQuestion] = useState('')
+  useEffect(() => {
+    const h = (e) => setQuestion(e.detail)
+    window.addEventListener('infopanel:question', h)
+    return () => window.removeEventListener('infopanel:question', h)
+  }, [])
   const [selectedPresets, setSelectedPresets] = useState(new Set(DEFAULT_PRESETS))
   const [results, setResults] = useState(null)
   const [isLoading, setIsLoading] = useState(false)

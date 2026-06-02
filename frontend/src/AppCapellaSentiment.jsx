@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppCapellaSentiment.css'
 
@@ -31,6 +31,11 @@ function ScoreBar({ score, color }) {
 
 export default function AppCapellaSentiment() {
   const [text, setText] = useState('')
+  useEffect(() => {
+    const h = (e) => setText(e.detail)
+    window.addEventListener('infopanel:question', h)
+    return () => window.removeEventListener('infopanel:question', h)
+  }, [])
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)

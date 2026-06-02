@@ -14,6 +14,12 @@ const ChatWindow = ({ messages, onSendMessage, isLoading }) => {
     scrollToBottom()
   }, [messages])
 
+  useEffect(() => {
+    const handler = (e) => setInputMessage(e.detail)
+    window.addEventListener('infopanel:question', handler)
+    return () => window.removeEventListener('infopanel:question', handler)
+  }, [])
+
   const handleSubmit = (e) => {
     e.preventDefault()
     if (inputMessage.trim() && !isLoading) {

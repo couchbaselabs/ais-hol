@@ -194,6 +194,8 @@
 }
 
 .suggestion {
+  display: block;
+  width: 100%;
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
@@ -202,6 +204,14 @@
   color: #374151;
   font-style: italic;
   line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.suggestion:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1e40af;
 }
 
 /* Code snippets */

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppSummarise.css'
 
@@ -29,6 +29,11 @@ JavaScript, often abbreviated as JS, is a programming language that is one of th
 
 function AppSummarise() {
   const [text, setText] = useState('')
+  useEffect(() => {
+    const h = (e) => setText(e.detail)
+    window.addEventListener('infopanel:question', h)
+    return () => window.removeEventListener('infopanel:question', h)
+  }, [])
   const [focus, setFocus] = useState('')
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)

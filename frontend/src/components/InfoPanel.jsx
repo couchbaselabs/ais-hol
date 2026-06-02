@@ -1347,7 +1347,16 @@ export default function InfoPanel({ tab }) {
             <h3 className="info-section__heading">Try these questions</h3>
             <ul className="info-section__suggestions">
               {info.questions.map((q, i) => (
-                <li key={i} className="suggestion">{q}</li>
+                <li key={i}>
+                  <button
+                    className="suggestion"
+                    onClick={() => window.dispatchEvent(
+                      new CustomEvent('infopanel:question', { detail: q })
+                    )}
+                  >
+                    {q}
+                  </button>
+                </li>
               ))}
             </ul>
           </section>

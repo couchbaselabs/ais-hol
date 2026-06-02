@@ -134,6 +134,13 @@ function ScatterPlot({ phrases, points }) {
 
 function AppEmbeddings() {
   const [phrases, setPhrases] = useState(['king', 'queen', 'man', 'woman', 'prince', 'princess'])
+  useEffect(() => {
+    const h = (e) => setPhrases(prev =>
+      prev.includes(e.detail) ? prev : [...prev.slice(-7), e.detail]
+    )
+    window.addEventListener('infopanel:question', h)
+    return () => window.removeEventListener('infopanel:question', h)
+  }, [])
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)

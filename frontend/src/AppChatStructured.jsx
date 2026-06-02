@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppChatStructured.css'
 
@@ -107,6 +107,11 @@ const EXAMPLES = [
 
 function AppChatStructured() {
   const [input, setInput] = useState('')
+  useEffect(() => {
+    const h = (e) => setInput(e.detail)
+    window.addEventListener('infopanel:question', h)
+    return () => window.removeEventListener('infopanel:question', h)
+  }, [])
   const [result, setResult] = useState(null)
   const [inputTokens, setInputTokens] = useState(null)
   const [outputTokens, setOutputTokens] = useState(null)

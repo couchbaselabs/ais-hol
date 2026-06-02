@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppChatRerank.css'
 
@@ -65,6 +65,11 @@ const EXAMPLES = [
 
 function AppChatRerank() {
   const [query, setQuery] = useState('')
+  useEffect(() => {
+    const h = (e) => setQuery(e.detail)
+    window.addEventListener('infopanel:question', h)
+    return () => window.removeEventListener('infopanel:question', h)
+  }, [])
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
