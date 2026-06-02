@@ -3,7 +3,7 @@ import ChatWindow from './components/ChatWindow'
 import SystemPrompt from './components/SystemPrompt'
 import './App.css'
 
-function AppChat({ onHeaderAction }) {
+function AppChat() {
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -18,21 +18,6 @@ function AppChat({ onHeaderAction }) {
   const [isLoading, setIsLoading] = useState(false)
   const [systemPrompt, setSystemPrompt] = useState(defaultSystemPrompt)
   const [showSystemPrompt, setShowSystemPrompt] = useState(false)
-
-  // Push the toggle button into the header whenever visibility state changes
-  React.useEffect(() => {
-    if (!onHeaderAction) return
-    onHeaderAction(
-      <button
-        className="toggle-button"
-        onClick={() => setShowSystemPrompt(v => !v)}
-        title="Configure System Prompt"
-      >
-        ⚙️ System Prompt
-      </button>
-    )
-    return () => onHeaderAction(null)
-  }, [onHeaderAction])
 
   // Load system prompt from localStorage on component mount
   useEffect(() => {
@@ -97,6 +82,15 @@ function AppChat({ onHeaderAction }) {
 
   return (
     <div className="app">
+      <div className="app-toolbar">
+        <button
+          className="toggle-button"
+          onClick={() => setShowSystemPrompt(v => !v)}
+          title="Configure System Prompt"
+        >
+          ⚙️ System Prompt
+        </button>
+      </div>
       <ChatWindow 
         messages={messages} 
         onSendMessage={sendMessage}

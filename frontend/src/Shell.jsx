@@ -40,14 +40,13 @@ import AppPromptInjection  from './AppPromptInjection'
 
 function Shell() {
   const [activeTab, setActiveTab] = useState('chat')
-  const [headerAction, setHeaderAction] = useState(null)
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Header action={headerAction} />
+      <Header />
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-        {activeTab === 'chat'       && <AppChat           key="chat"       onHeaderAction={setHeaderAction} />}
+        {activeTab === 'chat'       && <AppChat           key="chat" />}
         {activeTab === 'stream'     && <AppChatStream     key="stream"     />}
         {activeTab === 'cached'     && <AppChatCached     key="cached"     />}
         {activeTab === 'history'    && <AppChatHistory    key="history"    />}
@@ -82,7 +81,7 @@ function Shell() {
         {activeTab === 'chain-of-thought'  && <AppChainOfThought   key="chain-of-thought"  />}
         {activeTab === 'ingestion'         && <AppIngestion        key="ingestion"         />}
         {activeTab === 'prompt-injection'  && <AppPromptInjection  key="prompt-injection"  />}
-        <InfoPanel tab={activeTab} />
+        <InfoPanel tab={activeTab} onTabChange={setActiveTab} />
       </div>
     </div>
   )
