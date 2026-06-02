@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import './App.css'
 import './AppTokens.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 /**
  * Token Counter tab — live tokenisation with tiktoken via the backend.
@@ -147,6 +148,7 @@ function TokenTable({ tokens }) {
 
 export default function AppTokens() {
   const [text, setText] = useState('Hello, world! This is a tokenisation demo.')
+  useInfoPanelQuestion(setText)
   useEffect(() => {
     const h = (e) => setText(e.detail)
     window.addEventListener('infopanel:question', h)

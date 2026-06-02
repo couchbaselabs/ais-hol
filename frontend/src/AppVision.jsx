@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react'
 import './App.css'
 import './AppVision.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const EXAMPLES = [
   { label: 'Describe this image', prompt: 'Describe what you see in this image in detail.' },
@@ -13,6 +14,7 @@ export default function AppVision() {
   const [imageData, setImageData] = useState(null)   // base64 data URL
   const [imageMime, setImageMime] = useState('image/jpeg')
   const [prompt, setPrompt] = useState('')
+  useInfoPanelQuestion(setPrompt)
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)

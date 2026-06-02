@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import './App.css'
 import './AppChunking.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const STRATEGIES = [
   { id: 'fixed',     label: 'Fixed-size',  desc: 'Split every N words, with optional overlap' },
@@ -24,6 +25,7 @@ const CHUNK_COLORS = [
 
 export default function AppChunking() {
   const [text, setText] = useState(SAMPLE_TEXT)
+  useInfoPanelQuestion(setText)
   const [strategy, setStrategy] = useState('fixed')
   const [chunkSize, setChunkSize] = useState(80)
   const [overlap, setOverlap] = useState(15)

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppSummarise.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 /**
  * Long-context Summarisation tab — map-reduce pipeline for long documents.
@@ -29,6 +30,7 @@ JavaScript, often abbreviated as JS, is a programming language that is one of th
 
 function AppSummarise() {
   const [text, setText] = useState('')
+  useInfoPanelQuestion(setText)
   useEffect(() => {
     const h = (e) => setText(e.detail)
     window.addEventListener('infopanel:question', h)

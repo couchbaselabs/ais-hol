@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppGuardrails.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const EXAMPLES = [
   'How do I center a div in CSS?',
@@ -38,6 +39,7 @@ function CheckResult({ label, check, blocked }) {
 
 export default function AppGuardrails() {
   const [message, setMessage] = useState('')
+  useInfoPanelQuestion(setMessage)
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)

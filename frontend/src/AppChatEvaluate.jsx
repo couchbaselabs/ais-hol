@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppChatEvaluate.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 /**
  * LLM-as-Judge tab — generate a RAG answer then score it automatically.
@@ -97,6 +98,7 @@ function DocCard({ doc, rank }) {
 
 function AppChatEvaluate() {
   const [query, setQuery] = useState('')
+  useInfoPanelQuestion(setQuery)
   useEffect(() => {
     const h = (e) => setQuery(e.detail)
     window.addEventListener('infopanel:question', h)

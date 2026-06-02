@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import './App.css'
 import './AppHallucination.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const EXAMPLES_NO_CONTEXT = [
   'What is the capital of Australia?',
@@ -35,6 +36,7 @@ const VERDICT_STYLES = {
 
 export default function AppHallucination() {
   const [question, setQuestion] = useState('')
+  useInfoPanelQuestion(setQuestion)
   const [context, setContext] = useState('')
   const [useContext, setUseContext] = useState(false)
   const [result, setResult] = useState(null)

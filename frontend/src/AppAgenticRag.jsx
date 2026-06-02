@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import './App.css'
 import './AppAgenticRag.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const EXAMPLES = [
   'What are the main features of Couchbase Capella?',
@@ -13,6 +14,7 @@ const STEP_ICONS = { decide: '🤔', retrieve: '🔍', answer: '💬' }
 
 export default function AppAgenticRag() {
   const [question, setQuestion] = useState('')
+  useInfoPanelQuestion(setQuestion)
   const [maxIterations, setMaxIterations] = useState(3)
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)

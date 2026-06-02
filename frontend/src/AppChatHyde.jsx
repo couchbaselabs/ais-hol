@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppChatHyde.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 /**
  * HyDE tab — shows standard RAG vs HyDE retrieval side by side.
@@ -48,6 +49,7 @@ function DocCard({ doc, rank, color }) {
 
 function AppChatHyde() {
   const [query, setQuery] = useState('')
+  useInfoPanelQuestion(setQuery)
   useEffect(() => {
     const h = (e) => setQuery(e.detail)
     window.addEventListener('infopanel:question', h)

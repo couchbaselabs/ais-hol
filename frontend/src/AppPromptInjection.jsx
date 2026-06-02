@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import './App.css'
 import './AppPromptInjection.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const SYSTEM_PRESETS = [
   {
@@ -55,6 +56,7 @@ export default function AppPromptInjection() {
   const [systemPrompt, setSystemPrompt] = useState(SYSTEM_PRESETS[0].prompt)
   const [selectedSystem, setSelectedSystem] = useState(SYSTEM_PRESETS[0])
   const [userMessage, setUserMessage] = useState('')
+  useInfoPanelQuestion(setUserMessage)
   const [defense, setDefense] = useState('none')
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)

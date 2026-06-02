@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppCostLatency.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const ALL_MODELS = [
   'gpt-4o-mini', 'gpt-4o', 'gpt-4', 'gpt-3.5-turbo',
@@ -25,6 +26,7 @@ function Bar({ value, max, color }) {
 
 export default function AppCostLatency() {
   const [message, setMessage] = useState('')
+  useInfoPanelQuestion(setMessage)
   const [selectedModels, setSelectedModels] = useState(DEFAULT_MODELS)
   const [results, setResults] = useState(null)
   const [isLoading, setIsLoading] = useState(false)

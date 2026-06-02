@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import './App.css'
 import './AppIngestion.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const SAMPLE_DOC = {
   title: 'Couchbase Vector Search',
@@ -25,6 +26,7 @@ const PIPELINE_STEPS = [
 export default function AppIngestion() {
   const [title, setTitle] = useState(SAMPLE_DOC.title)
   const [content, setContent] = useState(SAMPLE_DOC.content)
+  useInfoPanelQuestion(setContent)
   const [chunkSize, setChunkSize] = useState(150)
   const [overlap, setOverlap] = useState(20)
   const [result, setResult] = useState(null)

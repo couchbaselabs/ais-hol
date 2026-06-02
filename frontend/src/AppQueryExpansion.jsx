@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppQueryExpansion.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const EXAMPLES = [
   'How does CSS flexbox work?',
@@ -11,6 +12,7 @@ const EXAMPLES = [
 
 export default function AppQueryExpansion() {
   const [query, setQuery] = useState('')
+  useInfoPanelQuestion(setQuery)
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)

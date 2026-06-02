@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import './App.css'
 import './AppLogprobs.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const EXAMPLES = [
   'The capital of France is',
@@ -58,6 +59,7 @@ function TokenChip({ token, logprob, topLogprobs }) {
 
 export default function AppLogprobs() {
   const [prompt, setPrompt] = useState('')
+  useInfoPanelQuestion(setPrompt)
   const [topK, setTopK] = useState(5)
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)

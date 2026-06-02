@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import './App.css'
 import './AppChainOfThought.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const EXAMPLES = [
   { label: 'Logic', q: 'If all Bloops are Razzles and all Razzles are Lazzles, are all Bloops definitely Lazzles?' },
@@ -13,6 +14,7 @@ const EXAMPLES = [
 
 export default function AppChainOfThought() {
   const [question, setQuestion] = useState('')
+  useInfoPanelQuestion(setQuestion)
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)

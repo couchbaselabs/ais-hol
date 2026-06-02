@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import './App.css'
 import './AppPersonas.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const PRESETS = [
   {
@@ -46,6 +47,7 @@ export default function AppPersonas() {
   const [selectedPreset, setSelectedPreset] = useState(PRESETS[0])
   const [systemPrompt, setSystemPrompt] = useState(PRESETS[0].prompt)
   const [message, setMessage] = useState('')
+  useInfoPanelQuestion(setMessage)
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)

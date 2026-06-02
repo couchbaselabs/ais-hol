@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppCapellaSentiment.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const SENTIMENT_STYLE = {
   positive: { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0', bar: '#22c55e' },
@@ -31,6 +32,7 @@ function ScoreBar({ score, color }) {
 
 export default function AppCapellaSentiment() {
   const [text, setText] = useState('')
+  useInfoPanelQuestion(setText)
   useEffect(() => {
     const h = (e) => setText(e.detail)
     window.addEventListener('infopanel:question', h)

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import './App.css'
 import './AppFewShot.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const PRESETS = [
   {
@@ -50,6 +51,7 @@ export default function AppFewShot() {
   const [task, setTask] = useState(PRESETS[0].task)
   const [examples, setExamples] = useState(PRESETS[0].examples)
   const [input, setInput] = useState('')
+  useInfoPanelQuestion(setInput)
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)

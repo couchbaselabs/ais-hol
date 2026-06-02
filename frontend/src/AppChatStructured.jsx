@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppChatStructured.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const SENTIMENT_COLOR = {
   positive: { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
@@ -107,6 +108,7 @@ const EXAMPLES = [
 
 function AppChatStructured() {
   const [input, setInput] = useState('')
+  useInfoPanelQuestion(setInput)
   useEffect(() => {
     const h = (e) => setInput(e.detail)
     window.addEventListener('infopanel:question', h)

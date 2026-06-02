@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppChatRerank.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 /**
  * Reranking tab — shows the two-stage retrieval pipeline side by side.
@@ -65,6 +66,7 @@ const EXAMPLES = [
 
 function AppChatRerank() {
   const [query, setQuery] = useState('')
+  useInfoPanelQuestion(setQuery)
   useEffect(() => {
     const h = (e) => setQuery(e.detail)
     window.addEventListener('infopanel:question', h)

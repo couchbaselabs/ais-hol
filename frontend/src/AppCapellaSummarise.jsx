@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppCapellaSummarise.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const EXAMPLES = [
   `The World Wide Web was invented by Tim Berners-Lee at CERN in 1989. It opened to the public in 1991 and has since become the world's dominant software platform. Documents are accessed via HTTP using URLs, and web pages are written in HTML. CSS and JavaScript are the other two core technologies of the web. As of 2023, 98.7% of websites use JavaScript on the client side.`,
@@ -10,6 +11,7 @@ const EXAMPLES = [
 
 export default function AppCapellaSummarise() {
   const [text, setText] = useState('')
+  useInfoPanelQuestion(setText)
   useEffect(() => {
     const h = (e) => setText(e.detail)
     window.addEventListener('infopanel:question', h)

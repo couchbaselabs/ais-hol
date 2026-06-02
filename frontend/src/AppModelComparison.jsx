@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import './App.css'
 import './AppModelComparison.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const ALL_MODELS = [
   'gpt-4o', 'gpt-4o-mini', 'gpt-4', 'gpt-3.5-turbo',
@@ -18,6 +19,7 @@ const MODEL_COLORS = ['#6366f1', '#00A3E0', '#d97706', '#059669']
 
 export default function AppModelComparison() {
   const [prompt, setPrompt] = useState('')
+  useInfoPanelQuestion(setPrompt)
   const [systemPrompt, setSystemPrompt] = useState('You are a helpful assistant.')
   const [selectedModels, setSelectedModels] = useState(DEFAULT_MODELS)
   const [results, setResults] = useState(null)

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppTemperature.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const TEMPS = [0.0, 0.5, 1.0, 1.5]
 
@@ -20,6 +21,7 @@ const EXAMPLES = [
 
 export default function AppTemperature() {
   const [message, setMessage] = useState('')
+  useInfoPanelQuestion(setMessage)
   const [selectedTemps, setSelectedTemps] = useState(new Set(TEMPS))
   const [results, setResults] = useState(null)
   const [isLoading, setIsLoading] = useState(false)

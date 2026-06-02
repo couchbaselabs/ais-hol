@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppToolCalling.css'
+import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const EXAMPLES = [
   "What's the weather like in Paris?",
@@ -13,6 +14,7 @@ const TOOL_ICONS = { get_weather: '🌤', calculate: '🧮', search_docs: '🔍'
 
 export default function AppToolCalling() {
   const [message, setMessage] = useState('')
+  useInfoPanelQuestion(setMessage)
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
