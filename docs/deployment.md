@@ -57,8 +57,8 @@ PORT=5000
 
 ## 3. Couchbase data setup
 
-The `scripts/` directory contains [couchbase-shell](https://couchbase.sh) (cbsh) scripts that
-handle all data setup. You need `cbsh` installed and connected to your cluster before running them.
+Use `scripts/setup.nu` — a single self-contained script that creates all buckets, scopes,
+collections, and **GSI vector indexes** that the backend requires.
 
 ### Install couchbase-shell
 
@@ -76,58 +76,44 @@ cbsh --hostnames couchbases://your-cluster.cloud.couchbase.com \
      --password your-password
 ```
 
-Or create `~/.cbsh/config` — see the [cbsh docs](https://couchbase.sh/docs/).
-
-### Create buckets, scopes, collections, and vector indexes
-
-`scripts/couchbase.nu` contains `init_data_structure` which creates everything idempotently:
+### Run the setup script
 
 ```nushell
-# Inside a cbsh session
-use scripts/couchbase.nu *
-init_data_structure
+use scripts/setup.nu *
+setup
 ```
 
-This creates:
+This creates everything idempotently (safe to re-run):
 
-| Bucket           | Scope      | Collection      | Purpose                        |
-|------------------|------------|-----------------|--------------------------------|
-| `shared`         | `public`   | `documentation` | RAG document chunks + vectors  |
-| `shared`         | `_default` | `conversations` | Chat history                   |
+| Bucket          | Scope      | Collection      | Index                          | Used by                              |
+|-----------------|------------|-----------------|--------------------------------|--------------------------------------|
+| `shared`        | `public`   | `documentation` | GSI vector (`documentation`)   | RAG, Rerank, Query Expansion, Agentic RAG, Ingestion |
+| `shared`        | `_default` | `conversations` | GSI (`session_id, timestamp`)  | Chat History, RAG                    |
+| `semantic_cache`| `_default` | `semantic`      | GSI vector (`semantic_cache_vector_idx`) | Cached, Chat History, RAG |
 
-### Set up the semantic cache
+Environment variable overrides (all optional):
 
-`scripts/couchbase_semantic_cache.nu` creates the cache bucket, collection, and its vector index:
-
-```nushell
-use scripts/couchbase_semantic_cache.nu *
-init_semantic_cache
-```
-
-This creates:
-
-| Bucket  | Scope      | Collection | Purpose                 |
-|---------|------------|------------|-------------------------|
-| `cache` | `_default` | `semantic` | Semantic response cache |
-
-> **Note:** The default cache bucket name in the scripts is `cache`, but the backend `.env.example`
-> uses `semantic_cache`. Set `CACHE_BUCKET=cache` in your `.env` to match, or adjust the script.
+| Variable             | Default                    |
+|----------------------|----------------------------|
+| `CB_SHARED_BUCKET`   | `shared`                   |
+| `CB_CACHE_BUCKET`    | `semantic_cache`           |
+| `CB_SEARCH_INDEX`    | `documentation`            |
+| `CB_CACHE_INDEX`     | `semantic_cache_vector_idx`|
+| `CB_CONV_SCOPE`      | `_default`                 |
+| `CB_CONV_COLLECTION` | `conversations`            |
+| `VECTOR_DIMS`        | `1536`                     |
 
 ### Ingest documentation content
 
-The MDN glossary content is in `scripts/content/files/`. Ingest and embed it with:
+After setup, load the MDN glossary content:
 
 ```nushell
 use scripts/importers.nu *
 import_markdown_in_folder "scripts/content/files/en-us/glossary1" "mdn-glossary" "MDN Web Docs glossary"
 ```
 
-This chunks the markdown files, generates embeddings via the configured embedding model, and
-upserts the vectors into the `documentation` collection.
-
-> The embedding model endpoint must be reachable from the machine running cbsh. Set
-> `EMBEDDING_MODEL_BASE_URL` and `EMBEDDING_MODEL_API_KEY` in your shell environment before
-> running the importer.
+> The embedding model must be reachable from the machine running cbsh. Set
+> `OPENAI_API_KEY` (or the relevant provider key from `scripts/embedding.nu`) before running.
 
 ---
 
