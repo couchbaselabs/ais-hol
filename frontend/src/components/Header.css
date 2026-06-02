@@ -1,5 +1,5 @@
 .header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #00152A 0%, #002244 100%);
   color: white;
   padding: 0.6rem 1.5rem 0.5rem;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -78,20 +78,20 @@
 
 .tab-btn--active {
   background: white;
-  color: #764ba2;
+  color: #00152A;
   border-color: white;
   font-weight: 700;
 }
 
 .tab-btn--capella {
-  background: rgba(234, 179, 8, 0.2);
-  border-color: rgba(234, 179, 8, 0.5);
+  background: rgba(0, 163, 224, 0.2);
+  border-color: rgba(0, 163, 224, 0.5);
 }
 .tab-btn--capella:hover {
-  background: rgba(234, 179, 8, 0.35);
+  background: rgba(0, 163, 224, 0.35);
 }
 .tab-btn--capella.tab-btn--active {
-  background: #fef9c3;
-  color: #713f12;
-  border-color: #fef9c3;
+  background: #e0f5ff;
+  color: #004d6e;
+  border-color: #e0f5ff;
 }
