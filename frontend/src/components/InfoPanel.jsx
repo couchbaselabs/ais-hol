@@ -1541,6 +1541,98 @@ LIMIT 100;
       },
     ],
   },
+  'voice-wasm': {
+    title: 'Voice — WASM',
+    subtitle: 'Speech-to-text runs entirely in the browser via Whisper compiled to WebAssembly',
+    color: CB_ACCENT,
+    icon: '🎤',
+    what: 'The browser downloads a quantised Whisper model once and runs it locally via WebAssembly (@xenova/transformers). No audio leaves the device. After transcription the text is sent to the LLM and the reply is spoken back using the Web Speech API.',
+    how: [
+      'Click Start — MediaRecorder captures microphone audio',
+      'On stop, the WAV blob is passed to a Web Worker running the Whisper WASM pipeline',
+      'Whisper returns a transcript string',
+      'Transcript is POST-ed to /api/chat for an LLM reply',
+      'Reply text is passed to window.speechSynthesis for TTS playback',
+    ],
+    limitations: [
+      'First load downloads the model (~40 MB for whisper-tiny) — subsequent loads use the browser cache',
+      'Transcription speed depends on the client device; slow on low-end hardware',
+      'Web Speech API TTS voice quality varies by browser and OS',
+      'No audio is sent to the server, so server-side logging/analytics are not available',
+    ],
+    stack: ['@xenova/transformers (Whisper WASM)', 'MediaRecorder API', 'Web Speech API', 'React'],
+    snippets: [
+      {
+        title: 'src/whisper.worker.js — run Whisper in a Web Worker',
+        language: 'javascript',
+        code: `import { pipeline } from '@xenova/transformers'
+
+let transcriber = null
+
+self.onmessage = async ({ data: { audioData, sampleRate } }) => {
+  if (!transcriber) {
+    transcriber = await pipeline(
+      'automatic-speech-recognition',
+      'Xenova/whisper-tiny.en',
+    )
+  }
+  const result = await transcriber(audioData, { sampling_rate: sampleRate })
+  self.postMessage({ transcript: result.text })
+}`,
+      },
+    ],
+  },
+  'voice-server': {
+    title: 'Voice — Server',
+    subtitle: 'Audio is sent to the backend; OpenAI Whisper transcribes and OpenAI TTS speaks the reply',
+    color: CB_ACCENT,
+    icon: '🎤',
+    what: 'The browser records audio and POSTs the raw blob to the backend. The backend calls the OpenAI Whisper API for speech-to-text, then the LLM for a reply, then the OpenAI TTS API to synthesise speech. The audio stream is piped back to the browser and played.',
+    how: [
+      'Click Start — MediaRecorder captures microphone audio',
+      'On stop, the WAV blob is POST-ed to /api/stt as multipart/form-data',
+      'Backend calls openai.audio.transcriptions.create (Whisper) → transcript',
+      'Transcript is sent to /api/chat → LLM reply text',
+      'Reply text is POST-ed to /api/tts → OpenAI TTS streams audio/mpeg back',
+      'Browser plays the audio stream via an <audio> element',
+    ],
+    limitations: [
+      'Each turn makes three API calls (STT + LLM + TTS) — higher latency than text chat',
+      'Audio is uploaded to the server and forwarded to OpenAI — not suitable for sensitive audio',
+      'TTS streaming requires the browser to support MediaSource Extensions',
+      'Costs accrue for Whisper ($0.006/min), LLM tokens, and TTS ($15/1M chars) separately',
+    ],
+    stack: ['OpenAI Whisper API', 'OpenAI TTS API', 'FastAPI', 'MediaRecorder API', 'React'],
+    snippets: [
+      {
+        title: 'backend/main.py — STT endpoint',
+        language: 'python',
+        code: `@app.post("/api/stt")
+async def speech_to_text(audio: UploadFile = File(...)):
+    data = await audio.read()
+    transcript = await client.audio.transcriptions.create(
+        model="whisper-1",
+        file=("audio.wav", data, "audio/wav"),
+    )
+    return {"transcript": transcript.text}`,
+      },
+      {
+        title: 'backend/main.py — TTS endpoint',
+        language: 'python',
+        code: `@app.post("/api/tts")
+async def text_to_speech(body: TTSRequest):
+    response = await client.audio.speech.create(
+        model="tts-1",
+        voice="alloy",
+        input=body.text,
+    )
+    return StreamingResponse(
+        response.iter_bytes(),
+        media_type="audio/mpeg",
+    )`,
+      },
+    ],
+  },
 }
 
 export default function InfoPanel({ tab }) {

@@ -21,6 +21,11 @@ const CONCEPT_TABS = [
   { id: 'tokens',            label: '🔤 Token Counter' },
 ]
 
+const VOICE_TABS = [
+  { id: 'voice-wasm',   label: '🎤 Voice (WASM)' },
+  { id: 'voice-server', label: '🎤 Voice (Server)' },
+]
+
 const LLM_TABS = [
   { id: 'temperature',       label: '🌡️ Temperature' },
   { id: 'tool-calling',      label: '🔧 Tool Calling' },
@@ -65,6 +70,20 @@ const Header = ({ activeTab, onTabChange, action }) => {
             <span className="tab-row-label">Concepts</span>
             <nav className="header-tabs">
               {CONCEPT_TABS.map(t => (
+                <button
+                  key={t.id}
+                  className={`tab-btn ${activeTab === t.id ? 'tab-btn--active' : ''}`}
+                  onClick={() => onTabChange(t.id)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+          <div className="tab-row">
+            <span className="tab-row-label">Voice</span>
+            <nav className="header-tabs">
+              {VOICE_TABS.map(t => (
                 <button
                   key={t.id}
                   className={`tab-btn ${activeTab === t.id ? 'tab-btn--active' : ''}`}

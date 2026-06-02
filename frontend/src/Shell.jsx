@@ -23,6 +23,8 @@ import AppContextWindow from './AppContextWindow'
 import AppQueryExpansion from './AppQueryExpansion'
 import AppCostLatency from './AppCostLatency'
 import AppGuardrails from './AppGuardrails'
+import AppVoiceWasm   from './AppVoiceWasm'
+import AppVoiceServer from './AppVoiceServer'
 
 function Shell() {
   const [activeTab, setActiveTab] = useState('chat')
@@ -54,6 +56,8 @@ function Shell() {
         {activeTab === 'query-expansion'   && <AppQueryExpansion   key="query-expansion"   />}
         {activeTab === 'cost-latency'      && <AppCostLatency      key="cost-latency"      />}
         {activeTab === 'guardrails'        && <AppGuardrails       key="guardrails"        />}
+        {activeTab === 'voice-wasm'        && <AppVoiceWasm        key="voice-wasm"        />}
+        {activeTab === 'voice-server'      && <AppVoiceServer      key="voice-server"      />}
         <InfoPanel tab={activeTab} />
       </div>
     </div>

@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -1162,6 +1162,79 @@ async def agent(body: AgentRequest):
         "trace_steps": result.get("trace_steps") or [],
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+# ---------------------------------------------------------------------------
+# Voice: server-side STT (Whisper) + TTS (OpenAI TTS)
+# ---------------------------------------------------------------------------
+
+
+@app.post("/api/voice/transcribe")
+async def voice_transcribe(audio: UploadFile = File(...)):
+    """Transcribe audio using the OpenAI Whisper API.
+
+    Accepts any audio format supported by Whisper (webm, mp4, wav, mp3, etc.).
+    Returns the transcript text.
+    """
+    from openai import AsyncOpenAI as _OAI
+    client = _OAI(
+        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
+        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
+    )
+
+    audio_bytes = await audio.read()
+
+    if _MOCK_MODE:
+        return {"transcript": "[Mock transcript] Hello, this is a simulated transcription of your audio."}
+
+    try:
+        import io
+        transcript = await client.audio.transcriptions.create(
+            model="whisper-1",
+            file=(audio.filename or "audio.webm", io.BytesIO(audio_bytes), audio.content_type or "audio/webm"),
+        )
+        return {"transcript": transcript.text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {e}")
+
+
+@app.post("/api/voice/speak")
+async def voice_speak(body: dict):
+    """Convert text to speech using the OpenAI TTS API.
+
+    Returns raw MP3 audio bytes with content-type audio/mpeg.
+    """
+    text = body.get("text", "").strip()
+    voice = body.get("voice", "alloy")   # alloy | echo | fable | onyx | nova | shimmer
+    if not text:
+        raise HTTPException(status_code=400, detail="text is required.")
+
+    if _MOCK_MODE:
+        # Return a minimal silent MP3 (44 bytes) so the frontend doesn't break
+        silent_mp3 = bytes([
+            0xFF, 0xFB, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ])
+        from fastapi.responses import Response
+        return Response(content=silent_mp3, media_type="audio/mpeg",
+                        headers={"X-Mock": "true", "X-Mock-Text": text[:80]})
+
+    from openai import AsyncOpenAI as _OAI
+    from fastapi.responses import Response as _Resp
+    client = _OAI(
+        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
+        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
+    )
+    try:
+        response = await client.audio.speech.create(
+            model="tts-1",
+            voice=voice,
+            input=text,
+        )
+        audio_bytes = response.content
+        return _Resp(content=audio_bytes, media_type="audio/mpeg")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"TTS failed: {e}")
 
 
 # ---------------------------------------------------------------------------
