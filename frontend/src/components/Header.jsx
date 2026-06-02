@@ -1,54 +1,82 @@
 import React from 'react'
 import './Header.css'
 
+// ── Row 1: Progressive pipeline build-up ─────────────────────────────────────
 const PIPELINE_TABS = [
   { id: 'chat',    label: '💬 Simple Chat' },
   { id: 'stream',  label: '🌊 Streaming' },
   { id: 'cached',  label: '⚡ + Cache' },
-  { id: 'history', label: '🧠 + Memory' },
+  { id: 'history', label: '🕐 + Memory' },
   { id: 'rag',     label: '🔍 + RAG' },
   { id: 'agent',   label: '🤖 Multi-Agent' },
 ]
 
-const CONCEPT_TABS = [
-  { id: 'structured',        label: '🧩 Structured Output' },
-  { id: 'rerank',            label: '📊 Reranking' },
-  { id: 'prompt',            label: '✏️ Prompt Engineering' },
-  { id: 'embeddings',        label: '🔢 Embeddings' },
-  { id: 'hyde',              label: '💡 HyDE' },
-  { id: 'evaluate',          label: '⚖️ LLM-as-Judge' },
-  { id: 'summarise',         label: '📄 Summarisation' },
-  { id: 'tokens',            label: '🔤 Token Counter' },
+// ── Row 2: How LLMs work — foundational mechanics ────────────────────────────
+const MECHANICS_TABS = [
+  { id: 'tokens',           label: '🔤 Tokenisation' },
+  { id: 'logprobs',         label: '🎲 Token Probs' },
+  { id: 'temperature',      label: '🌡️ Temperature' },
+  { id: 'context-window',   label: '📐 Context Window' },
 ]
 
+// ── Row 3: Prompting techniques ───────────────────────────────────────────────
+const PROMPTING_TABS = [
+  { id: 'prompt',           label: '✏️ Prompt Engineering' },
+  { id: 'few-shot',         label: '🎯 Few-Shot' },
+  { id: 'chain-of-thought', label: '🔗 Chain-of-Thought' },
+  { id: 'personas',         label: '🎭 Personas' },
+  { id: 'prompt-injection', label: '💉 Prompt Injection' },
+]
+
+// ── Row 4: RAG lifecycle ──────────────────────────────────────────────────────
+const RAG_TABS = [
+  { id: 'embeddings',       label: '🔢 Embeddings' },
+  { id: 'chunking',         label: '✂️ Chunking' },
+  { id: 'ingestion',        label: '📥 Ingestion' },
+  { id: 'rerank',           label: '📈 Reranking' },
+  { id: 'hyde',             label: '💡 HyDE' },
+  { id: 'agentic-rag',      label: '🔄 Agentic RAG' },
+]
+
+// ── Row 5: LLM capabilities ───────────────────────────────────────────────────
+const CAPABILITIES_TABS = [
+  { id: 'vision',           label: '🖼️ Vision' },
+  { id: 'tool-calling',     label: '🔧 Tool Calling' },
+  { id: 'structured',       label: '🧩 Structured Output' },
+  { id: 'summarise',        label: '📄 Summarisation' },
+  { id: 'evaluate',         label: '🏅 LLM-as-Judge' },
+  { id: 'model-comparison', label: '📊 Model Comparison' },
+]
+
+// ── Row 6: Production concerns ────────────────────────────────────────────────
+const PRODUCTION_TABS = [
+  { id: 'cost-latency',     label: '💰 Cost & Latency' },
+  { id: 'guardrails',       label: '🛡️ Guardrails' },
+  { id: 'hallucination',    label: '🔎 Hallucination' },
+  { id: 'query-expansion',  label: '🔀 Query Expansion' },
+]
+
+// ── Row 7: Voice ──────────────────────────────────────────────────────────────
 const VOICE_TABS = [
-  { id: 'voice-wasm',   label: '🎤 Voice (WASM)' },
-  { id: 'voice-server', label: '🎤 Voice (Server)' },
+  { id: 'voice-wasm',       label: '🎤 Voice (WASM)' },
+  { id: 'voice-server',     label: '🎤 Voice (Server)' },
 ]
 
-const LLM_TABS = [
-  { id: 'temperature',       label: '🌡️ Temperature' },
-  { id: 'tool-calling',      label: '🔧 Tool Calling' },
-  { id: 'context-window',    label: '📐 Context Window' },
-  { id: 'query-expansion',   label: '🔀 Query Expansion' },
-  { id: 'cost-latency',      label: '💰 Cost & Latency' },
-  { id: 'guardrails',        label: '🛡️ Guardrails' },
-  { id: 'vision',            label: '🖼️ Vision' },
-  { id: 'few-shot',          label: '🎯 Few-Shot' },
-  { id: 'model-comparison',  label: '⚖️ Model Comparison' },
-  { id: 'personas',          label: '🎭 Personas' },
-  { id: 'hallucination',     label: '🔎 Hallucination' },
-  { id: 'chunking',          label: '✂️ Chunking' },
-  { id: 'agentic-rag',       label: '🔄 Agentic RAG' },
-  { id: 'logprobs',          label: '📊 Token Probs' },
-  { id: 'chain-of-thought',  label: '🧠 Chain-of-Thought' },
-  { id: 'ingestion',         label: '📥 Ingestion' },
-  { id: 'prompt-injection',  label: '💉 Prompt Injection' },
-]
-
+// ── Row 8: Capella AI Functions ───────────────────────────────────────────────
 const CAPELLA_TABS = [
   { id: 'capella-summarise', label: '🗄️ AI Summarisation' },
   { id: 'capella-sentiment', label: '🗄️ AI Sentiment' },
+]
+
+const ROWS = [
+  { label: 'Pipeline',      tabs: PIPELINE_TABS,     capella: false },
+  { label: 'How LLMs Work', tabs: MECHANICS_TABS,    capella: false },
+  { label: 'Prompting',     tabs: PROMPTING_TABS,    capella: false },
+  { label: 'RAG',           tabs: RAG_TABS,          capella: false },
+  { label: 'Capabilities',  tabs: CAPABILITIES_TABS, capella: false },
+  { label: 'Production',    tabs: PRODUCTION_TABS,   capella: false },
+  { label: 'Voice',         tabs: VOICE_TABS,        capella: false },
+  { label: 'Capella AI',    tabs: CAPELLA_TABS,      capella: true  },
 ]
 
 const Header = ({ activeTab, onTabChange, action }) => {
@@ -63,76 +91,22 @@ const Header = ({ activeTab, onTabChange, action }) => {
       </div>
       {onTabChange && (
         <div className="header-tab-rows">
-          <div className="tab-row">
-            <span className="tab-row-label">Pipeline</span>
-            <nav className="header-tabs">
-              {PIPELINE_TABS.map(t => (
-                <button
-                  key={t.id}
-                  className={`tab-btn ${activeTab === t.id ? 'tab-btn--active' : ''}`}
-                  onClick={() => onTabChange(t.id)}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </nav>
-          </div>
-          <div className="tab-row">
-            <span className="tab-row-label">Concepts</span>
-            <nav className="header-tabs">
-              {CONCEPT_TABS.map(t => (
-                <button
-                  key={t.id}
-                  className={`tab-btn ${activeTab === t.id ? 'tab-btn--active' : ''}`}
-                  onClick={() => onTabChange(t.id)}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </nav>
-          </div>
-          <div className="tab-row">
-            <span className="tab-row-label">Voice</span>
-            <nav className="header-tabs">
-              {VOICE_TABS.map(t => (
-                <button
-                  key={t.id}
-                  className={`tab-btn ${activeTab === t.id ? 'tab-btn--active' : ''}`}
-                  onClick={() => onTabChange(t.id)}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </nav>
-          </div>
-          <div className="tab-row">
-            <span className="tab-row-label">LLM Deep Dives</span>
-            <nav className="header-tabs">
-              {LLM_TABS.map(t => (
-                <button
-                  key={t.id}
-                  className={`tab-btn ${activeTab === t.id ? 'tab-btn--active' : ''}`}
-                  onClick={() => onTabChange(t.id)}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </nav>
-          </div>
-          <div className="tab-row">
-            <span className="tab-row-label">Capella AI Functions</span>
-            <nav className="header-tabs">
-              {CAPELLA_TABS.map(t => (
-                <button
-                  key={t.id}
-                  className={`tab-btn tab-btn--capella ${activeTab === t.id ? 'tab-btn--active' : ''}`}
-                  onClick={() => onTabChange(t.id)}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </nav>
-          </div>
+          {ROWS.map(row => (
+            <div key={row.label} className="tab-row">
+              <span className="tab-row-label">{row.label}</span>
+              <nav className="header-tabs">
+                {row.tabs.map(t => (
+                  <button
+                    key={t.id}
+                    className={`tab-btn${row.capella ? ' tab-btn--capella' : ''}${activeTab === t.id ? ' tab-btn--active' : ''}`}
+                    onClick={() => onTabChange(t.id)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </nav>
+            </div>
+          ))}
         </div>
       )}
     </header>
