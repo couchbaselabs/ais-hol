@@ -1344,7 +1344,7 @@ export default function InfoPanel({ tab }) {
           </section>
 
           <section className="info-section">
-            <h3 className="info-section__heading">Try these questions</h3>
+            <h3 className="info-section__heading">Try these examples</h3>
             <ul className="info-section__suggestions">
               {info.questions.map((q, i) => (
                 <li key={i}>
