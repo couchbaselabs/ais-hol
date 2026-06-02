@@ -1,7 +1,7 @@
 .header {
   background: linear-gradient(135deg, #00152A 0%, #1a3a5c 100%);
   color: white;
-  padding: 0.6rem 1.5rem 0.5rem;
+  padding: 0.6rem 1.5rem;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   flex-shrink: 0;
 }
@@ -10,7 +10,6 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.5rem;
 }
 
 .header-title h1 {
@@ -28,70 +27,4 @@
 .header-action {
   display: flex;
   align-items: center;
-}
-
-/* Two-row tab layout */
-.header-tab-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.tab-row {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.tab-row-label {
-  font-size: 0.62rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  opacity: 0.6;
-  width: 52px;
-  flex-shrink: 0;
-}
-
-.header-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.tab-btn {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  color: white;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  cursor: pointer;
-  font-size: 0.78rem;
-  font-weight: 500;
-  transition: background 0.15s, border-color 0.15s;
-  white-space: nowrap;
-}
-
-.tab-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-.tab-btn--active {
-  background: white;
-  color: #00152A;
-  border-color: white;
-  font-weight: 700;
-}
-
-.tab-btn--capella {
-  background: rgba(0, 163, 224, 0.2);
-  border-color: rgba(0, 163, 224, 0.5);
-}
-.tab-btn--capella:hover {
-  background: rgba(0, 163, 224, 0.35);
-}
-.tab-btn--capella.tab-btn--active {
-  background: #e0f5ff;
-  color: #004d6e;
-  border-color: #e0f5ff;
 }

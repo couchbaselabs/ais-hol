@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import Header from './components/Header'
+import Sidebar from './components/Sidebar'
 import InfoPanel from './components/InfoPanel'
 import AppChat from './AppChat'
 import AppChatStream from './AppChatStream'
@@ -43,8 +44,9 @@ function Shell() {
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Header activeTab={activeTab} onTabChange={setActiveTab} action={headerAction} />
+      <Header action={headerAction} />
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
         {activeTab === 'chat'       && <AppChat           key="chat"       onHeaderAction={setHeaderAction} />}
         {activeTab === 'stream'     && <AppChatStream     key="stream"     />}
         {activeTab === 'cached'     && <AppChatCached     key="cached"     />}
