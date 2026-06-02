@@ -7,9 +7,9 @@ const MAX_WIDTH = 720
 const DEFAULT_WIDTH = 380
 
 // Couchbase brand palette — all tabs share these three colours
-const CB_RED   = '#EA2328'  // primary red
-const CB_NAVY  = '#00152A'  // dark navy
-const CB_TEAL  = '#00A3E0'  // cyan/teal
+const CB_RED   = '#E8524A'  // coral red (lighter than brand #EA2328)
+const CB_NAVY  = '#3D6B9E'  // medium blue (lighter than brand #00152A)
+const CB_TEAL  = '#00A3E0'  // cyan/teal (brand, works well on white)
 
 const TAB_INFO = {
   tokens: {
