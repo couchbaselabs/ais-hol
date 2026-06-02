@@ -32,6 +32,10 @@ import AppPersonas         from './AppPersonas'
 import AppHallucination    from './AppHallucination'
 import AppChunking         from './AppChunking'
 import AppAgenticRag       from './AppAgenticRag'
+import AppLogprobs         from './AppLogprobs'
+import AppChainOfThought   from './AppChainOfThought'
+import AppIngestion        from './AppIngestion'
+import AppPromptInjection  from './AppPromptInjection'
 
 function Shell() {
   const [activeTab, setActiveTab] = useState('chat')
@@ -72,6 +76,10 @@ function Shell() {
         {activeTab === 'hallucination'     && <AppHallucination    key="hallucination"     />}
         {activeTab === 'chunking'          && <AppChunking         key="chunking"          />}
         {activeTab === 'agentic-rag'       && <AppAgenticRag       key="agentic-rag"       />}
+        {activeTab === 'logprobs'          && <AppLogprobs         key="logprobs"          />}
+        {activeTab === 'chain-of-thought'  && <AppChainOfThought   key="chain-of-thought"  />}
+        {activeTab === 'ingestion'         && <AppIngestion        key="ingestion"         />}
+        {activeTab === 'prompt-injection'  && <AppPromptInjection  key="prompt-injection"  />}
         <InfoPanel tab={activeTab} />
       </div>
     </div>

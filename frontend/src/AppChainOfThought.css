@@ -1,0 +1,86 @@
+.cot-app { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+
+.cot-controls {
+  padding: 0.75rem 1.25rem 0.5rem;
+  background: #fff; border-bottom: 1px solid #e5e7eb;
+  display: flex; flex-direction: column; gap: 0.5rem; flex-shrink: 0;
+}
+.cot-query-row { display: flex; gap: 0.5rem; }
+.cot-input {
+  flex: 1; padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db; border-radius: 6px;
+  font-size: 0.875rem; font-family: inherit;
+}
+.cot-input:focus { outline: none; border-color: #00A3E0; box-shadow: 0 0 0 2px rgba(0,163,224,0.15); }
+.cot-run-btn {
+  padding: 0.5rem 1.25rem; background: #00A3E0; color: #fff;
+  border: none; border-radius: 6px; font-size: 0.875rem; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+}
+.cot-run-btn:hover:not(:disabled) { background: #0086b8; }
+.cot-run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.cot-examples { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.cot-ex-label {
+  display: inline-block; padding: 0 0.3rem;
+  background: #e0f5ff; color: #0c4a6e;
+  border-radius: 3px; font-size: 0.65rem; font-weight: 700;
+  margin-right: 0.2rem; vertical-align: middle;
+}
+
+.cot-error {
+  margin: 0.75rem 1.25rem; padding: 0.6rem 0.75rem;
+  background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
+  border-radius: 6px; font-size: 0.875rem;
+}
+.cot-loading { padding: 1.5rem 1.25rem; color: #6b7280; font-size: 0.875rem; }
+
+.cot-results {
+  flex: 1; overflow-y: auto; padding: 1rem 1.25rem;
+  display: flex; flex-direction: column; gap: 0.875rem;
+}
+
+.cot-card {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+  padding: 0.875rem 1rem; border-top: 3px solid;
+}
+.cot-card--direct { border-top-color: #9ca3af; }
+.cot-card--cot    { border-top-color: #00A3E0; }
+
+.cot-card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 0.35rem;
+}
+.cot-card-title { font-size: 0.85rem; font-weight: 700; color: #111827; }
+.cot-card-meta  { font-size: 0.72rem; color: #9ca3af; }
+
+.cot-card-system {
+  font-size: 0.75rem; color: #6b7280; margin-bottom: 0.6rem;
+  padding: 0.3rem 0.5rem; background: #f9fafb; border-radius: 4px;
+}
+.cot-card-system em { color: #374151; }
+
+.cot-card-response { margin: 0; font-size: 0.875rem; line-height: 1.65; color: #374151; white-space: pre-wrap; }
+
+.cot-reasoning-label, .cot-answer-label {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: #6b7280; margin-bottom: 0.25rem; margin-top: 0.5rem;
+}
+.cot-reasoning {
+  margin: 0 0 0.5rem; font-size: 0.82rem; line-height: 1.65; color: #6b7280;
+  white-space: pre-wrap; border-left: 2px solid #e5e7eb; padding-left: 0.6rem;
+}
+.cot-answer {
+  margin: 0; font-size: 0.9rem; font-weight: 600; color: #111827;
+  white-space: pre-wrap;
+}
+
+.cot-delta {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  padding: 0.5rem 0.75rem; background: #f9fafb; border-radius: 6px;
+  font-size: 0.78rem;
+}
+.cot-delta-label { color: #6b7280; }
+.cot-delta-val   { font-weight: 700; color: #374151; }
+
+.cot-placeholder { padding: 1.5rem 1.25rem; color: #9ca3af; font-size: 0.875rem; line-height: 1.6; max-width: 520px; }

@@ -40,6 +40,10 @@ const LLM_TABS = [
   { id: 'hallucination',     label: '🔎 Hallucination' },
   { id: 'chunking',          label: '✂️ Chunking' },
   { id: 'agentic-rag',       label: '🔄 Agentic RAG' },
+  { id: 'logprobs',          label: '📊 Token Probs' },
+  { id: 'chain-of-thought',  label: '🧠 Chain-of-Thought' },
+  { id: 'ingestion',         label: '📥 Ingestion' },
+  { id: 'prompt-injection',  label: '💉 Prompt Injection' },
 ]
 
 const CAPELLA_TABS = [
