@@ -1,3 +1,4 @@
+import asyncio
 import os
 from datetime import datetime, timezone
 from dotenv import load_dotenv
@@ -6,7 +7,8 @@ load_dotenv()
 
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from services.openai_service import generate_response, get_embedding, stream_completion
@@ -22,6 +24,13 @@ from services.semantic_cache_service import cache_get, cache_put, create_llm_sig
 
 EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small")
 INFERENCE_MODEL = os.environ.get("INFERENCE_MODEL", "gpt-4o-mini")
+
+# Module-level OpenAI client used by endpoints that don't go through openai_service.
+from openai import AsyncOpenAI as _AsyncOpenAI
+client = _AsyncOpenAI(
+    base_url=os.environ.get("INFERENCE_MODEL_BASE_URL", "https://api.openai.com/v1"),
+    api_key=os.environ.get("INFERENCE_MODEL_API_KEY", "no-key"),
+)
 
 # ---------------------------------------------------------------------------
 # Mock mode — patch Couchbase services with in-memory stubs when MOCK_MODE=true.
@@ -42,6 +51,27 @@ app.add_middleware(
     allow_headers=["Content-Type"],
     allow_credentials=True,
 )
+
+
+# ---------------------------------------------------------------------------
+# Static frontend — served when the built dist/ is present (production)
+# ---------------------------------------------------------------------------
+
+_STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+if os.path.isdir(_STATIC_DIR):
+    app.mount("/assets", StaticFiles(directory=os.path.join(_STATIC_DIR, "assets")), name="assets")
+
+    @app.get("/", include_in_schema=False)
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_frontend(full_path: str = ""):
+        # Let /api/* and /health fall through to their own routes
+        if full_path.startswith("api/") or full_path == "health":
+            raise HTTPException(status_code=404)
+        index = os.path.join(_STATIC_DIR, "index.html")
+        return FileResponse(index, headers={
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Cross-Origin-Embedder-Policy": "require-corp",
+        })
 
 
 # ---------------------------------------------------------------------------

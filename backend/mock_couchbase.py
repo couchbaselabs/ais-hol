@@ -250,6 +250,14 @@ def _apply():
         cache.cache_get = _mock_cache_get
         cache.cache_put = _mock_cache_put
 
+    # Also patch names already bound in main (imported before _apply ran)
+    main = sys.modules.get("main")
+    if main:
+        if hasattr(main, "cache_get"):
+            main.cache_get = _mock_cache_get
+        if hasattr(main, "cache_put"):
+            main.cache_put = _mock_cache_put
+
     # faq_catalog_service
     faq = sys.modules.get("services.faq_catalog_service")
     if faq:
