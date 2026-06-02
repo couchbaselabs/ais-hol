@@ -155,11 +155,11 @@
 }
 
 .info-section__list--warn li::marker {
-  color: #f59e0b;
+  color: #111827;
 }
 
 .info-section__list--warn li {
-  color: #92400e;
+  color: #111827;
 }
 
 /* Stack tags */

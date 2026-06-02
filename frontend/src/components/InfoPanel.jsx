@@ -6,16 +6,14 @@ const MIN_WIDTH = 240
 const MAX_WIDTH = 720
 const DEFAULT_WIDTH = 380
 
-// Couchbase brand palette — all tabs share these three colours
-const CB_RED   = '#fbce90'  // warm amber
-const CB_NAVY  = '#3D6B9E'  // medium blue (lighter than brand #00152A)
-const CB_TEAL  = '#00A3E0'  // cyan/teal (brand, works well on white)
+// Single accent colour used across all tabs
+const CB_ACCENT = '#00A3E0'  // Couchbase teal
 
 const TAB_INFO = {
   tokens: {
     title: 'Token Counter',
     subtitle: 'Live tokenisation with tiktoken — see exactly what the model reads',
-    color: CB_NAVY,
+    color: CB_ACCENT,
     icon: '🔤',
     what: 'LLMs don\'t read text character by character — they read tokens. A token is a chunk of text that the model\'s vocabulary recognises as a unit: sometimes a whole word, sometimes a sub-word, sometimes a single character or punctuation mark. Tiktoken is the tokeniser library used by many LLMs. This tab tokenises any text live, colour-codes each token in the original text, and shows the token ID, decoded text, and raw bytes for every token.',
     how: [
@@ -85,7 +83,7 @@ REPLY_PRIMER          = 3`,
   embeddings: {
     title: 'Embeddings Explorer',
     subtitle: 'Visualise semantic similarity and 2-D PCA projections of text embeddings',
-    color: CB_NAVY,
+    color: CB_ACCENT,
     icon: '🔢',
     what: 'An embedding is a high-dimensional vector that encodes the semantic meaning of a phrase. Phrases with similar meanings have vectors that point in similar directions — measured by cosine similarity. This tab embeds up to 8 phrases, computes a pairwise similarity matrix, and projects the vectors into 2-D using PCA so you can see clusters and distances visually.',
     how: [
@@ -156,7 +154,7 @@ similarity = await cosine(emb_a, emb_b)
   hyde: {
     title: 'HyDE',
     subtitle: 'Hypothetical Document Embedding — embed a fake answer, not the question',
-    color: CB_NAVY,
+    color: CB_ACCENT,
     icon: '💡',
     what: 'Standard RAG embeds the user\'s question and searches for similar documents. But questions and answers live in different semantic spaces — a question like "how does X work?" is phrased very differently from a documentation paragraph that explains X. HyDE bridges this gap: ask the LLM to write a short hypothetical answer first, then embed that answer for retrieval. The hypothetical doc uses the same vocabulary and style as real documentation, so it retrieves better matches.',
     how: [
@@ -229,7 +227,7 @@ standard_docs, hyde_docs = await asyncio.gather(
   evaluate: {
     title: 'LLM-as-Judge',
     subtitle: 'Automatically score RAG answer quality on faithfulness, relevance, and completeness',
-    color: CB_NAVY,
+    color: CB_ACCENT,
     icon: '⚖️',
     what: 'Evaluating RAG quality without human labels is hard. LLM-as-Judge uses a second LLM call to score the generated answer against the retrieved documents and the original question. Three dimensions are scored 1–5: faithfulness (are all claims grounded in the docs?), relevance (does the answer address the question?), and completeness (are all key aspects covered?). The judge also provides reasoning for each score.',
     how: [
@@ -284,7 +282,7 @@ evaluation = (await client.chat.completions.create(
   summarise: {
     title: 'Long-context Summarisation',
     subtitle: 'Map-reduce chunking for documents that exceed the context window',
-    color: CB_NAVY,
+    color: CB_ACCENT,
     icon: '📄',
     what: 'LLMs have a finite context window. A 100-page document won\'t fit in a single prompt. Map-reduce summarisation solves this: split the document into overlapping chunks (Map), summarise each chunk independently in parallel, then combine all chunk summaries into a single final summary (Reduce). The UI shows every chunk summary so the pipeline is fully transparent.',
     how: [
@@ -352,7 +350,7 @@ final = await client.chat.completions.create(
   stream: {
     title: 'Streaming Chat',
     subtitle: 'Token-by-token delivery via chunked HTTP — no waiting for the full response',
-    color: CB_RED,
+    color: CB_ACCENT,
     icon: '🌊',
     what: 'The LLM generates tokens one at a time. Instead of buffering the entire response and returning it as JSON, the server streams each token as it is produced using HTTP chunked transfer encoding. The browser reads the stream incrementally and renders tokens as they arrive. The time-to-first-token (TTFT) metric shows how quickly the first word appears.',
     how: [
@@ -430,7 +428,7 @@ async def chat_stream(req: ChatRequest):
   structured: {
     title: 'Structured Output',
     subtitle: 'Force the LLM to return typed JSON instead of free text',
-    color: CB_RED,
+    color: CB_ACCENT,
     icon: '🧩',
     what: 'By setting response_format: {type: "json_object"} and describing the expected schema in the system prompt, the LLM is constrained to return valid JSON every time. This makes the output directly usable by downstream code without fragile string parsing. The tab extracts sentiment, entities, topics, a summary, and a language code from any input text.',
     how: [
@@ -507,7 +505,7 @@ result = AnalysisResult.model_validate(
   rerank: {
     title: 'Reranking',
     subtitle: 'Two-stage retrieval: broad ANN fetch → LLM relevance scoring',
-    color: CB_RED,
+    color: CB_ACCENT,
     icon: '📊',
     what: 'Vector similarity (ANN distance) is a fast proxy for relevance but not a perfect one — a document can be semantically close to a query without actually answering it. Reranking adds a second pass: retrieve more candidates than needed, then ask the LLM to score each one for relevance to the specific query. Only the top-k reranked documents are used to generate the answer. The UI shows both stages side by side so you can see which documents were dropped.',
     how: [
@@ -578,7 +576,7 @@ top_docs = [doc for doc, _ in reranked[:top_k]]`,
   prompt: {
     title: 'Prompt Engineering',
     subtitle: 'Same question, five system prompts — see how wording changes everything',
-    color: CB_RED,
+    color: CB_ACCENT,
     icon: '✏️',
     what: 'The system prompt is the most powerful lever you have over LLM behaviour. This tab runs the same user question through up to 5 different system prompts in parallel and displays the responses side by side. The presets range from a single-sentence terse answer to a Socratic mode that refuses to answer directly. Each card shows the system prompt used and the token count.',
     how: [
@@ -635,7 +633,7 @@ results = await asyncio.gather(*[
   chat: {
     title: 'Simple Chat',
     subtitle: 'Direct LLM completion — stateless, no memory, no retrieval',
-    color: CB_RED,
+    color: CB_ACCENT,
     icon: '💬',
     what: 'Every message is sent to the LLM as a standalone request. The model has no knowledge of previous turns and no access to external data. This is the baseline — the simplest possible AI integration.',
     how: [
@@ -703,7 +701,7 @@ async def generate_response(prompt: str, system: str = "") -> str:
   cached: {
     title: 'Simple Chat + Semantic Cache',
     subtitle: 'Adds a vector-similarity cache in Couchbase to avoid redundant LLM calls',
-    color: CB_RED,
+    color: CB_ACCENT,
     icon: '⚡',
     what: 'Before calling the LLM, the query is embedded and compared against previously cached responses using ANN vector search. If a semantically similar question was already answered with the same LLM configuration, the cached response is returned instantly — no LLM call needed. The ⚡ cache hit / 🔄 generated badge on each response shows which path was taken.',
     how: [
@@ -777,7 +775,7 @@ async def cache_get(prompt: str, embedding: list[float],
   history: {
     title: 'Simple Chat + Cache + Memory',
     subtitle: 'Adds Couchbase KV conversation history so the model remembers prior turns',
-    color: CB_RED,
+    color: CB_ACCENT,
     icon: '🧠',
     what: 'Each message is stored in a Couchbase conversations collection keyed by session ID. Before calling the LLM, the full conversation history is fetched and formatted into the prompt, giving the model context of what was said earlier. The semantic cache still applies — a cache hit skips both history lookup and the LLM call.',
     how: [
@@ -847,7 +845,7 @@ async def get_conversation_history(session_id: str, limit: int = 20):
   rag: {
     title: 'Simple Chat + Cache + Memory + RAG',
     subtitle: 'Adds vector retrieval over MDN docs and Capella AI summarization',
-    color: CB_TEAL,
+    color: CB_ACCENT,
     icon: '🔍',
     what: 'The full pipeline: the query is embedded, relevant MDN documentation chunks are retrieved via ANN vector search, and the conversation history is summarized using Capella\'s built-in ai_summary() SQL++ function (summarization runs inside the database). All of this is injected into the prompt before streaming the LLM response token-by-token.',
     how: [
@@ -965,7 +963,7 @@ return StreamingResponse(generate_and_store(), media_type="text/plain")`,
   agent: {
     title: 'Multi-Agent',
     subtitle: 'LangGraph router → Math / RAG / FAQ / Direct agents, with memory and reasoning trace',
-    color: CB_TEAL,
+    color: CB_ACCENT,
     icon: '🤖',
     what: 'A router LLM classifies each message into one of four routes and dispatches to the right agent. Every agent runs a ReAct (Reason + Act) loop, calling tools and reasoning until it has a confident answer. Conversation history is stored in Couchbase so agents remember prior turns. The full reasoning trace — routing decision, tool calls, tool results — is shown inline under each response.',
     how: [
@@ -1106,7 +1104,7 @@ def hybrid_faq_search(query: str, collection_name: str) -> list[dict]:
   'capella-summarise': {
     title: 'Capella AI Summarisation',
     subtitle: 'default:ai_summary() — summarisation runs inside the database as a SQL++ query',
-    color: CB_TEAL,
+    color: CB_ACCENT,
     icon: '🗄️',
     what: 'Couchbase Capella AI Functions expose LLM capabilities as SQL++ built-in functions. Calling default:ai_summary() sends text to the configured LLM (any supported provider) from inside the query engine — the backend issues a single SQL++ SELECT and gets a summary back. No extra HTTP call to an LLM API, and no server-side endpoint or SDK integration to deploy — the function is just SQL.',
     how: [
@@ -1179,7 +1177,7 @@ summary = rows[0]["result"][0]["response"]
   'capella-sentiment': {
     title: 'Capella AI Sentiment',
     subtitle: 'default:ai_sentiment() — sentiment analysis runs inside the database as a SQL++ query',
-    color: CB_TEAL,
+    color: CB_ACCENT,
     icon: '🗄️',
     what: 'Like ai_summary(), the ai_sentiment() function is a SQL++ built-in that runs inside the Couchbase query engine. It returns a sentiment label (positive / negative / neutral / mixed), a confidence score, and an explanation — all from a single SELECT statement. No extra HTTP call to an LLM API, and no server-side endpoint or SDK integration to deploy. You can even run it over an entire collection in one query to enrich stored documents at query time.',
     how: [
