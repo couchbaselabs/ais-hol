@@ -1,6 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import './InfoPanel.css'
 import CodeBlock from './CodeBlock'
+
+const MIN_WIDTH = 240
+const MAX_WIDTH = 720
+const DEFAULT_WIDTH = 380
 
 const TAB_INFO = {
   tokens: {
@@ -1239,11 +1243,55 @@ LIMIT 100;
 
 export default function InfoPanel({ tab }) {
   const [open, setOpen] = useState(true)
+  const [width, setWidth] = useState(DEFAULT_WIDTH)
+  const dragging = useRef(false)
+  const startX = useRef(0)
+  const startWidth = useRef(0)
+
+  const onMouseDown = useCallback((e) => {
+    dragging.current = true
+    startX.current = e.clientX
+    startWidth.current = width
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+
+    const panel = e.currentTarget.closest('.info-panel')
+    if (panel) panel.classList.add('info-panel--dragging')
+
+    const onMouseMove = (e) => {
+      if (!dragging.current) return
+      const delta = startX.current - e.clientX
+      setWidth(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + delta)))
+    }
+    const onMouseUp = () => {
+      dragging.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      if (panel) panel.classList.remove('info-panel--dragging')
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+  }, [width])
+
   const info = TAB_INFO[tab]
   if (!info) return null
 
+  const panelWidth = open ? width : 28
+
   return (
-    <aside className={`info-panel ${open ? 'info-panel--open' : 'info-panel--collapsed'}`}>
+    <aside
+      className={`info-panel ${open ? 'info-panel--open' : 'info-panel--collapsed'}`}
+      style={open ? { width: panelWidth } : undefined}
+    >
+      {open && (
+        <div
+          className="info-panel__resize-handle"
+          onMouseDown={onMouseDown}
+          title="Drag to resize"
+        />
+      )}
       <button
         className="info-panel__toggle"
         onClick={() => setOpen(v => !v)}
@@ -1254,7 +1302,7 @@ export default function InfoPanel({ tab }) {
       </button>
 
       {open && (
-        <div className="info-panel__body">
+        <div className="info-panel__body" style={{ width: panelWidth - 28 }}>
           <div className="info-panel__header" style={{ '--accent': info.color }}>
             <span className="info-panel__icon">{info.icon}</span>
             <div>

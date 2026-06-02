@@ -4,17 +4,36 @@
   flex-direction: row;
   background: #ffffff;
   border-left: 1px solid #e5e7eb;
-  transition: width 0.25s ease;
+  transition: width 0.2s ease;
+}
+
+.info-panel--dragging {
+  transition: none;
   overflow: hidden;
   flex-shrink: 0;
 }
 
 .info-panel--open {
-  width: 340px;
+  /* width controlled by JS */
 }
 
 .info-panel--collapsed {
   width: 28px;
+}
+
+/* Drag handle */
+.info-panel__resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 20;
+}
+.info-panel__resize-handle:hover,
+.info-panel__resize-handle:active {
+  background: rgba(99, 102, 241, 0.25);
 }
 
 /* Toggle arrow button */
@@ -45,7 +64,7 @@
 /* Scrollable body */
 .info-panel__body {
   margin-left: 28px;
-  width: calc(340px - 28px);
+  /* width set inline by JS (panelWidth - 28px) */
   overflow-y: auto;
   padding: 1.25rem 1rem 2rem 1rem;
   display: flex;
