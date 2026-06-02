@@ -23,8 +23,15 @@ import AppContextWindow from './AppContextWindow'
 import AppQueryExpansion from './AppQueryExpansion'
 import AppCostLatency from './AppCostLatency'
 import AppGuardrails from './AppGuardrails'
-import AppVoiceWasm   from './AppVoiceWasm'
-import AppVoiceServer from './AppVoiceServer'
+import AppVoiceWasm        from './AppVoiceWasm'
+import AppVoiceServer      from './AppVoiceServer'
+import AppVision           from './AppVision'
+import AppFewShot          from './AppFewShot'
+import AppModelComparison  from './AppModelComparison'
+import AppPersonas         from './AppPersonas'
+import AppHallucination    from './AppHallucination'
+import AppChunking         from './AppChunking'
+import AppAgenticRag       from './AppAgenticRag'
 
 function Shell() {
   const [activeTab, setActiveTab] = useState('chat')
@@ -58,6 +65,13 @@ function Shell() {
         {activeTab === 'guardrails'        && <AppGuardrails       key="guardrails"        />}
         {activeTab === 'voice-wasm'        && <AppVoiceWasm        key="voice-wasm"        />}
         {activeTab === 'voice-server'      && <AppVoiceServer      key="voice-server"      />}
+        {activeTab === 'vision'            && <AppVision           key="vision"            />}
+        {activeTab === 'few-shot'          && <AppFewShot          key="few-shot"          />}
+        {activeTab === 'model-comparison'  && <AppModelComparison  key="model-comparison"  />}
+        {activeTab === 'personas'          && <AppPersonas         key="personas"          />}
+        {activeTab === 'hallucination'     && <AppHallucination    key="hallucination"     />}
+        {activeTab === 'chunking'          && <AppChunking         key="chunking"          />}
+        {activeTab === 'agentic-rag'       && <AppAgenticRag       key="agentic-rag"       />}
         <InfoPanel tab={activeTab} />
       </div>
     </div>

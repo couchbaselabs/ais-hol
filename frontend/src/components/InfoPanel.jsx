@@ -1541,6 +1541,304 @@ LIMIT 100;
       },
     ],
   },
+  vision: {
+    title: 'Vision',
+    subtitle: 'Send an image to GPT-4o and ask questions about it',
+    color: CB_ACCENT,
+    icon: '🖼️',
+    what: 'GPT-4o is a multimodal model — it accepts both text and images in the same API call. The image is base64-encoded and embedded directly in the message content alongside the text prompt. No separate vision API is needed.',
+    how: [
+      'User uploads or pastes an image (JPEG, PNG, GIF, WebP)',
+      'Frontend base64-encodes the image and POSTs to /api/vision',
+      'Backend sends the image as a data URL in the message content array',
+      'GPT-4o processes both the image and the text prompt together',
+      'Response text is returned with token counts',
+    ],
+    limitations: [
+      'Images are limited to ~10 MB; very large images are rejected',
+      'GPT-4o vision is not available on all API tiers',
+      'The model cannot identify real people by face',
+      'Accuracy on dense text (e.g. handwriting, small print) varies',
+    ],
+    stack: ['GPT-4o (vision)', 'FastAPI', 'React drag-and-drop / clipboard paste'],
+    snippets: [
+      {
+        title: 'backend/main.py — vision endpoint',
+        language: 'python',
+        code: `completion = await client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{
+        "role": "user",
+        "content": [
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:{mime_type};base64,{image_base64}",
+                    "detail": "high",
+                },
+            },
+            {"type": "text", "text": prompt},
+        ],
+    }],
+    max_tokens=1024,
+)`,
+      },
+    ],
+  },
+  'few-shot': {
+    title: 'Few-Shot Prompting',
+    subtitle: 'Compare zero-shot vs few-shot — see how examples steer the output',
+    color: CB_ACCENT,
+    icon: '🎯',
+    what: 'Few-shot prompting provides the model with input/output examples before the actual query. The model learns the pattern from the examples and applies it to new inputs — without any weight updates or fine-tuning. Zero-shot sends the same query with no examples.',
+    how: [
+      'User defines a task description and a set of input→output examples',
+      'Two parallel API calls are made: one with 0 examples, one with all examples',
+      'Examples are injected as alternating user/assistant messages before the real query',
+      'Both responses are returned side by side for comparison',
+    ],
+    limitations: [
+      'More examples = more input tokens = higher cost and latency',
+      'Example quality matters more than quantity — bad examples hurt performance',
+      'Very long examples can push the actual query out of the context window',
+      'Few-shot is not a substitute for fine-tuning on large, consistent tasks',
+    ],
+    stack: ['OpenAI Chat API', 'FastAPI', 'React'],
+    snippets: [
+      {
+        title: 'backend/main.py — inject examples as conversation turns',
+        language: 'python',
+        code: `messages = [{"role": "system", "content": f"Task: {task}"}]
+
+# Inject examples as alternating user/assistant turns
+for example in examples:
+    messages.append({"role": "user",      "content": example["input"]})
+    messages.append({"role": "assistant", "content": example["output"]})
+
+# Append the real query last
+messages.append({"role": "user", "content": user_input})
+
+completion = await client.chat.completions.create(
+    model=INFERENCE_MODEL,
+    messages=messages,
+    temperature=0,
+)`,
+      },
+    ],
+  },
+  'model-comparison': {
+    title: 'Model Comparison',
+    subtitle: 'Same prompt, multiple models — compare quality, latency, and cost',
+    color: CB_ACCENT,
+    icon: '⚖️',
+    what: 'Sends the same prompt to multiple OpenAI models in parallel and displays the responses side by side with latency and cost metrics. Useful for choosing the right model for a task: a cheap fast model for simple queries, a powerful model for complex reasoning.',
+    how: [
+      'User selects up to 4 models and enters a prompt',
+      'Backend fires all model calls concurrently with asyncio.gather',
+      'Each call records wall-clock latency and computes cost from token counts',
+      'Results are returned together once all calls complete',
+    ],
+    limitations: [
+      'Latency reflects real API response time — results vary with server load',
+      'Cost estimates use mid-2025 list prices; check your provider for current rates',
+      'Models not available on your API tier will return an error row',
+      'Max 4 models to keep the UI readable',
+    ],
+    stack: ['OpenAI Chat API (multiple models)', 'asyncio.gather', 'FastAPI', 'React'],
+    snippets: [
+      {
+        title: 'backend/main.py — parallel model calls',
+        language: 'python',
+        code: `import asyncio, time
+
+async def call_model(model: str) -> dict:
+    t0 = time.perf_counter()
+    completion = await client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user",   "content": prompt},
+        ],
+        max_tokens=512,
+    )
+    latency = round(time.perf_counter() - t0, 2)
+    usage = completion.usage
+    cost = (usage.prompt_tokens * price_in
+          + usage.completion_tokens * price_out) / 1_000_000
+    return {"model": model, "response": ..., "latency_s": latency, "cost_usd": cost}
+
+results = await asyncio.gather(*[call_model(m) for m in models])`,
+      },
+    ],
+  },
+  personas: {
+    title: 'Personas',
+    subtitle: 'Edit the system prompt live — see how it shapes every response',
+    color: CB_ACCENT,
+    icon: '🎭',
+    what: 'The system prompt is the most powerful lever over an LLM\'s behaviour. It sets tone, style, constraints, and persona before the user says anything. This tab lets you pick a preset persona or write your own system prompt, then send a message to see the effect.',
+    how: [
+      'User selects a preset or writes a custom system prompt',
+      'Message is POSTed to /api/persona with the system prompt and user message',
+      'Backend passes both to the LLM as system + user messages',
+      'Response reflects the persona defined in the system prompt',
+    ],
+    limitations: [
+      'Strong personas can be "jailbroken" by adversarial user messages',
+      'Very long system prompts consume input tokens on every request',
+      'The model may partially ignore the system prompt for safety-critical topics',
+      'Persona consistency degrades over long conversations without reinforcement',
+    ],
+    stack: ['OpenAI Chat API', 'FastAPI', 'React'],
+    snippets: [
+      {
+        title: 'backend/main.py — persona endpoint',
+        language: 'python',
+        code: `completion = await client.chat.completions.create(
+    model=INFERENCE_MODEL,
+    messages=[
+        {"role": "system", "content": body.system_prompt},
+        {"role": "user",   "content": body.message},
+    ],
+    max_tokens=512,
+)
+# The entire personality is defined by system_prompt —
+# no code changes needed to switch personas.`,
+      },
+    ],
+  },
+  hallucination: {
+    title: 'Hallucination Detection',
+    subtitle: 'Generate an answer, then use a second LLM call to fact-check it',
+    color: CB_ACCENT,
+    icon: '🔎',
+    what: 'LLMs sometimes generate plausible-sounding but incorrect facts — this is called hallucination. This tab demonstrates a two-step pattern: first generate an answer, then use a second LLM call as a fact-checker. You can optionally provide grounding context to see how RAG reduces hallucination.',
+    how: [
+      'Step 1: LLM generates an answer to the question (with or without context)',
+      'Step 2: A second LLM call classifies the answer as grounded / hallucinated / uncertain',
+      'The fact-checker identifies specific issues and returns a confidence score',
+      'Both the answer and the verdict are displayed side by side',
+    ],
+    limitations: [
+      'The fact-checker is itself an LLM — it can also hallucinate or miss errors',
+      'Two LLM calls per request doubles cost and latency',
+      'Without grounding context, the checker relies on the model\'s training data',
+      'This pattern catches obvious hallucinations but is not a reliable safety guarantee',
+    ],
+    stack: ['OpenAI Chat API', 'response_format: json_object', 'FastAPI', 'React'],
+    snippets: [
+      {
+        title: 'backend/main.py — two-step generate + verify',
+        language: 'python',
+        code: `# Step 1: generate
+answer = await generate(question, context)
+
+# Step 2: fact-check
+check_prompt = (
+    f"Question: {question}\\n"
+    f"Answer to verify: {answer}\\n"
+    + (f"Grounding context:\\n{context}\\n" if context else "")
+    + "Return JSON: {verdict, confidence, issues, explanation}"
+)
+check = await client.chat.completions.create(
+    model=INFERENCE_MODEL,
+    messages=[{"role": "user", "content": check_prompt}],
+    response_format={"type": "json_object"},
+    temperature=0,
+)
+result = json.loads(check.choices[0].message.content)`,
+      },
+    ],
+  },
+  chunking: {
+    title: 'Chunking Strategies',
+    subtitle: 'Visualise how different splitting strategies affect RAG retrieval',
+    color: CB_ACCENT,
+    icon: '✂️',
+    what: 'Before text can be stored in a vector database for RAG, it must be split into chunks. The chunking strategy determines what gets retrieved — and therefore what the LLM sees. This tab lets you compare four strategies on any text and see the resulting chunks.',
+    how: [
+      'Fixed-size: split every N words with optional overlap',
+      'Sentence: split at sentence boundaries (.!?), group up to N words',
+      'Paragraph: split at blank lines, group up to N words',
+      'Semantic: embed each sentence, split where cosine similarity drops below threshold',
+    ],
+    limitations: [
+      'Optimal chunk size depends on the embedding model\'s context window and the query pattern',
+      'Semantic chunking makes one embedding API call per sentence — slow and costly on long texts',
+      'Overlap helps retrieval recall but increases storage and embedding cost',
+      'No single strategy is best for all document types',
+    ],
+    stack: ['OpenAI Embeddings API (semantic only)', 'FastAPI', 'React'],
+    snippets: [
+      {
+        title: 'backend/main.py — fixed-size chunking with overlap',
+        language: 'python',
+        code: `words = text.split()
+step = max(1, chunk_size - overlap)
+chunks = []
+i = 0
+while i < len(words):
+    chunks.append(" ".join(words[i : i + chunk_size]))
+    i += step
+# overlap means consecutive chunks share 'overlap' words,
+# so a query matching the boundary region retrieves both chunks.`,
+      },
+      {
+        title: 'backend/main.py — semantic chunking',
+        language: 'python',
+        code: `sentences = re.split(r'(?<=[.!?])\\s+', text)
+embeddings = [embed(s) for s in sentences]
+
+THRESHOLD = 0.82
+current = [sentences[0]]
+for i in range(1, len(sentences)):
+    sim = cosine(embeddings[i-1], embeddings[i])
+    if sim < THRESHOLD and len(current) > 1:
+        chunks.append(" ".join(current))
+        current = [sentences[i]]
+    else:
+        current.append(sentences[i])`,
+      },
+    ],
+  },
+  'agentic-rag': {
+    title: 'Agentic RAG',
+    subtitle: 'The agent decides how many retrieval steps to take before answering',
+    color: CB_ACCENT,
+    icon: '🔄',
+    what: 'Standard RAG retrieves once and answers. Agentic RAG lets the LLM decide: after each retrieval, it evaluates whether it has enough context to answer or needs to search again with a refined query. This produces better answers for complex questions at the cost of more API calls.',
+    how: [
+      'Agent receives the question and any context retrieved so far',
+      'It decides: "answer" (enough context) or "retrieve" (need more)',
+      'If retrieve: it generates a refined search query and fetches documents',
+      'Loop repeats up to max_iterations times',
+      'Final answer is generated from all accumulated context',
+    ],
+    limitations: [
+      'Each iteration adds latency (one LLM call + one vector search)',
+      'The agent may loop unnecessarily on simple questions',
+      'Max iterations caps runaway loops but may cut off complex reasoning',
+      'Quality depends on the vector store having relevant documents',
+    ],
+    stack: ['OpenAI Chat API', 'Couchbase Vector Search', 'response_format: json_object', 'FastAPI', 'React'],
+    snippets: [
+      {
+        title: 'backend/main.py — agentic decide-retrieve loop',
+        language: 'python',
+        code: `for iteration in range(max_iterations):
+    decision = await decide(question, context_so_far)
+    # decision = {"action": "answer"|"retrieve", "query": "...", "reason": "..."}
+
+    if decision["action"] == "answer":
+        break
+
+    docs = await get_relevant_documents(decision["query"], limit=3)
+    context_so_far += format_docs(docs)
+
+answer = await generate(question, context_so_far)`,
+      },
+    ],
+  },
   'voice-wasm': {
     title: 'Voice — WASM',
     subtitle: 'Speech-to-text runs entirely in the browser via Whisper compiled to WebAssembly',

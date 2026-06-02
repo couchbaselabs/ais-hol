@@ -1857,6 +1857,421 @@ async def capella_sentiment(body: CapellaSentimentRequest):
 
 
 # ---------------------------------------------------------------------------
+# Vision
+# ---------------------------------------------------------------------------
+
+class VisionRequest(BaseModel):
+    image_base64: str
+    mime_type: str = "image/jpeg"
+    prompt: str
+
+
+@app.post("/api/vision")
+async def vision(body: VisionRequest):
+    import base64 as _b64
+    # Validate size (~10 MB base64 limit)
+    if len(body.image_base64) > 14_000_000:
+        raise HTTPException(status_code=413, detail="Image too large (max ~10 MB)")
+    completion = await client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{body.mime_type};base64,{body.image_base64}",
+                            "detail": "high",
+                        },
+                    },
+                    {"type": "text", "text": body.prompt},
+                ],
+            }
+        ],
+        max_tokens=1024,
+    )
+    msg = completion.choices[0].message.content
+    return {
+        "response": msg,
+        "model": completion.model,
+        "input_tokens": completion.usage.prompt_tokens,
+        "output_tokens": completion.usage.completion_tokens,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Few-shot prompting
+# ---------------------------------------------------------------------------
+
+class FewShotRequest(BaseModel):
+    task: str
+    input: str
+    examples: list[dict]  # [{input: str, output: str}]
+
+
+@app.post("/api/few-shot")
+async def few_shot(body: FewShotRequest):
+    import asyncio as _asyncio
+
+    async def call(shots: list[dict]) -> dict:
+        import time
+        messages: list[dict] = [
+            {"role": "system", "content": f"You are a helpful assistant. Task: {body.task}"}
+        ]
+        for ex in shots:
+            messages.append({"role": "user",      "content": ex["input"]})
+            messages.append({"role": "assistant", "content": ex["output"]})
+        messages.append({"role": "user", "content": body.input})
+        t0 = time.perf_counter()
+        completion = await client.chat.completions.create(
+            model=INFERENCE_MODEL,
+            messages=messages,
+            temperature=0,
+        )
+        latency = round(time.perf_counter() - t0, 2)
+        return {
+            "response": completion.choices[0].message.content,
+            "shots": len(shots),
+            "latency_s": latency,
+            "tokens": completion.usage.completion_tokens,
+        }
+
+    zero, few = await _asyncio.gather(call([]), call(body.examples))
+    return {"zero_shot": zero, "few_shot": few}
+
+
+# ---------------------------------------------------------------------------
+# Chunking strategies
+# ---------------------------------------------------------------------------
+
+class ChunkRequest(BaseModel):
+    text: str
+    strategy: str = "fixed"   # fixed | sentence | paragraph | semantic
+    chunk_size: int = 200
+    overlap: int = 20
+
+
+@app.post("/api/chunk")
+async def chunk_text(body: ChunkRequest):
+    import re
+
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text is required")
+
+    chunks: list[str] = []
+
+    if body.strategy == "fixed":
+        words = text.split()
+        step = max(1, body.chunk_size - body.overlap)
+        i = 0
+        while i < len(words):
+            chunks.append(" ".join(words[i: i + body.chunk_size]))
+            i += step
+
+    elif body.strategy == "sentence":
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        current: list[str] = []
+        current_len = 0
+        for sent in sentences:
+            wc = len(sent.split())
+            if current_len + wc > body.chunk_size and current:
+                chunks.append(" ".join(current))
+                # keep overlap sentences
+                overlap_sents: list[str] = []
+                ol = 0
+                for s in reversed(current):
+                    ol += len(s.split())
+                    if ol > body.overlap:
+                        break
+                    overlap_sents.insert(0, s)
+                current = overlap_sents
+                current_len = sum(len(s.split()) for s in current)
+            current.append(sent)
+            current_len += wc
+        if current:
+            chunks.append(" ".join(current))
+
+    elif body.strategy == "paragraph":
+        paras = [p.strip() for p in re.split(r'\n\s*\n', text) if p.strip()]
+        current = []
+        current_len = 0
+        for para in paras:
+            wc = len(para.split())
+            if current_len + wc > body.chunk_size and current:
+                chunks.append("\n\n".join(current))
+                current = []
+                current_len = 0
+            current.append(para)
+            current_len += wc
+        if current:
+            chunks.append("\n\n".join(current))
+
+    elif body.strategy == "semantic":
+        # Embed sentences, split where cosine similarity drops below threshold
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        if len(sentences) <= 1:
+            chunks = [text]
+        else:
+            embeddings = []
+            for sent in sentences:
+                emb = await client.embeddings.create(model=EMBEDDING_MODEL, input=sent)
+                embeddings.append(emb.data[0].embedding)
+
+            def cosine(a: list, b: list) -> float:
+                dot = sum(x * y for x, y in zip(a, b))
+                na = sum(x * x for x in a) ** 0.5
+                nb = sum(x * x for x in b) ** 0.5
+                return dot / (na * nb + 1e-10)
+
+            THRESHOLD = 0.82
+            current = [sentences[0]]
+            for i in range(1, len(sentences)):
+                sim = cosine(embeddings[i - 1], embeddings[i])
+                if sim < THRESHOLD and len(current) > 1:
+                    chunks.append(" ".join(current))
+                    current = [sentences[i]]
+                else:
+                    current.append(sentences[i])
+            if current:
+                chunks.append(" ".join(current))
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown strategy: {body.strategy}")
+
+    return {
+        "chunks": chunks,
+        "count": len(chunks),
+        "strategy": body.strategy,
+        "avg_words": round(sum(len(c.split()) for c in chunks) / max(len(chunks), 1), 1),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Model comparison
+# ---------------------------------------------------------------------------
+
+class ModelCompareRequest(BaseModel):
+    prompt: str
+    models: list[str]
+    system_prompt: str = "You are a helpful assistant."
+
+
+COMPARE_MODEL_PRICES: dict[str, dict] = {
+    "gpt-4o":          {"in": 2.50,  "out": 10.00},
+    "gpt-4o-mini":     {"in": 0.15,  "out": 0.60},
+    "gpt-4":           {"in": 30.00, "out": 60.00},
+    "gpt-3.5-turbo":   {"in": 0.50,  "out": 1.50},
+}
+
+
+@app.post("/api/model-compare")
+async def model_compare(body: ModelCompareRequest):
+    import asyncio as _asyncio, time as _time
+
+    async def call_model(model: str) -> dict:
+        t0 = _time.perf_counter()
+        try:
+            completion = await client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": body.system_prompt},
+                    {"role": "user",   "content": body.prompt},
+                ],
+                max_tokens=512,
+            )
+            latency = round(_time.perf_counter() - t0, 2)
+            usage = completion.usage
+            prices = COMPARE_MODEL_PRICES.get(model, {"in": 0, "out": 0})
+            cost = (usage.prompt_tokens * prices["in"] + usage.completion_tokens * prices["out"]) / 1_000_000
+            return {
+                "model": model,
+                "response": completion.choices[0].message.content,
+                "latency_s": latency,
+                "input_tokens": usage.prompt_tokens,
+                "output_tokens": usage.completion_tokens,
+                "cost_usd": round(cost, 6),
+                "error": None,
+            }
+        except Exception as e:
+            return {
+                "model": model,
+                "response": None,
+                "latency_s": round(_time.perf_counter() - t0, 2),
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "cost_usd": 0,
+                "error": str(e),
+            }
+
+    results = await _asyncio.gather(*[call_model(m) for m in body.models[:4]])
+    return {"results": list(results)}
+
+
+# ---------------------------------------------------------------------------
+# Personas / system prompt editor
+# ---------------------------------------------------------------------------
+
+class PersonaRequest(BaseModel):
+    system_prompt: str
+    message: str
+
+
+@app.post("/api/persona")
+async def persona_chat(body: PersonaRequest):
+    completion = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[
+            {"role": "system", "content": body.system_prompt},
+            {"role": "user",   "content": body.message},
+        ],
+        max_tokens=512,
+    )
+    return {
+        "response": completion.choices[0].message.content,
+        "input_tokens": completion.usage.prompt_tokens,
+        "output_tokens": completion.usage.completion_tokens,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Hallucination detection
+# ---------------------------------------------------------------------------
+
+class HallucinationRequest(BaseModel):
+    question: str
+    context: str = ""   # optional grounding document
+
+
+@app.post("/api/hallucination")
+async def hallucination_check(body: HallucinationRequest):
+    import asyncio as _asyncio, json as _json
+
+    # Step 1: generate an answer (with or without context)
+    system = (
+        "Answer the question using only the provided context. "
+        "If the context does not contain the answer, say so."
+        if body.context
+        else "Answer the question as helpfully as you can."
+    )
+    user_msg = (
+        f"Context:\n{body.context}\n\nQuestion: {body.question}"
+        if body.context
+        else body.question
+    )
+    answer_completion = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user",   "content": user_msg},
+        ],
+        max_tokens=512,
+    )
+    answer = answer_completion.choices[0].message.content
+
+    # Step 2: fact-check the answer
+    check_prompt = (
+        f"Question: {body.question}\n\n"
+        f"Answer to verify: {answer}\n\n"
+        + (f"Grounding context:\n{body.context}\n\n" if body.context else "")
+        + "Identify any claims in the answer that are factually incorrect, "
+          "unsupported, or hallucinated. "
+          "Return JSON: {\"verdict\": \"grounded\"|\"hallucinated\"|\"uncertain\", "
+          "\"confidence\": 0.0-1.0, \"issues\": [str], \"explanation\": str}"
+    )
+    check_completion = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[{"role": "user", "content": check_prompt}],
+        response_format={"type": "json_object"},
+        temperature=0,
+        max_tokens=512,
+    )
+    check = _json.loads(check_completion.choices[0].message.content)
+
+    return {
+        "question": body.question,
+        "answer": answer,
+        "verdict": check.get("verdict", "uncertain"),
+        "confidence": check.get("confidence", 0.0),
+        "issues": check.get("issues", []),
+        "explanation": check.get("explanation", ""),
+        "answer_tokens": answer_completion.usage.completion_tokens,
+        "check_tokens": check_completion.usage.completion_tokens,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Agentic RAG
+# ---------------------------------------------------------------------------
+
+class AgenticRagRequest(BaseModel):
+    question: str
+    max_iterations: int = 3
+
+
+@app.post("/api/agentic-rag")
+async def agentic_rag(body: AgenticRagRequest):
+    import json as _json
+
+    steps: list[dict] = []
+    question = body.question
+    context_so_far = ""
+
+    for iteration in range(body.max_iterations):
+        # Decide: do we have enough context to answer, or should we retrieve more?
+        decide_prompt = (
+            f"Original question: {question}\n\n"
+            + (f"Context retrieved so far:\n{context_so_far}\n\n" if context_so_far else "No context retrieved yet.\n\n")
+            + "Decide what to do next. Return JSON:\n"
+              "{\"action\": \"answer\"|\"retrieve\", "
+              "\"query\": \"<search query if action=retrieve>\", "
+              "\"reason\": \"<one sentence>\"}"
+        )
+        decide = await client.chat.completions.create(
+            model=INFERENCE_MODEL,
+            messages=[{"role": "user", "content": decide_prompt}],
+            response_format={"type": "json_object"},
+            temperature=0,
+            max_tokens=200,
+        )
+        decision = _json.loads(decide.choices[0].message.content)
+        steps.append({"type": "decide", "iteration": iteration + 1, **decision})
+
+        if decision.get("action") == "answer":
+            break
+
+        # Retrieve
+        search_query = decision.get("query", question)
+        docs = await get_relevant_documents(search_query, limit=3)
+        retrieved = "\n\n".join(
+            f"[Doc {i+1}] {d.get('content', d.get('text', str(d)))}"
+            for i, d in enumerate(docs)
+        ) if docs else "No relevant documents found."
+        context_so_far += f"\n\n--- Retrieval {iteration + 1} (query: {search_query}) ---\n{retrieved}"
+        steps.append({"type": "retrieve", "iteration": iteration + 1, "query": search_query, "docs_found": len(docs) if docs else 0})
+
+    # Final answer
+    final_completion = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[
+            {"role": "system", "content": "Answer the question using the retrieved context. Be concise and accurate."},
+            {"role": "user",   "content": f"Question: {question}\n\nContext:{context_so_far}"},
+        ],
+        max_tokens=512,
+    )
+    answer = final_completion.choices[0].message.content
+    steps.append({"type": "answer", "text": answer})
+
+    return {
+        "question": question,
+        "answer": answer,
+        "steps": steps,
+        "iterations": sum(1 for s in steps if s["type"] == "retrieve"),
+        "tokens": final_completion.usage.completion_tokens,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 

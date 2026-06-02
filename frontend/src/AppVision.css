@@ -1,0 +1,107 @@
+.vision-app { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+
+.vision-layout {
+  display: flex;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Left column */
+.vision-left { flex: 0 0 340px; display: flex; flex-direction: column; }
+
+.vision-dropzone {
+  flex: 1;
+  border: 2px dashed #d1d5db;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  position: relative;
+  overflow: hidden;
+  background: #fafafa;
+  min-height: 260px;
+}
+.vision-dropzone:hover { border-color: #00A3E0; background: #f0faff; }
+.vision-dropzone--drag { border-color: #00A3E0; background: #e0f5ff; }
+.vision-dropzone--has-image { cursor: default; border-style: solid; border-color: #e5e7eb; }
+
+.vision-dropzone-hint { text-align: center; padding: 1.5rem; color: #9ca3af; }
+.vision-dropzone-icon { font-size: 2.5rem; display: block; margin-bottom: 0.5rem; }
+.vision-dropzone-hint p { margin: 0 0 0.4rem; font-size: 0.875rem; color: #6b7280; }
+.vision-dropzone-sub { font-size: 0.75rem; color: #9ca3af; }
+
+.vision-preview { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+.vision-clear-btn {
+  position: absolute; top: 6px; right: 6px;
+  background: rgba(0,0,0,0.55); color: #fff;
+  border: none; border-radius: 50%;
+  width: 24px; height: 24px;
+  font-size: 0.75rem; cursor: pointer; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.vision-clear-btn:hover { background: rgba(0,0,0,0.8); }
+
+/* Right column */
+.vision-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.vision-prompt-row { display: flex; gap: 0.5rem; align-items: flex-start; }
+.vision-prompt-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+}
+.vision-prompt-input:focus { outline: none; border-color: #00A3E0; box-shadow: 0 0 0 2px rgba(0,163,224,0.15); }
+
+.vision-run-btn {
+  padding: 0.5rem 1.25rem;
+  background: #00A3E0; color: #fff;
+  border: none; border-radius: 6px;
+  font-size: 0.875rem; font-weight: 600; cursor: pointer;
+  white-space: nowrap; align-self: flex-start;
+}
+.vision-run-btn:hover:not(:disabled) { background: #0086b8; }
+.vision-run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.vision-examples { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+
+.vision-error {
+  padding: 0.6rem 0.75rem;
+  background: #fef2f2; border: 1px solid #fecaca;
+  color: #991b1b; border-radius: 6px; font-size: 0.875rem;
+}
+.vision-loading { color: #6b7280; font-size: 0.875rem; padding: 0.5rem 0; }
+
+.vision-result {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  flex: 1;
+}
+.vision-result-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 0.6rem;
+}
+.vision-result-model { font-size: 0.78rem; font-weight: 700; color: #111827; font-family: monospace; }
+.vision-result-meta { font-size: 0.72rem; color: #9ca3af; }
+.vision-result-text { margin: 0; font-size: 0.875rem; line-height: 1.65; color: #374151; white-space: pre-wrap; }
+
+.vision-placeholder { color: #9ca3af; font-size: 0.875rem; line-height: 1.6; padding: 0.5rem 0; }

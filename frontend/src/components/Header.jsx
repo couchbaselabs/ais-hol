@@ -33,6 +33,13 @@ const LLM_TABS = [
   { id: 'query-expansion',   label: '🔀 Query Expansion' },
   { id: 'cost-latency',      label: '💰 Cost & Latency' },
   { id: 'guardrails',        label: '🛡️ Guardrails' },
+  { id: 'vision',            label: '🖼️ Vision' },
+  { id: 'few-shot',          label: '🎯 Few-Shot' },
+  { id: 'model-comparison',  label: '⚖️ Model Comparison' },
+  { id: 'personas',          label: '🎭 Personas' },
+  { id: 'hallucination',     label: '🔎 Hallucination' },
+  { id: 'chunking',          label: '✂️ Chunking' },
+  { id: 'agentic-rag',       label: '🔄 Agentic RAG' },
 ]
 
 const CAPELLA_TABS = [
