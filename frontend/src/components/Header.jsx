@@ -21,6 +21,15 @@ const CONCEPT_TABS = [
   { id: 'tokens',            label: '🔤 Token Counter' },
 ]
 
+const LLM_TABS = [
+  { id: 'temperature',       label: '🌡️ Temperature' },
+  { id: 'tool-calling',      label: '🔧 Tool Calling' },
+  { id: 'context-window',    label: '📐 Context Window' },
+  { id: 'query-expansion',   label: '🔀 Query Expansion' },
+  { id: 'cost-latency',      label: '💰 Cost & Latency' },
+  { id: 'guardrails',        label: '🛡️ Guardrails' },
+]
+
 const CAPELLA_TABS = [
   { id: 'capella-summarise', label: '🗄️ AI Summarisation' },
   { id: 'capella-sentiment', label: '🗄️ AI Sentiment' },
@@ -56,6 +65,20 @@ const Header = ({ activeTab, onTabChange, action }) => {
             <span className="tab-row-label">Concepts</span>
             <nav className="header-tabs">
               {CONCEPT_TABS.map(t => (
+                <button
+                  key={t.id}
+                  className={`tab-btn ${activeTab === t.id ? 'tab-btn--active' : ''}`}
+                  onClick={() => onTabChange(t.id)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+          <div className="tab-row">
+            <span className="tab-row-label">LLM Deep Dives</span>
+            <nav className="header-tabs">
+              {LLM_TABS.map(t => (
                 <button
                   key={t.id}
                   className={`tab-btn ${activeTab === t.id ? 'tab-btn--active' : ''}`}

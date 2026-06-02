@@ -17,6 +17,12 @@ import AppSummarise from './AppSummarise'
 import AppTokens from './AppTokens'
 import AppCapellaSummarise from './AppCapellaSummarise'
 import AppCapellaSentiment from './AppCapellaSentiment'
+import AppTemperature from './AppTemperature'
+import AppToolCalling from './AppToolCalling'
+import AppContextWindow from './AppContextWindow'
+import AppQueryExpansion from './AppQueryExpansion'
+import AppCostLatency from './AppCostLatency'
+import AppGuardrails from './AppGuardrails'
 
 function Shell() {
   const [activeTab, setActiveTab] = useState('chat')
@@ -42,6 +48,12 @@ function Shell() {
         {activeTab === 'tokens'            && <AppTokens          key="tokens"            />}
         {activeTab === 'capella-summarise' && <AppCapellaSummarise key="capella-summarise" />}
         {activeTab === 'capella-sentiment' && <AppCapellaSentiment key="capella-sentiment" />}
+        {activeTab === 'temperature'       && <AppTemperature      key="temperature"       />}
+        {activeTab === 'tool-calling'      && <AppToolCalling      key="tool-calling"      />}
+        {activeTab === 'context-window'    && <AppContextWindow    key="context-window"    />}
+        {activeTab === 'query-expansion'   && <AppQueryExpansion   key="query-expansion"   />}
+        {activeTab === 'cost-latency'      && <AppCostLatency      key="cost-latency"      />}
+        {activeTab === 'guardrails'        && <AppGuardrails       key="guardrails"        />}
         <InfoPanel tab={activeTab} />
       </div>
     </div>

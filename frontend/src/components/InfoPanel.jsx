@@ -1101,6 +1101,305 @@ def hybrid_faq_search(query: str, collection_name: str) -> list[dict]:
       },
     ],
   },
+  temperature: {
+    title: 'Temperature & Sampling',
+    subtitle: 'How randomness controls creativity — from deterministic to chaotic',
+    color: CB_ACCENT,
+    icon: '🌡️',
+    what: 'Temperature is a scalar applied to the logits before sampling. At 0 the model always picks the highest-probability token — fully deterministic. As temperature rises, lower-probability tokens get more chance to be selected, producing more varied and creative (but less reliable) output. Values above 1.0 can produce incoherent text.',
+    how: [
+      'Same prompt sent to the LLM at each selected temperature in parallel',
+      'Temperature 0 → always the same answer',
+      'Temperature 1.0 → standard creative variation',
+      'Temperature 1.5+ → high randomness, may lose coherence',
+    ],
+    limitations: [
+      'Temperature 0 is not truly deterministic on all providers due to floating-point non-determinism',
+      'High temperature does not make the model more knowledgeable — only more random',
+      'Some providers cap temperature at 1.0 or 2.0',
+    ],
+    stack: ['LLM (parallel calls at each temperature)', 'asyncio.gather()', 'FastAPI'],
+    snippets: [
+      {
+        title: 'backend/main.py — parallel temperature calls',
+        language: 'python',
+        code: `async def call_at_temp(temp: float) -> dict:
+    completion = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[{"role": "user", "content": body.message}],
+        temperature=min(temp, 2.0),  # ← the only difference between calls
+        max_tokens=200,
+    )
+    return {"temperature": temp, "response": completion.choices[0].message.content}
+
+# Run all temperatures in parallel
+results = await asyncio.gather(*[call_at_temp(t) for t in temps])`,
+      },
+    ],
+  },
+  'tool-calling': {
+    title: 'Tool Calling',
+    subtitle: 'LLM decides which function to call, executes it, then forms a final answer',
+    color: CB_ACCENT,
+    icon: '🔧',
+    what: 'Tool calling (function calling) lets the LLM signal that it needs to invoke an external function rather than answer from memory. The model returns a structured JSON object naming the tool and its arguments. The application executes the tool, sends the result back, and the LLM uses it to form a final answer. This is the foundation of all agent systems.',
+    how: [
+      'Tool schemas (name, description, parameters) sent with the request',
+      'LLM returns tool_calls instead of content if a tool is needed',
+      'Application executes the tool and gets a result',
+      'Tool result sent back as a "tool" role message',
+      'LLM generates final answer using the tool result',
+    ],
+    limitations: [
+      'LLM may call the wrong tool or pass incorrect arguments',
+      'Not all models support tool calling — check provider docs',
+      'Parallel tool calls require extra handling',
+      'Tool descriptions must be clear — vague descriptions cause wrong selections',
+    ],
+    stack: ['LLM tool_choice API', 'FastAPI', 'Simulated tool execution'],
+    snippets: [
+      {
+        title: 'backend/main.py — define tools and first LLM call',
+        language: 'python',
+        code: `tools = [{
+    "type": "function",
+    "function": {
+        "name": "get_weather",
+        "description": "Get the current weather for a city.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "city": {"type": "string"},
+                "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
+            },
+            "required": ["city"],
+        },
+    },
+}]
+
+# Step 1: LLM decides which tool to call
+first = await client.chat.completions.create(
+    model=INFERENCE_MODEL,
+    messages=[{"role": "user", "content": body.message}],
+    tools=tools,
+    tool_choice="auto",   # ← LLM decides: call a tool or answer directly
+)
+tool_calls = first.choices[0].message.tool_calls`,
+      },
+      {
+        title: 'backend/main.py — send tool result back',
+        language: 'python',
+        code: `# Step 2: execute the tool in application code
+tool_result = execute_tool(tc.function.name, json.loads(tc.function.arguments))
+
+# Step 3: send result back so LLM can form final answer
+messages = [
+    {"role": "user",      "content": body.message},
+    {"role": "assistant", "content": None, "tool_calls": [tc.model_dump()]},
+    {"role": "tool",      "tool_call_id": tc.id, "content": tool_result},
+]
+second = await client.chat.completions.create(
+    model=INFERENCE_MODEL, messages=messages
+)
+final_answer = second.choices[0].message.content`,
+      },
+    ],
+  },
+  'context-window': {
+    title: 'Context Window',
+    subtitle: 'Visualise token usage across messages and see how much of the window is consumed',
+    color: CB_ACCENT,
+    icon: '📐',
+    what: 'Every LLM has a context window — the maximum number of tokens it can process in a single call, including all messages (system, user, assistant) and the response. When the window fills up, older messages must be truncated or summarised. Understanding token distribution across messages helps design efficient prompts and conversation strategies.',
+    how: [
+      'Each message tokenised with tiktoken (cl100k_base encoding)',
+      'Per-message token count includes 4 tokens of role/framing overhead',
+      'Cumulative total shown as percentage of the selected model\'s limit',
+      'Bar turns amber at 70%, red at 90%',
+    ],
+    limitations: [
+      'Token counts are estimates — exact counts vary by model and provider',
+      'Context limits shown are approximate and change with model updates',
+      'Filling the context window increases latency and cost significantly',
+      'The response also consumes tokens from the same window',
+    ],
+    stack: ['tiktoken (token counting)', 'FastAPI', 'React interactive editor'],
+    snippets: [
+      {
+        title: 'backend/main.py — count tokens per message',
+        language: 'python',
+        code: `import tiktoken
+
+MODEL_LIMITS = {
+    "gpt-4o":      128_000,
+    "gpt-4o-mini": 128_000,
+    "gpt-4":         8_192,
+}
+
+enc = tiktoken.get_encoding("cl100k_base")
+
+def count_tokens(text: str) -> int:
+    return len(enc.encode(text))
+
+total = 0
+for msg in body.messages:
+    tokens = count_tokens(msg["content"]) + 4  # role framing overhead
+    total += tokens
+
+pct_used = round(total / MODEL_LIMITS[body.model] * 100, 2)`,
+      },
+    ],
+  },
+  'query-expansion': {
+    title: 'Query Expansion',
+    subtitle: 'Generate multiple phrasings, retrieve for each, merge — broader recall than a single query',
+    color: CB_ACCENT,
+    icon: '🔀',
+    what: 'A single query may miss relevant documents because the wording doesn\'t match the embedding space well. Query expansion generates N alternative phrasings of the same intent, embeds each, retrieves documents for all of them, then merges and deduplicates the results — keeping the best score for each document. This improves recall at the cost of more embedding and retrieval calls.',
+    how: [
+      'LLM generates N alternative phrasings (response_format: json_object)',
+      'Original + all expansions embedded in parallel',
+      'Couchbase ANN search run for each embedding',
+      'Results merged: duplicate doc IDs keep the lowest (best) score',
+      'Final list sorted by score and returned',
+    ],
+    limitations: [
+      'N+1 embedding calls and N+1 ANN queries per request',
+      'LLM-generated expansions may drift from the original intent',
+      'Diminishing returns beyond 4-5 expansions',
+      'Requires a populated Couchbase vector index',
+    ],
+    stack: ['LLM (expansion generation)', 'Embedding model', 'Couchbase ANN vector search', 'asyncio.gather()'],
+    snippets: [
+      {
+        title: 'backend/main.py — generate expansions then merge',
+        language: 'python',
+        code: `# Step 1: generate alternative phrasings
+completion = await client.chat.completions.create(
+    model=INFERENCE_MODEL,
+    messages=[{"role": "system", "content":
+        f"Generate {n} alternative phrasings. Return JSON: {{queries: [...]}}"},
+              {"role": "user", "content": body.query}],
+    response_format={"type": "json_object"},
+    temperature=0.8,
+)
+expansions = json.loads(completion.choices[0].message.content)["queries"]
+all_queries = [body.query] + expansions
+
+# Step 2: embed all in parallel
+embeddings = await asyncio.gather(*[get_embedding(q) for q in all_queries])
+
+# Step 3: retrieve for each embedding
+all_results = await asyncio.gather(*[
+    get_relevant_documents(emb) for emb in embeddings
+])
+
+# Step 4: merge — keep best (lowest L2) score per doc
+merged: dict[str, dict] = {}
+for query, results in zip(all_queries, all_results):
+    for doc in results:
+        if doc["id"] not in merged or doc["score"] < merged[doc["id"]]["score"]:
+            merged[doc["id"]] = {**doc, "matched_query": query}`,
+      },
+    ],
+  },
+  'cost-latency': {
+    title: 'Cost & Latency',
+    subtitle: 'Run the same prompt across models — compare response time and token cost side by side',
+    color: CB_ACCENT,
+    icon: '💰',
+    what: 'Different LLMs have very different cost and latency profiles. A small model like llama-3.1-8b may be 50x cheaper than GPT-4o but produce lower quality output. This tab runs the same prompt on multiple models in parallel and shows real measured latency alongside estimated cost based on mid-2025 list prices.',
+    how: [
+      'Same prompt sent to all selected models in parallel',
+      'Wall-clock latency measured per model',
+      'Cost estimated from input/output token counts × list price per 1M tokens',
+      'Responses shown side by side for quality comparison',
+    ],
+    limitations: [
+      'Latency varies with server load — results are not stable benchmarks',
+      'Prices are approximate mid-2025 list rates and change frequently',
+      'Models not configured on your endpoint will return an error',
+      'Quality differences are not captured by cost/latency alone',
+    ],
+    stack: ['LLM (multiple providers)', 'asyncio.gather() (parallel)', 'FastAPI', 'time.perf_counter()'],
+    snippets: [
+      {
+        title: 'backend/main.py — measure latency and estimate cost',
+        language: 'python',
+        code: `MODEL_PRICING = {
+    "gpt-4o-mini":   {"input": 0.15,  "output": 0.60},   # USD per 1M tokens
+    "gpt-4o":        {"input": 2.50,  "output": 10.00},
+    "llama-3.1-70b": {"input": 0.88,  "output": 0.88},
+}
+
+async def call_model(model: str) -> dict:
+    pricing = MODEL_PRICING[model]
+    t0 = time.perf_counter()
+    completion = await client.chat.completions.create(
+        model=model, messages=[{"role": "user", "content": body.message}]
+    )
+    latency = time.perf_counter() - t0
+    cost = (
+        completion.usage.prompt_tokens     * pricing["input"]  +
+        completion.usage.completion_tokens * pricing["output"]
+    ) / 1_000_000
+    return {"model": model, "latency_s": round(latency, 2), "cost_usd": round(cost, 6)}
+
+results = await asyncio.gather(*[call_model(m) for m in valid_models])`,
+      },
+    ],
+  },
+  guardrails: {
+    title: 'Guardrails',
+    subtitle: 'Input and output safety gates — classify, block, and explain every decision',
+    color: CB_ACCENT,
+    icon: '🛡️',
+    what: 'Guardrails are safety checks that run before and after the LLM. The input gate classifies the user message — detecting harmful requests, prompt injections, and PII. If safe, the LLM generates a response. The output gate then checks the response before it reaches the user. Both gates use the LLM itself as the classifier with a structured JSON output.',
+    how: [
+      'Input gate: LLM classifies message → safe / borderline / harmful / prompt_injection / pii',
+      'If input blocked: return immediately, no LLM generation',
+      'If input safe: generate response with a helpful system prompt',
+      'Output gate: LLM classifies the response',
+      'If output blocked: replace with a safe fallback message',
+    ],
+    limitations: [
+      'LLM-based classifiers can be fooled by adversarial inputs',
+      'Two extra LLM calls per request adds latency and cost',
+      'False positives may block legitimate requests',
+      'Not a substitute for proper security controls at the infrastructure level',
+    ],
+    stack: ['LLM (classifier + generator)', 'response_format: json_object', 'FastAPI'],
+    snippets: [
+      {
+        title: 'backend/main.py — input + output classification',
+        language: 'python',
+        code: `async def classify(text: str, role: str) -> dict:
+    completion = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[{
+            "role": "system",
+            "content": "Classify the text. Return JSON: "
+                       "{safe: bool, category: str, reason: str, confidence: float}",
+        }, {"role": "user", "content": f"Classify this {role}:\\n\\n{text}"}],
+        response_format={"type": "json_object"},
+        temperature=0,
+    )
+    return json.loads(completion.choices[0].message.content)
+
+# Gate 1 — input
+input_check = await classify(body.message, "user input")
+if not input_check["safe"]:
+    return {"blocked_at": "input", "final_output": None, ...}
+
+# Generate response
+response = await generate(body.message)
+
+# Gate 2 — output
+output_check = await classify(response, "assistant response")
+final = response if output_check["safe"] else "[Response blocked]"`,
+      },
+    ],
+  },
   'capella-summarise': {
     title: 'Capella AI Summarisation',
     subtitle: 'default:ai_summary() — summarisation runs inside the database as a SQL++ query',

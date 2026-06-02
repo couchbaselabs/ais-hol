@@ -468,7 +468,8 @@ def _split_into_chunks(text: str, chunk_size: int = _CHUNK_SIZE, overlap: int = 
 
 class SummariseRequest(BaseModel):
     text: str
-    focus: str | None = None   # optional focus instruction
+    focus: str | None = None        # optional focus instruction
+    chunk_size: int = _CHUNK_SIZE   # words per chunk (for visualising chunking strategies)
 
 
 @app.post("/api/summarise")
@@ -494,7 +495,8 @@ async def summarise(body: SummariseRequest):
     )
 
     focus_clause = f" Focus on: {body.focus}." if body.focus else ""
-    chunks = _split_into_chunks(body.text)
+    chunk_size = max(50, min(body.chunk_size, 2000))
+    chunks = _split_into_chunks(body.text, chunk_size=chunk_size)
 
     # Map: summarise each chunk
     async def summarise_chunk(i: int, chunk: str) -> dict:
@@ -798,6 +800,18 @@ PROMPT_PRESETS = {
     "socratic": (
         "Do not answer directly. Instead, ask 2–3 probing questions that guide the "
         "user to discover the answer themselves."
+    ),
+    "few_shot": (
+        "You answer questions using the same style as these examples:\n\n"
+        "Q: What is a variable?\n"
+        "A: A named container that holds a value. Example: `x = 5` stores the number 5 in x.\n\n"
+        "Q: What is a function?\n"
+        "A: A reusable block of code that takes inputs and returns an output. "
+        "Example: `def add(a, b): return a + b`.\n\n"
+        "Q: What is a loop?\n"
+        "A: A way to repeat code. Example: `for i in range(3): print(i)` prints 0, 1, 2.\n\n"
+        "Now answer the next question in exactly the same style: one sentence definition, "
+        "then a concrete code example."
     ),
 }
 
@@ -1165,6 +1179,503 @@ class CapellaSentimentRequest(BaseModel):
 
 
 _MOCK_MODE = os.environ.get("MOCK_MODE", "").lower() == "true"
+
+
+# ---------------------------------------------------------------------------
+# Demo: Temperature & Sampling
+# ---------------------------------------------------------------------------
+
+
+class TemperatureRequest(BaseModel):
+    message: str
+    temperatures: list[float] = [0.0, 0.5, 1.0, 1.5]
+
+
+@app.post("/api/temperature")
+async def temperature_demo(body: TemperatureRequest):
+    """Run the same prompt at multiple temperatures in parallel.
+
+    Returns one response per temperature so the UI can show how randomness
+    affects output — from deterministic (0.0) to creative/chaotic (1.5+).
+    """
+    if not body.message.strip():
+        raise HTTPException(status_code=400, detail="message is required.")
+
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(
+        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
+        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
+    )
+
+    async def call_at_temp(temp: float) -> dict:
+        completion = await client.chat.completions.create(
+            model=INFERENCE_MODEL,
+            messages=[{"role": "user", "content": body.message}],
+            temperature=min(temp, 2.0),
+            max_tokens=200,
+        )
+        return {
+            "temperature": temp,
+            "response": completion.choices[0].message.content.strip(),
+            "tokens": completion.usage.completion_tokens,
+        }
+
+    temps = [max(0.0, min(t, 2.0)) for t in body.temperatures[:6]]
+    results = await asyncio.gather(*[call_at_temp(t) for t in temps])
+    return {"results": list(results)}
+
+
+# ---------------------------------------------------------------------------
+# Demo: Tool Calling
+# ---------------------------------------------------------------------------
+
+
+class ToolCallRequest(BaseModel):
+    message: str
+
+
+@app.post("/api/tool-calling")
+async def tool_calling_demo(body: ToolCallRequest):
+    """Demonstrate LLM tool/function calling.
+
+    Defines a small set of tools (get_weather, calculate, search_docs),
+    sends the user message, and returns the full round-trip: tool chosen,
+    arguments, simulated result, and final LLM answer.
+    """
+    if not body.message.strip():
+        raise HTTPException(status_code=400, detail="message is required.")
+
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(
+        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
+        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
+    )
+
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "Get the current weather for a city.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "city": {"type": "string", "description": "City name"},
+                        "unit": {"type": "string", "enum": ["celsius", "fahrenheit"], "default": "celsius"},
+                    },
+                    "required": ["city"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "calculate",
+                "description": "Evaluate a mathematical expression.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "expression": {"type": "string", "description": "Math expression, e.g. '12 * 34 + 5'"},
+                    },
+                    "required": ["expression"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "search_docs",
+                "description": "Search the documentation for a topic.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "Search query"},
+                    },
+                    "required": ["query"],
+                },
+            },
+        },
+    ]
+
+    # Step 1: LLM decides which tool to call
+    first = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[{"role": "user", "content": body.message}],
+        tools=tools,
+        tool_choice="auto",
+        max_tokens=300,
+    )
+
+    msg = first.choices[0].message
+    tool_calls = msg.tool_calls or []
+
+    if not tool_calls:
+        # LLM answered directly without a tool
+        return {
+            "tool_used": None,
+            "tool_args": None,
+            "tool_result": None,
+            "final_answer": msg.content,
+            "steps": ["LLM answered directly — no tool needed"],
+        }
+
+    tc = tool_calls[0]
+    tool_name = tc.function.name
+    import json as _json
+    tool_args = _json.loads(tc.function.arguments)
+
+    # Step 2: Simulate tool execution
+    if tool_name == "get_weather":
+        city = tool_args.get("city", "Unknown")
+        unit = tool_args.get("unit", "celsius")
+        temp_val = 22 if unit == "celsius" else 72
+        tool_result = f"{city}: {temp_val}°{'C' if unit == 'celsius' else 'F'}, partly cloudy. [simulated]"
+    elif tool_name == "calculate":
+        expr = tool_args.get("expression", "0")
+        try:
+            tool_result = str(eval(expr, {"__builtins__": {}}, {}))  # noqa: S307
+        except Exception:
+            tool_result = "Could not evaluate expression."
+    elif tool_name == "search_docs":
+        query = tool_args.get("query", "")
+        tool_result = f"Found 3 docs matching '{query}': [Doc A], [Doc B], [Doc C]. [simulated]"
+    else:
+        tool_result = "Tool result: [simulated]"
+
+    # Step 3: Send tool result back to LLM for final answer
+    messages = [
+        {"role": "user", "content": body.message},
+        {"role": "assistant", "content": None, "tool_calls": [tc.model_dump()]},
+        {"role": "tool", "tool_call_id": tc.id, "content": tool_result},
+    ]
+    second = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=messages,
+        max_tokens=300,
+    )
+    final_answer = second.choices[0].message.content.strip()
+
+    return {
+        "tool_used": tool_name,
+        "tool_args": tool_args,
+        "tool_result": tool_result,
+        "final_answer": final_answer,
+        "steps": [
+            f"1. LLM chose tool: {tool_name}",
+            f"2. Arguments: {_json.dumps(tool_args)}",
+            f"3. Tool returned: {tool_result}",
+            "4. LLM used result to form final answer",
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Demo: Context Window Visualiser
+# ---------------------------------------------------------------------------
+
+
+class ContextWindowRequest(BaseModel):
+    messages: list[dict]   # [{"role": "user"|"assistant"|"system", "content": "..."}]
+    model: str = "gpt-4o-mini"
+
+
+@app.post("/api/context-window")
+async def context_window(body: ContextWindowRequest):
+    """Count tokens for each message and show how much of the context window is used."""
+    import tiktoken
+
+    MODEL_LIMITS = {
+        "gpt-4o":        128_000,
+        "gpt-4o-mini":   128_000,
+        "gpt-4":           8_192,
+        "gpt-3.5-turbo":  16_385,
+        "claude-3-5-sonnet": 200_000,
+        "llama-3.1-70b":  128_000,
+    }
+
+    try:
+        enc = tiktoken.get_encoding("cl100k_base")
+    except Exception:
+        enc = None
+
+    def count_tokens(text: str) -> int:
+        if enc:
+            return len(enc.encode(text))
+        return len(text.split()) * 4 // 3  # rough fallback
+
+    limit = MODEL_LIMITS.get(body.model, 128_000)
+    rows = []
+    total = 0
+    for msg in body.messages:
+        tokens = count_tokens(msg.get("content", "")) + 4  # role overhead
+        total += tokens
+        rows.append({
+            "role": msg.get("role", "user"),
+            "content_preview": msg.get("content", "")[:120],
+            "tokens": tokens,
+            "cumulative": total,
+            "pct": round(total / limit * 100, 1),
+        })
+
+    return {
+        "model": body.model,
+        "limit": limit,
+        "total_tokens": total,
+        "pct_used": round(total / limit * 100, 2),
+        "remaining": limit - total,
+        "messages": rows,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Demo: Query Expansion
+# ---------------------------------------------------------------------------
+
+
+class QueryExpansionRequest(BaseModel):
+    query: str
+    n_expansions: int = 4
+
+
+@app.post("/api/query-expansion")
+async def query_expansion(body: QueryExpansionRequest):
+    """Generate multiple phrasings of a query, embed each, retrieve docs for all,
+    then merge and deduplicate results — broader recall than a single query."""
+    if not body.query.strip():
+        raise HTTPException(status_code=400, detail="query is required.")
+
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(
+        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
+        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
+    )
+
+    # Step 1: Generate alternative phrasings
+    completion = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[{
+            "role": "system",
+            "content": (
+                f"Generate {body.n_expansions} alternative phrasings of the user's query. "
+                "Each should capture the same intent but use different words or angles. "
+                "Return a JSON object with key 'queries' containing a list of strings."
+            ),
+        }, {
+            "role": "user",
+            "content": body.query,
+        }],
+        response_format={"type": "json_object"},
+        temperature=0.8,
+        max_tokens=300,
+    )
+
+    import json as _json
+    data = _json.loads(completion.choices[0].message.content)
+    expansions = data.get("queries", [])[:body.n_expansions]
+
+    all_queries = [body.query] + expansions
+
+    # Step 2: Embed all queries in parallel
+    from services.openai_service import get_embedding
+    embeddings = await asyncio.gather(*[get_embedding(q) for q in all_queries])
+
+    # Step 3: Retrieve docs for each embedding
+    from services.couchbase_service import get_relevant_documents
+    all_results = await asyncio.gather(*[
+        get_relevant_documents(emb) for emb in embeddings
+    ])
+
+    # Step 4: Merge and deduplicate by doc id, keeping best (lowest) score
+    merged: dict[str, dict] = {}
+    for query, results in zip(all_queries, all_results):
+        for doc in results:
+            doc_id = doc["id"]
+            if doc_id not in merged or doc["score"] < merged[doc_id]["score"]:
+                merged[doc_id] = {**doc, "matched_query": query}
+
+    ranked = sorted(merged.values(), key=lambda x: x["score"])
+
+    return {
+        "original_query": body.query,
+        "expansions": expansions,
+        "all_queries": all_queries,
+        "total_unique_docs": len(ranked),
+        "docs": ranked[:8],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Demo: Cost & Latency Calculator
+# ---------------------------------------------------------------------------
+
+
+class CostRequest(BaseModel):
+    message: str
+    models: list[str] = ["gpt-4o-mini", "gpt-4o"]
+
+
+# Approximate pricing per 1M tokens (input / output), USD, mid-2025
+MODEL_PRICING = {
+    "gpt-4o-mini":        {"input": 0.15,  "output": 0.60,  "context": 128_000},
+    "gpt-4o":             {"input": 2.50,  "output": 10.00, "context": 128_000},
+    "gpt-4":              {"input": 30.00, "output": 60.00, "context":   8_192},
+    "gpt-3.5-turbo":      {"input": 0.50,  "output": 1.50,  "context":  16_385},
+    "claude-3-5-sonnet":  {"input": 3.00,  "output": 15.00, "context": 200_000},
+    "claude-3-haiku":     {"input": 0.25,  "output": 1.25,  "context": 200_000},
+    "llama-3.1-70b":      {"input": 0.88,  "output": 0.88,  "context": 128_000},
+    "llama-3.1-8b":       {"input": 0.18,  "output": 0.18,  "context": 128_000},
+}
+
+
+@app.post("/api/cost-latency")
+async def cost_latency(body: CostRequest):
+    """Run the same prompt on multiple models and return timing + cost estimates."""
+    if not body.message.strip():
+        raise HTTPException(status_code=400, detail="message is required.")
+
+    from openai import AsyncOpenAI
+    import time
+
+    client = AsyncOpenAI(
+        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
+        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
+    )
+
+    async def call_model(model: str) -> dict:
+        pricing = MODEL_PRICING.get(model, {"input": 1.0, "output": 1.0, "context": 128_000})
+        t0 = time.perf_counter()
+        try:
+            completion = await client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": body.message}],
+                max_tokens=300,
+                temperature=0.7,
+            )
+            latency = time.perf_counter() - t0
+            input_tokens  = completion.usage.prompt_tokens
+            output_tokens = completion.usage.completion_tokens
+            cost = (input_tokens * pricing["input"] + output_tokens * pricing["output"]) / 1_000_000
+            return {
+                "model": model,
+                "response": completion.choices[0].message.content.strip(),
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "latency_s": round(latency, 2),
+                "cost_usd": round(cost, 6),
+                "pricing": pricing,
+                "error": None,
+            }
+        except Exception as e:
+            return {
+                "model": model,
+                "response": None,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "latency_s": round(time.perf_counter() - t0, 2),
+                "cost_usd": 0,
+                "pricing": pricing,
+                "error": str(e),
+            }
+
+    valid_models = [m for m in body.models if m in MODEL_PRICING][:4]
+    if not valid_models:
+        valid_models = ["gpt-4o-mini"]
+
+    results = await asyncio.gather(*[call_model(m) for m in valid_models])
+    return {
+        "results": list(results),
+        "available_models": list(MODEL_PRICING.keys()),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Demo: Guardrails
+# ---------------------------------------------------------------------------
+
+
+class GuardrailsRequest(BaseModel):
+    message: str
+
+
+@app.post("/api/guardrails")
+async def guardrails_demo(body: GuardrailsRequest):
+    """Show input + output guardrails in action.
+
+    1. Input check: classify the message as safe / unsafe / borderline
+    2. If safe: generate a response
+    3. Output check: verify the response doesn't contain harmful content
+    Returns the full pipeline with each gate's decision visible.
+    """
+    if not body.message.strip():
+        raise HTTPException(status_code=400, detail="message is required.")
+
+    from openai import AsyncOpenAI
+    import json as _json
+
+    client = AsyncOpenAI(
+        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
+        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
+    )
+
+    async def classify(text: str, role: str) -> dict:
+        completion = await client.chat.completions.create(
+            model=INFERENCE_MODEL,
+            messages=[{
+                "role": "system",
+                "content": (
+                    "You are a content safety classifier. Analyse the text and return JSON with:\n"
+                    "- safe: boolean\n"
+                    "- category: one of 'safe', 'borderline', 'harmful', 'prompt_injection', 'pii'\n"
+                    "- reason: one sentence explanation\n"
+                    "- confidence: float 0-1\n"
+                    "Return only valid JSON."
+                ),
+            }, {
+                "role": "user",
+                "content": f"Classify this {role}:\n\n{text}",
+            }],
+            response_format={"type": "json_object"},
+            temperature=0,
+            max_tokens=150,
+        )
+        return _json.loads(completion.choices[0].message.content)
+
+    # Gate 1: input check
+    input_check = await classify(body.message, "user input")
+    input_safe = input_check.get("safe", False)
+
+    if not input_safe:
+        return {
+            "input_check": input_check,
+            "blocked_at": "input",
+            "response": None,
+            "output_check": None,
+            "final_output": None,
+        }
+
+    # Generate response
+    completion = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant. Be concise."},
+            {"role": "user", "content": body.message},
+        ],
+        max_tokens=300,
+        temperature=0.7,
+    )
+    response = completion.choices[0].message.content.strip()
+
+    # Gate 2: output check
+    output_check = await classify(response, "assistant response")
+    output_safe = output_check.get("safe", True)
+
+    return {
+        "input_check": input_check,
+        "blocked_at": None if output_safe else "output",
+        "response": response,
+        "output_check": output_check,
+        "final_output": response if output_safe else "[Response blocked by output guardrail]",
+    }
 
 
 @app.post("/api/capella-summarise")

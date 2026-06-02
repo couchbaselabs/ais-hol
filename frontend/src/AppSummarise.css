@@ -13,6 +13,23 @@
   flex-shrink: 0;
 }
 
+.chunk-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  color: #374151;
+}
+.chunk-slider {
+  width: 100%;
+  accent-color: #00A3E0;
+}
+.chunk-hint {
+  font-size: 0.72rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
 .summarise-examples {
   display: flex;
   align-items: center;

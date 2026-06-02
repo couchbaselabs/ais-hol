@@ -15,6 +15,7 @@ const PRESET_META = {
   chain_of_thought:{ label: 'Chain of Thought',  color: '#d97706', bg: '#fef3c7', desc: 'Show reasoning before answer' },
   eli5:            { label: 'ELI5',              color: '#059669', bg: '#d1fae5', desc: 'Explain like I\'m 5' },
   socratic:        { label: 'Socratic',          color: '#7c3aed', bg: '#ede9fe', desc: 'Guide with questions, don\'t answer' },
+  few_shot:        { label: 'Few-shot',          color: '#be185d', bg: '#fce7f3', desc: 'Examples in the prompt shape the style' },
 }
 
 const ALL_PRESETS = Object.keys(PRESET_META)

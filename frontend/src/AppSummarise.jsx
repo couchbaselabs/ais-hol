@@ -35,6 +35,7 @@ function AppSummarise() {
     return () => window.removeEventListener('infopanel:question', h)
   }, [])
   const [focus, setFocus] = useState('')
+  const [chunkSize, setChunkSize] = useState(800)
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -50,7 +51,7 @@ function AppSummarise() {
       const response = await fetch('/api/summarise', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: t, focus: focus.trim() || null }),
+        body: JSON.stringify({ text: t, focus: focus.trim() || null, chunk_size: chunkSize }),
       })
       if (!response.ok) throw new Error('Request failed')
       setResult(await response.json())
@@ -93,6 +94,23 @@ function AppSummarise() {
               onChange={e => setFocus(e.target.value)}
               placeholder="Optional focus (e.g. 'technical details')"
             />
+            <label className="chunk-label">
+              <span>Chunk size: <strong>{chunkSize} words</strong></span>
+              <input
+                type="range"
+                className="chunk-slider"
+                min={100}
+                max={1200}
+                step={100}
+                value={chunkSize}
+                onChange={e => setChunkSize(Number(e.target.value))}
+              />
+              <span className="chunk-hint">
+                {chunkSize <= 200 ? 'Small — many chunks, more LLM calls' :
+                 chunkSize >= 900 ? 'Large — few chunks, may lose detail' :
+                 'Medium — balanced'}
+              </span>
+            </label>
             <button
               className="summarise-btn"
               onClick={() => run()}
