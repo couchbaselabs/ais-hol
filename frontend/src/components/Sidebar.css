@@ -257,28 +257,7 @@
   flex-shrink: 0;
 }
 
-/* ── Footer ────────────────────────────────────────────────────────────────── */
-.sidebar-footer {
-  display: flex;
-  gap: 0.4rem;
-  padding: 0.5rem 0.875rem 0.25rem;
-  flex-shrink: 0;
-  border-top: 1px solid rgba(255,255,255,0.06);
-}
-.sidebar-nav-btn {
-  flex: 1;
-  padding: 0.35rem 0.5rem;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 5px;
-  color: #94a3b8;
-  font-size: 0.72rem;
-  cursor: pointer;
-  transition: background 0.12s, color 0.12s;
-}
-.sidebar-nav-btn:hover:not(:disabled) { background: rgba(0,163,224,0.2); color: #fff; border-color: #00A3E0; }
-.sidebar-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-.sidebar-nav-btn--next { font-weight: 600; }
+
 
 .sidebar-reset-btn {
   background: none;

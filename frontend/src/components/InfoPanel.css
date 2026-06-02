@@ -255,6 +255,53 @@
   gap: 0.6rem;
 }
 
+/* ── Nav strips ────────────────────────────────────────────────────────────── */
+.info-panel__nav-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+.info-panel__nav-strip--bottom {
+  border-bottom: none;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 0.5rem;
+}
+.info-panel__nav-arrow {
+  flex: 1;
+  padding: 0.28rem 0.5rem;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  color: #475569;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+.info-panel__nav-arrow:hover:not(:disabled) {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-color: #7dd3fc;
+}
+.info-panel__nav-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.info-panel__nav-arrow--next {
+  font-weight: 600;
+  text-align: right;
+}
+.info-panel__nav-count {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  text-align: center;
+  flex-shrink: 0;
+  min-width: 36px;
+}
+
 /* Scrollbar */
 .info-panel__body::-webkit-scrollbar {
   width: 4px;

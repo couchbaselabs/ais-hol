@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react'
 import './InfoPanel.css'
 import CodeBlock from './CodeBlock'
+import { ORDERED_TAB_IDS, TAB_INDEX } from '../curriculum'
 
 const MIN_WIDTH = 240
 const MAX_WIDTH = 720
@@ -2215,7 +2216,7 @@ async def text_to_speech(body: TTSRequest):
   },
 }
 
-export default function InfoPanel({ tab }) {
+export default function InfoPanel({ tab, onTabChange }) {
   const [open, setOpen] = useState(true)
   const [width, setWidth] = useState(DEFAULT_WIDTH)
   const dragging = useRef(false)
@@ -2252,6 +2253,10 @@ export default function InfoPanel({ tab }) {
   const info = TAB_INFO[tab]
   if (!info) return null
 
+  const currentIdx = ORDERED_TAB_IDS.indexOf(tab)
+  const prevTab = currentIdx > 0 ? ORDERED_TAB_IDS[currentIdx - 1] : null
+  const nextTab = currentIdx < ORDERED_TAB_IDS.length - 1 ? ORDERED_TAB_IDS[currentIdx + 1] : null
+
   const panelWidth = open ? width : 28
 
   return (
@@ -2277,6 +2282,27 @@ export default function InfoPanel({ tab }) {
 
       {open && (
         <div className="info-panel__body" style={{ width: panelWidth - 28 }}>
+          <div className="info-panel__nav-strip">
+            <button
+              className="info-panel__nav-arrow"
+              onClick={() => prevTab && onTabChange(prevTab)}
+              disabled={!prevTab}
+              title={prevTab ? `← ${TAB_INDEX[prevTab]?.tab.label}` : 'First tab'}
+            >
+              ‹ Prev
+            </button>
+            <span className="info-panel__nav-count">
+              {currentIdx + 1} / {ORDERED_TAB_IDS.length}
+            </span>
+            <button
+              className="info-panel__nav-arrow info-panel__nav-arrow--next"
+              onClick={() => nextTab && onTabChange(nextTab)}
+              disabled={!nextTab}
+              title={nextTab ? `${TAB_INDEX[nextTab]?.tab.label} →` : 'Last tab'}
+            >
+              Next ›
+            </button>
+          </div>
           <div className="info-panel__header" style={{ '--accent': info.color }}>
             <span className="info-panel__icon">{info.icon}</span>
             <div>
@@ -2345,6 +2371,27 @@ export default function InfoPanel({ tab }) {
               </div>
             </section>
           )}
+          <div className="info-panel__nav-strip info-panel__nav-strip--bottom">
+            <button
+              className="info-panel__nav-arrow"
+              onClick={() => prevTab && onTabChange(prevTab)}
+              disabled={!prevTab}
+              title={prevTab ? `← ${TAB_INDEX[prevTab]?.tab.label}` : 'First tab'}
+            >
+              ‹ Prev
+            </button>
+            <span className="info-panel__nav-count">
+              {currentIdx + 1} / {ORDERED_TAB_IDS.length}
+            </span>
+            <button
+              className="info-panel__nav-arrow info-panel__nav-arrow--next"
+              onClick={() => nextTab && onTabChange(nextTab)}
+              disabled={!nextTab}
+              title={nextTab ? `${TAB_INDEX[nextTab]?.tab.label} →` : 'Last tab'}
+            >
+              Next ›
+            </button>
+          </div>
         </div>
       )}
     </aside>

@@ -54,11 +54,6 @@ export default function Sidebar({ activeTab, onTabChange }) {
     })
   }
 
-  // Prev / Next navigation
-  const currentIdx = ORDERED_TAB_IDS.indexOf(activeTab)
-  const prevTab = currentIdx > 0 ? ORDERED_TAB_IDS[currentIdx - 1] : null
-  const nextTab = currentIdx < ORDERED_TAB_IDS.length - 1 ? ORDERED_TAB_IDS[currentIdx + 1] : null
-
   const resetProgress = () => {
     const next = new Set()
     saveVisited(next)
@@ -174,25 +169,7 @@ export default function Sidebar({ activeTab, onTabChange }) {
         })}
       </nav>
 
-      {/* Prev / Next footer */}
-      <div className="sidebar-footer">
-        <button
-          className="sidebar-nav-btn"
-          onClick={() => prevTab && onTabChange(prevTab)}
-          disabled={!prevTab}
-          title={prevTab ? `← ${TAB_INDEX[prevTab]?.tab.label}` : 'First tab'}
-        >
-          ← Prev
-        </button>
-        <button
-          className="sidebar-nav-btn sidebar-nav-btn--next"
-          onClick={() => nextTab && onTabChange(nextTab)}
-          disabled={!nextTab}
-          title={nextTab ? `${TAB_INDEX[nextTab]?.tab.label} →` : 'Last tab'}
-        >
-          Next →
-        </button>
-      </div>
+
 
       <button className="sidebar-reset-btn" onClick={resetProgress} title="Reset progress">
         Reset progress
