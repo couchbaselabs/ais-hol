@@ -20,8 +20,8 @@
 
 def cfg [] {
     {
-        shared_bucket:  ($env.CB_SHARED_BUCKET?   | default "shared")
-        cache_bucket:   ($env.CB_CACHE_BUCKET?    | default "semantic_cache")
+        shared_bucket:  ($env.CB_SHARED_BUCKET?   | default "aisholshared")
+        cache_bucket:   ($env.CB_CACHE_BUCKET?    | default "aisholcache")
         search_index:   ($env.CB_SEARCH_INDEX?    | default "documentation")
         cache_index:    ($env.CB_CACHE_INDEX?     | default "semantic_cache_vector_idx")
         conv_scope:     ($env.CB_CONV_SCOPE?      | default "_default")
@@ -64,6 +64,8 @@ def ensure-collection [bucket: string, scope: string, collection: string] {
 
 # Create a GSI vector index via SQL++ CREATE VECTOR INDEX.
 # This is the index type the backend queries with ANN_DISTANCE() ... USE INDEX ... USING GSI.
+# Create a GSI vector index via SQL++ CREATE VECTOR INDEX IF NOT EXISTS.
+# This is the index type the backend queries with ANN_DISTANCE() ... USE INDEX ... USING GSI.
 def ensure-gsi-vector-index [
     bucket: string,
     scope: string,
@@ -73,17 +75,9 @@ def ensure-gsi-vector-index [
     dims: int,
 ] {
     let full_name = $"($bucket).($scope).($index_name)"
-    let existing = (
-        query $"SELECT name FROM system:indexes WHERE name = '($full_name)' AND using = 'gsi'"
-        | get name? | default []
-    )
-    if ($existing | is-empty) {
-        let sql = $"CREATE VECTOR INDEX `($full_name)` ON `($bucket)`.`($scope)`.`($collection)`\(`($field)` VECTOR) WITH {\"dimension\": ($dims), \"similarity\": \"L2\", \"description\": \"IVF,PQ8x8\"}"
-        query $sql
-        print $"  ✓ GSI vector index created: ($full_name)"
-    } else {
-        print $"  · GSI vector index exists:  ($full_name)"
-    }
+    let sql = $"CREATE VECTOR INDEX IF NOT EXISTS `($full_name)` ON `($bucket)`.`($scope)`.`($collection)`\(`($field)` VECTOR) WITH {\"dimension\": ($dims), \"similarity\": \"L2\", \"description\": \"IVF,PQ8x8\"}"
+    query $sql
+    print $"  ✓ GSI vector index ready: ($full_name)"
 }
 
 # Create a GSI index for conversation history queries (ORDER BY timestamp).
@@ -94,17 +88,9 @@ def ensure-gsi-index [
     index_name: string,
     fields: string,   # e.g. "session_id, timestamp DESC"
 ] {
-    let existing = (
-        query $"SELECT name FROM system:indexes WHERE name = '($index_name)' AND keyspace_id = '($collection)'"
-        | get name? | default []
-    )
-    if ($existing | is-empty) {
-        let sql = $"CREATE INDEX `($index_name)` ON `($bucket)`.`($scope)`.`($collection)`\(($fields))"
-        query $sql
-        print $"  ✓ GSI index created: ($index_name)"
-    } else {
-        print $"  · GSI index exists:  ($index_name)"
-    }
+    let sql = $"CREATE INDEX IF NOT EXISTS `($index_name)` ON `($bucket)`.`($scope)`.`($collection)`\(($fields))"
+    query $sql
+    print $"  ✓ GSI index ready: ($index_name)"
 }
 
 # ── main ──────────────────────────────────────────────────────────────────────
