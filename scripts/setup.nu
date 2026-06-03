@@ -64,8 +64,7 @@ def ensure-collection [bucket: string, scope: string, collection: string] {
 
 # Create a GSI vector index via SQL++ CREATE VECTOR INDEX.
 # This is the index type the backend queries with ANN_DISTANCE() ... USE INDEX ... USING GSI.
-# Create a GSI vector index via SQL++ CREATE VECTOR INDEX IF NOT EXISTS.
-# This is the index type the backend queries with ANN_DISTANCE() ... USE INDEX ... USING GSI.
+# Errors from "already exists" are silently swallowed — safe to re-run.
 def ensure-gsi-vector-index [
     bucket: string,
     scope: string,
@@ -75,22 +74,40 @@ def ensure-gsi-vector-index [
     dims: int,
 ] {
     let full_name = $"($bucket).($scope).($index_name)"
-    let sql = $"CREATE VECTOR INDEX IF NOT EXISTS `($full_name)` ON `($bucket)`.`($scope)`.`($collection)`\(`($field)` VECTOR) WITH {\"dimension\": ($dims), \"similarity\": \"L2\", \"description\": \"IVF,PQ8x8\"}"
-    query $sql
-    print $"  ✓ GSI vector index ready: ($full_name)"
+    let sql = $"CREATE VECTOR INDEX `($full_name)` ON `($bucket)`.`($scope)`.`($collection)`\(`($field)` VECTOR) WITH {\"dimension\": ($dims), \"similarity\": \"L2\", \"description\": \"IVF,SQ8\"}"
+    try {
+        query $sql
+        print $"  ✓ GSI vector index created: ($full_name)"
+    } catch {|e|
+        let msg = ($e.msg | str downcase)
+        if ($msg | str contains "already exist") {
+            print $"  · GSI vector index exists:  ($full_name)"
+        } else {
+            error make { msg: $e.msg }
+        }
+    }
 }
 
-# Create a GSI index for conversation history queries (ORDER BY timestamp).
+# Create a GSI index. Errors from "already exists" are silently swallowed.
 def ensure-gsi-index [
     bucket: string,
     scope: string,
     collection: string,
     index_name: string,
-    fields: string,   # e.g. "session_id, timestamp DESC"
+    fields: string,   # e.g. "session_id, `timestamp` DESC"
 ] {
-    let sql = $"CREATE INDEX IF NOT EXISTS `($index_name)` ON `($bucket)`.`($scope)`.`($collection)`\(($fields))"
-    query $sql
-    print $"  ✓ GSI index ready: ($index_name)"
+    let sql = $"CREATE INDEX `($index_name)` ON `($bucket)`.`($scope)`.`($collection)`\(($fields))"
+    try {
+        query $sql
+        print $"  ✓ GSI index created: ($index_name)"
+    } catch {|e|
+        let msg = ($e.msg | str downcase)
+        if ($msg | str contains "already exist") {
+            print $"  · GSI index exists:  ($index_name)"
+        } else {
+            error make { msg: $e.msg }
+        }
+    }
 }
 
 # ── main ──────────────────────────────────────────────────────────────────────
