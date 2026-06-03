@@ -85,8 +85,8 @@ def ensure-vector-index [
         print $"  ✓ vector index created: ($bucket).($scope).($index_name)"
     } catch {|e|
         let msg = ($e.msg | str downcase)
-        if ($msg | str contains "already exist") {
-            print $"  · vector index exists:  ($bucket).($scope).($index_name)"
+        if ($msg | str contains "already exist") or ($msg | str contains "same name") {
+            print $"  · FTS vector index exists:  ($bucket).($scope).($index_name)"
         } else {
             error make { msg: $e.msg }
         }
@@ -115,6 +115,7 @@ def ensure-gsi-vector-index [
         } else if ($msg | str contains "syntax error") or ($msg | str contains "not supported") {
             print $"  ⚠ GSI vector index skipped: cluster < 7.6.4 \(FTS index is sufficient\)"
         } else {
+            print $e
             error make { msg: $e.msg }
         }
     }
