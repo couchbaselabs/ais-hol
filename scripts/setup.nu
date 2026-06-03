@@ -74,7 +74,7 @@ def ensure-gsi-vector-index [
     dims: int,
 ] {
     let full_name = $"($bucket).($scope).($index_name)"
-    let sql = $"CREATE VECTOR INDEX `($full_name)` ON `($bucket)`.`($scope)`.`($collection)`\(`($field)` VECTOR) WITH {\"dimension\": ($dims), \"similarity\": \"L2\", \"description\": \"IVF,SQ8\"}"
+    let sql = $"CREATE VECTOR INDEX `($full_name)` ON `($bucket)`.`($scope)`.`($collection)` \(`($field)` VECTOR\) WITH {\"dimension\": ($dims), \"similarity\": \"L2\", \"description\": \"IVF,SQ8\"}"
     try {
         query $sql
         print $"  ✓ GSI vector index created: ($full_name)"
@@ -83,7 +83,8 @@ def ensure-gsi-vector-index [
         if ($msg | str contains "already exist") {
             print $"  · GSI vector index exists:  ($full_name)"
         } else {
-            error make { msg: $e.msg }
+            print $e
+            error make { msg: "error" }
         }
     }
 }
@@ -96,7 +97,7 @@ def ensure-gsi-index [
     index_name: string,
     fields: string,   # e.g. "session_id, `timestamp` DESC"
 ] {
-    let sql = $"CREATE INDEX `($index_name)` ON `($bucket)`.`($scope)`.`($collection)`\(($fields))"
+    let sql = $"CREATE INDEX `($index_name)` ON `($bucket)`.`($scope)`.`($collection)` \(($fields)\)"
     try {
         query $sql
         print $"  ✓ GSI index created: ($index_name)"
