@@ -152,6 +152,89 @@ similarity = await cosine(emb_a, emb_b)
       },
     ],
   },
+  'vector-search': {
+    title: 'Vector Search: FTS vs GSI',
+    subtitle: 'Two index types, different trade-offs — run the same query on both and compare',
+    color: CB_ACCENT,
+    icon: '🔍',
+    what: 'Couchbase offers two ways to run vector search. FTS (Full-Text Search Service) has been available since 7.0 and uses an HNSW-based index managed by the Search Service. GSI (Global Secondary Index Service) added vector support in 7.6.4 via SQL++ CREATE VECTOR INDEX, queried with ANN_DISTANCE(). Both return semantically similar documents for a given embedding, but they differ in index management, query syntax, score semantics, and version requirements. This tab runs the same query against both simultaneously so you can compare results, latency, and ranking side-by-side.',
+    how: [
+      'Query is embedded once using the configured embedding model',
+      'FTS: scope.search() with VectorSearch.from_vector_query() — Search Service REST API',
+      'GSI: SQL++ SELECT … ORDER BY ANN_DISTANCE() USE INDEX … USING GSI — Index Service',
+      'Both run concurrently; latency measured independently for each',
+      'Results returned with scores, doc IDs, filepaths, and content previews',
+    ],
+    limitations: [
+      'GSI vector search requires Couchbase 7.6.4+ — on older clusters the GSI column shows an error',
+      'FTS scores are similarity values (higher = better); GSI scores are L2 distances (lower = better) — they are not directly comparable',
+      'FTS index is managed via the Search Service UI or REST API; GSI index via SQL++ DDL',
+      'FTS supports hybrid search (vector + keyword in one query); GSI vector search is vector-only',
+      'Index build time and memory footprint differ — FTS HNSW vs GSI IVF',
+    ],
+    stack: ['Couchbase Python SDK — VectorSearch / VectorQuery (FTS)', 'SQL++ ANN_DISTANCE() (GSI)', 'FastAPI', 'React'],
+    questions: [
+      'What is an API?',
+      'How does DNS work?',
+      'What is a closure in JavaScript?',
+      'Explain HTTP caching headers',
+    ],
+    snippets: [
+      {
+        title: 'FTS vector search — scope.search() + VectorQuery',
+        language: 'python',
+        code: `from couchbase.search import SearchRequest
+from couchbase.vector_search import VectorQuery, VectorSearch
+from couchbase.options import SearchOptions
+
+scope = cluster.bucket("shared").scope("public")
+
+search_req = SearchRequest.create(
+    VectorSearch.from_vector_query(
+        VectorQuery("vector", embedding, num_candidates=4)
+    )
+)
+result = scope.search(
+    "documentation",          # FTS index name
+    search_req,
+    SearchOptions(limit=4, fields=["filepath", "content"])
+)
+for row in result.rows():
+    print(row.id, row.score)  # score: higher = more similar`,
+      },
+      {
+        title: 'GSI vector search — SQL++ ANN_DISTANCE() (requires 7.6.4+)',
+        language: 'python',
+        code: `from couchbase.options import QueryOptions
+
+sql = """
+    SELECT META(d).id AS id,
+           d.filepath, d.content,
+           ANN_DISTANCE(d.vector, $embedding, "L2") AS score
+    FROM \`shared\`.\`public\`.\`documentation\` AS d
+    USE INDEX (documentation USING GSI)
+    ORDER BY ANN_DISTANCE(d.vector, $embedding, "L2")
+    LIMIT 4
+"""
+rows = cluster.query(sql, QueryOptions(named_parameters={"embedding": embedding}))
+for row in rows.rows():
+    print(row["id"], row["score"])  # score: lower = more similar (L2 distance)`,
+      },
+      {
+        title: 'Trade-off summary',
+        language: 'text',
+        code: `Feature              FTS                    GSI (7.6.4+)
+─────────────────────────────────────────────────────────
+Min version          7.0                    7.6.4
+Index type           HNSW (Search Service)  IVF (Index Service)
+Query API            scope.search()         SQL++ ANN_DISTANCE()
+Score semantics      higher = more similar  lower = more similar
+Hybrid search        ✓ (vector + keyword)   ✗ (vector only)
+SQL++ joins          ✗                      ✓ (JOIN, WHERE, etc.)
+Index management     Search Service UI/API  SQL++ DDL`,
+      },
+    ],
+  },
   hyde: {
     title: 'HyDE',
     subtitle: 'Step 4 (improve) — embed a hypothetical answer to bridge the query/document gap',

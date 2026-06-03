@@ -37,6 +37,7 @@ import AppLogprobs         from './AppLogprobs'
 import AppChainOfThought   from './AppChainOfThought'
 import AppIngestion        from './AppIngestion'
 import AppPromptInjection  from './AppPromptInjection'
+import AppVectorSearch     from './AppVectorSearch'
 
 function Shell() {
   const [activeTab, setActiveTab] = useState('chat')
@@ -81,6 +82,7 @@ function Shell() {
         {activeTab === 'chain-of-thought'  && <AppChainOfThought   key="chain-of-thought"  />}
         {activeTab === 'ingestion'         && <AppIngestion        key="ingestion"         />}
         {activeTab === 'prompt-injection'  && <AppPromptInjection  key="prompt-injection"  />}
+        {activeTab === 'vector-search'     && <AppVectorSearch      key="vector-search"     />}
         <InfoPanel tab={activeTab} onTabChange={setActiveTab} />
       </div>
     </div>

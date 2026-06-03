@@ -2488,6 +2488,120 @@ async def ingest_document(body: IngestRequest):
 # ---------------------------------------------------------------------------
 # Prompt injection attack lab
 # ---------------------------------------------------------------------------
+# Vector Search comparison — FTS vs GSI
+# ---------------------------------------------------------------------------
+
+
+class VectorSearchCompareRequest(BaseModel):
+    query: str
+    limit: int = 4
+
+
+@app.post("/api/vector-search-compare")
+async def vector_search_compare(body: VectorSearchCompareRequest):
+    """Run the same vector query against both FTS and GSI indexes and return
+    results, latency, and score semantics for each approach side-by-side.
+
+    FTS vector search uses the Search Service (scope.search + VectorQuery).
+    GSI vector search uses the Index Service (SQL++ ANN_DISTANCE + USE INDEX).
+
+    GSI requires Couchbase 7.6.4+. On older clusters the GSI result will
+    contain an error field instead of rows.
+    """
+    import time as _time
+    from services.couchbase_service import _get_cluster
+    from couchbase.search import SearchRequest
+    from couchbase.vector_search import VectorQuery, VectorSearch
+    from couchbase.options import SearchOptions, QueryOptions
+
+    if not body.query.strip():
+        raise HTTPException(status_code=400, detail="query is required")
+
+    limit = max(1, min(body.limit, 10))
+
+    # Embed once, reuse for both approaches
+    embedding = await get_embedding(body.query)
+
+    cluster = _get_cluster()
+    bucket_name = os.environ["COUCHBASE_BUCKET_NAME"]
+    index_name = os.environ["COUCHBASE_SEARCH_INDEX_NAME"]
+    scope = cluster.bucket(bucket_name).scope("public")
+
+    # ── FTS vector search ────────────────────────────────────────────────────
+    fts_results = []
+    fts_error = None
+    t0 = _time.perf_counter()
+    try:
+        search_req = SearchRequest.create(
+            VectorSearch.from_vector_query(
+                VectorQuery("vector", embedding, num_candidates=limit)
+            )
+        )
+        fts_rows = scope.search(
+            index_name, search_req,
+            SearchOptions(limit=limit, fields=["filepath", "content"])
+        )
+        for row in fts_rows.rows():
+            fields = row.fields or {}
+            fts_results.append({
+                "id": row.id,
+                "filepath": fields.get("filepath", ""),
+                "content": fields.get("content", "")[:200],
+                "score": round(row.score, 4),
+            })
+    except Exception as e:
+        fts_error = str(e)
+    fts_ms = round((_time.perf_counter() - t0) * 1000)
+
+    # ── GSI vector search (requires 7.6.4+) ──────────────────────────────────
+    gsi_results = []
+    gsi_error = None
+    t0 = _time.perf_counter()
+    try:
+        sql = f"""
+            SELECT META(d).id AS id,
+                   d.filepath,
+                   d.content,
+                   ANN_DISTANCE(d.vector, $embedding, "L2") AS score
+            FROM `{bucket_name}`.`public`.`documentation` AS d
+            USE INDEX ({index_name} USING GSI)
+            ORDER BY ANN_DISTANCE(d.vector, $embedding, "L2")
+            LIMIT {limit}
+        """
+        rows = cluster.query(sql, QueryOptions(named_parameters={"embedding": embedding}))
+        for row in rows.rows():
+            gsi_results.append({
+                "id": row.get("id", ""),
+                "filepath": row.get("filepath", ""),
+                "content": (row.get("content", "") or "")[:200],
+                "score": round(row.get("score", 0.0), 4),
+            })
+    except Exception as e:
+        gsi_error = str(e)
+    gsi_ms = round((_time.perf_counter() - t0) * 1000)
+
+    return {
+        "query": body.query,
+        "fts": {
+            "results": fts_results,
+            "latency_ms": fts_ms,
+            "error": fts_error,
+            "score_semantics": "higher = more similar",
+            "index_service": "Search Service",
+            "requires": "Couchbase 7.0+",
+        },
+        "gsi": {
+            "results": gsi_results,
+            "latency_ms": gsi_ms,
+            "error": gsi_error,
+            "score_semantics": "lower = more similar (L2 distance)",
+            "index_service": "Index Service",
+            "requires": "Couchbase 7.6.4+",
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
 
 class InjectionRequest(BaseModel):
     system_prompt: str

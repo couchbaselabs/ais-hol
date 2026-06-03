@@ -66,6 +66,7 @@ export const MODULES = [
       { id: 'rerank',          label: '📈 Reranking' },
       { id: 'hyde',            label: '💡 HyDE' },
       { id: 'query-expansion', label: '🔀 Query Expansion' },
+      { id: 'vector-search',   label: '🔍 FTS vs GSI' },
     ],
   },
   {
