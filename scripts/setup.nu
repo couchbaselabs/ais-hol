@@ -62,10 +62,11 @@ def ensure-collection [bucket: string, scope: string, collection: string] {
     }
 }
 
-# Create a GSI vector index via SQL++ CREATE VECTOR INDEX.
-# This is the index type the backend queries with ANN_DISTANCE() ... USE INDEX ... USING GSI.
+# Create an FTS vector index using the cbsh `vector create-index` command.
+# Couchbase 7.6.3 and earlier do not support CREATE VECTOR INDEX via SQL++;
+# that syntax requires 7.6.4+. The cbsh command uses the FTS REST API instead.
 # Errors from "already exists" are silently swallowed — safe to re-run.
-def ensure-gsi-vector-index [
+def ensure-vector-index [
     bucket: string,
     scope: string,
     collection: string,
@@ -73,18 +74,15 @@ def ensure-gsi-vector-index [
     field: string,
     dims: int,
 ] {
-    let full_name = $"($bucket).($scope).($index_name)"
-    let sql = $"CREATE VECTOR INDEX `($full_name)` ON `($bucket)`.`($scope)`.`($collection)` \(`($field)` VECTOR\) WITH {\"dimension\": ($dims), \"similarity\": \"L2\", \"description\": \"IVF,SQ8\"}"
     try {
-        query $sql
-        print $"  ✓ GSI vector index created: ($full_name)"
+        vector create-index --bucket $bucket --scope $scope --collection $collection --similarity-metric dot_product $index_name $field $dims
+        print $"  ✓ vector index created: ($bucket).($scope).($index_name)"
     } catch {|e|
         let msg = ($e.msg | str downcase)
         if ($msg | str contains "already exist") {
-            print $"  · GSI vector index exists:  ($full_name)"
+            print $"  · vector index exists:  ($bucket).($scope).($index_name)"
         } else {
-            print $e
-            error make { msg: "error" }
+            error make { msg: $e.msg }
         }
     }
 }
@@ -123,7 +121,7 @@ export def setup [] {
     ensure-bucket $c.shared_bucket
     ensure-scope  $c.shared_bucket "public"
     ensure-collection $c.shared_bucket "public" "documentation"
-    ensure-gsi-vector-index $c.shared_bucket "public" "documentation" $c.search_index "vector" $c.dims
+    ensure-vector-index $c.shared_bucket "public" "documentation" $c.search_index "vector" $c.dims
 
     # ── 2. Conversation history (Chat History, RAG) ───────────────────────────
     print "\n── 2. Conversation history (shared._default.conversations)"
@@ -137,7 +135,7 @@ export def setup [] {
     ensure-bucket $c.cache_bucket
     ensure-scope  $c.cache_bucket "_default"
     ensure-collection $c.cache_bucket "_default" "semantic"
-    ensure-gsi-vector-index $c.cache_bucket "_default" "semantic" $c.cache_index "vector" $c.dims
+    ensure-vector-index $c.cache_bucket "_default" "semantic" $c.cache_index "vector" $c.dims
 
     print "\n=== Setup complete ===\n"
     print "Next step: ingest documentation content."

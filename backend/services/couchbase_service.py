@@ -2,8 +2,10 @@ import json
 import os
 from datetime import timedelta
 from couchbase.cluster import Cluster
-from couchbase.options import ClusterOptions, QueryOptions
+from couchbase.options import ClusterOptions, SearchOptions
 from couchbase.auth import PasswordAuthenticator
+from couchbase.search import SearchRequest
+from couchbase.vector_search import VectorQuery, VectorSearch
 
 _cluster = None
 SCOPE_NAME = "public"
@@ -24,35 +26,26 @@ def _get_cluster() -> Cluster:
 
 
 async def get_relevant_documents(embedding: list[float], name: str | None = None) -> list[dict]:
-    """Retrieve the most relevant documents using a SQL++ vector index (ANN search).
-
-    The index is a SQL++ VECTOR INDEX created with CREATE VECTOR INDEX, so it
-    must be queried via SQL++ using ORDER BY ANN_DISTANCE(), not via the FTS API.
-    """
+    """Retrieve the most relevant documents using FTS vector search."""
     cluster = _get_cluster()
     bucket_name = os.environ["COUCHBASE_BUCKET_NAME"]
     index_name = os.environ["COUCHBASE_SEARCH_INDEX_NAME"]
 
-    sql = f"""
-        SELECT META(d).id AS id,
-               d.filepath,
-               d.content,
-               ANN_DISTANCE(d.vector, $embedding, "L2") AS score
-        FROM `{bucket_name}`.`{SCOPE_NAME}`.`documentation` AS d
-        USE INDEX ({index_name} USING GSI)
-        ORDER BY ANN_DISTANCE(d.vector, $embedding, "L2")
-        LIMIT 4
-    """
-    result = cluster.query(
-        sql,
-        QueryOptions(named_parameters={"embedding": embedding}),
+    scope = cluster.bucket(bucket_name).scope(SCOPE_NAME)
+    search_req = SearchRequest.create(
+        VectorSearch.from_vector_query(
+            VectorQuery("vector", embedding, num_candidates=4)
+        )
     )
+    result = scope.search(index_name, search_req, SearchOptions(limit=4, fields=["filepath", "content"]))
+
     documents = []
     for row in result.rows():
+        fields = row.fields or {}
         documents.append({
-            "id": row.get("id", ""),
-            "filepath": row.get("filepath", ""),
-            "content": row.get("content", ""),
-            "score": row.get("score", 0.0),
+            "id": row.id,
+            "filepath": fields.get("filepath", ""),
+            "content": fields.get("content", ""),
+            "score": row.score,
         })
     return documents

@@ -3,8 +3,10 @@ import uuid
 import hashlib
 from datetime import timedelta
 from couchbase.cluster import Cluster
-from couchbase.options import ClusterOptions, QueryOptions, UpsertOptions
+from couchbase.options import ClusterOptions, SearchOptions, UpsertOptions
 from couchbase.auth import PasswordAuthenticator
+from couchbase.search import SearchRequest
+from couchbase.vector_search import VectorQuery, VectorSearch
 
 _cluster = None
 
@@ -44,25 +46,24 @@ async def cache_get(
 ) -> str | None:
     cluster = _get_cluster()
     try:
-        sql = f"""
-            SELECT META(c).id AS id,
-                   c.llm_signature,
-                   c.response,
-                   ANN_DISTANCE(c.vector, $embedding, "L2") AS score
-            FROM `{CACHE_BUCKET}`.`{CACHE_SCOPE}`.`{CACHE_COLLECTION}` AS c
-            USE INDEX ({CACHE_INDEX} USING GSI)
-            ORDER BY ANN_DISTANCE(c.vector, $embedding, "L2")
-            LIMIT {k}
-        """
-        result = cluster.query(
-            sql, QueryOptions(named_parameters={"embedding": embedding})
+        scope = cluster.bucket(CACHE_BUCKET).scope(CACHE_SCOPE)
+        search_req = SearchRequest.create(
+            VectorSearch.from_vector_query(
+                VectorQuery("vector", embedding, num_candidates=k)
+            )
+        )
+        result = scope.search(
+            CACHE_INDEX, search_req,
+            SearchOptions(limit=k, fields=["llm_signature", "response"])
         )
         for row in result.rows():
-            if row.get("score", 1.0) > similarity_threshold:
+            fields = row.fields or {}
+            # FTS vector scores are similarity-based (higher = more similar)
+            if row.score < similarity_threshold:
                 continue
-            if row.get("llm_signature") == llm_signature:
-                print(f"Cache HIT (score={row.get('score', '?'):.3f})")
-                return row["response"]
+            if fields.get("llm_signature") == llm_signature:
+                print(f"Cache HIT (score={row.score:.3f})")
+                return fields.get("response")
     except Exception as e:
         print(f"Cache lookup error: {e}")
     return None
