@@ -80,19 +80,20 @@ def ensure-vector-index [
     field: string,
     dims: int,
 ] {
-    try {
+    # cbsh built-in commands panic on error and cannot be caught with try/catch.
+    # Pre-check existence via query indexes to avoid calling create when it already exists.
+    let fts_name = $"($bucket).($scope).($index_name)"
+    let exists = (
+        query indexes
+        | where type == "fts" and name == $fts_name
+        | is-empty
+        | not $in
+    )
+    if $exists {
+        print $"  · FTS vector index exists:  ($fts_name)"
+    } else {
         vector create-index --bucket $bucket --scope $scope --collection $collection --similarity-metric dot_product $index_name $field $dims
-        print $"  ✓ FTS vector index created: ($bucket).($scope).($index_name)"
-    } catch {|e|
-        # $e.msg is a record — serialise the whole error to extract the HTTP body text
-        let raw = ($e | to json)
-        let msg = ($raw | str downcase)
-        if ($msg | str contains "already exist") or ($msg | str contains "same name") {
-            print $"  · FTS vector index exists:  ($bucket).($scope).($index_name)"
-        } else {
-            print $"  ✗ FTS error: ($raw)"
-            error make { msg: "FTS vector index creation failed" }
-        }
+        print $"  ✓ FTS vector index created: ($fts_name)"
     }
 }
 
