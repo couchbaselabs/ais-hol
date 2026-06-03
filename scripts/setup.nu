@@ -82,13 +82,16 @@ def ensure-vector-index [
 ] {
     try {
         vector create-index --bucket $bucket --scope $scope --collection $collection --similarity-metric dot_product $index_name $field $dims
-        print $"  ✓ vector index created: ($bucket).($scope).($index_name)"
+        print $"  ✓ FTS vector index created: ($bucket).($scope).($index_name)"
     } catch {|e|
-        let msg = ($e.msg | str downcase)
+        # $e.msg is a record — serialise the whole error to extract the HTTP body text
+        let raw = ($e | to json)
+        let msg = ($raw | str downcase)
         if ($msg | str contains "already exist") or ($msg | str contains "same name") {
             print $"  · FTS vector index exists:  ($bucket).($scope).($index_name)"
         } else {
-            error make { msg: $e.msg }
+            print $"  ✗ FTS error: ($raw)"
+            error make { msg: "FTS vector index creation failed" }
         }
     }
 }
