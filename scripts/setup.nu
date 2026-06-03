@@ -2,9 +2,10 @@
 #
 # Creates indexes for BOTH vector search approaches:
 #   FTS  — Search Service, available since 7.0, queried via scope.search()
+#          Created automatically by this script via cbsh vector create-index.
 #   GSI  — Index Service, requires 7.6.4+, queried via SQL++ ANN_DISTANCE()
-#
-# GSI vector index creation is attempted and silently skipped on clusters < 7.6.4.
+#          cbsh 1.1.0 cannot execute CREATE VECTOR INDEX DDL directly.
+#          This script prints the statements to run in the Capella Query Workbench.
 #
 # Run inside couchbase-shell (cbsh):
 #   use scripts/setup.nu *
@@ -97,8 +98,11 @@ def ensure-vector-index [
     }
 }
 
-# Create a GSI vector index via SQL++ CREATE VECTOR INDEX (requires 7.6.4+).
-# Silently skips on older clusters where the syntax is unsupported.
+# Print the GSI vector index DDL to run manually in the Couchbase UI Query Workbench.
+#
+# cbsh 1.1.0 routes `query` through an endpoint that rejects the VECTOR keyword
+# in DDL statements — CREATE VECTOR INDEX cannot be executed from cbsh directly.
+# Run the printed statement in the Couchbase Capella UI → Query Workbench instead.
 def ensure-gsi-vector-index [
     bucket: string,
     scope: string,
@@ -109,20 +113,8 @@ def ensure-gsi-vector-index [
 ] {
     let full_name = $"($bucket).($scope).($index_name)_gsi"
     let sql = $"CREATE VECTOR INDEX `($full_name)` ON `($bucket)`.`($scope)`.`($collection)` \(`($field)` VECTOR\) WITH {\"dimension\": ($dims), \"similarity\": \"L2\", \"description\": \"IVF,SQ8\"}"
-    try {
-        query $sql
-        print $"  ✓ GSI vector index created: ($full_name)"
-    } catch {|e|
-        let msg = ($e.msg | str downcase)
-        if ($msg | str contains "already exist") {
-            print $"  · GSI vector index exists:  ($full_name)"
-        } else if ($msg | str contains "syntax error") or ($msg | str contains "not supported") {
-            print $"  ⚠ GSI vector index skipped: cluster < 7.6.4 \(FTS index is sufficient\)"
-        } else {
-            print $e
-            error make { msg: $e.msg }
-        }
-    }
+    print $"  ⚠ GSI vector index — run in Capella UI → Query Workbench:"
+    print $"      ($sql)"
 }
 
 # Create a plain GSI index. Errors from "already exists" are silently swallowed.
@@ -186,8 +178,8 @@ export def setup [] {
     ensure-gsi-vector-index $c.cache_bucket "_default" "semantic" $c.cache_index "vector" $c.dims
 
     print "\n=== Setup complete ===\n"
-    print "FTS indexes  — ready on all clusters (7.0+)"
-    print "GSI indexes  — ready on 7.6.4+ clusters (skipped with ⚠ on older versions)\n"
+    print "FTS indexes  — created automatically (7.0+)"
+    print "GSI indexes  — copy the ⚠ statements above into the Capella UI → Query Workbench\n"
     print "Next step: ingest documentation content."
     print "  use scripts/importers.nu *"
     print $"  import_markdown_in_folder \"scripts/content/files/en-us/glossary1\" \"mdn-glossary\" \"MDN Web Docs glossary\"\n"
