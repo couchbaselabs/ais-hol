@@ -1,5 +1,11 @@
 # setup.nu — provision all Couchbase resources required by the AIS HOL backend
 #
+# Creates indexes for BOTH vector search approaches:
+#   FTS  — Search Service, available since 7.0, queried via scope.search()
+#   GSI  — Index Service, requires 7.6.4+, queried via SQL++ ANN_DISTANCE()
+#
+# GSI vector index creation is attempted and silently skipped on clusters < 7.6.4.
+#
 # Run inside couchbase-shell (cbsh):
 #   use scripts/setup.nu *
 #   setup
@@ -10,7 +16,7 @@
 # Environment variables (all optional — defaults match .env.example):
 #   CB_SHARED_BUCKET      default: shared
 #   CB_CACHE_BUCKET       default: semantic_cache
-#   CB_SEARCH_INDEX       default: documentation        (GSI vector index name)
+#   CB_SEARCH_INDEX       default: documentation
 #   CB_CACHE_INDEX        default: semantic_cache_vector_idx
 #   CB_CONV_SCOPE         default: _default
 #   CB_CONV_COLLECTION    default: conversations
@@ -87,7 +93,34 @@ def ensure-vector-index [
     }
 }
 
-# Create a GSI index. Errors from "already exists" are silently swallowed.
+# Create a GSI vector index via SQL++ CREATE VECTOR INDEX (requires 7.6.4+).
+# Silently skips on older clusters where the syntax is unsupported.
+def ensure-gsi-vector-index [
+    bucket: string,
+    scope: string,
+    collection: string,
+    index_name: string,
+    field: string,
+    dims: int,
+] {
+    let full_name = $"($bucket).($scope).($index_name)_gsi"
+    let sql = $"CREATE VECTOR INDEX `($full_name)` ON `($bucket)`.`($scope)`.`($collection)` \(`($field)` VECTOR\) WITH {\"dimension\": ($dims), \"similarity\": \"L2\", \"description\": \"IVF,SQ8\"}"
+    try {
+        query $sql
+        print $"  ✓ GSI vector index created: ($full_name)"
+    } catch {|e|
+        let msg = ($e.msg | str downcase)
+        if ($msg | str contains "already exist") {
+            print $"  · GSI vector index exists:  ($full_name)"
+        } else if ($msg | str contains "syntax error") or ($msg | str contains "not supported") {
+            print $"  ⚠ GSI vector index skipped: cluster < 7.6.4 \(FTS index is sufficient\)"
+        } else {
+            error make { msg: $e.msg }
+        }
+    }
+}
+
+# Create a plain GSI index. Errors from "already exists" are silently swallowed.
 def ensure-gsi-index [
     bucket: string,
     scope: string,
@@ -121,13 +154,18 @@ export def setup [] {
     ensure-bucket $c.shared_bucket
     ensure-scope  $c.shared_bucket "public"
     ensure-collection $c.shared_bucket "public" "documentation"
+    # FTS index — Search Service, works on 7.0+, queried via scope.search()
+    print "     FTS vector index:"
     ensure-vector-index $c.shared_bucket "public" "documentation" $c.search_index "vector" $c.dims
+    # GSI index — Index Service, requires 7.6.4+, queried via SQL++ ANN_DISTANCE()
+    print "     GSI vector index:"
+    ensure-gsi-vector-index $c.shared_bucket "public" "documentation" $c.search_index "vector" $c.dims
 
     # ── 2. Conversation history (Chat History, RAG) ───────────────────────────
     print "\n── 2. Conversation history (shared._default.conversations)"
     ensure-scope      $c.shared_bucket $c.conv_scope
     ensure-collection $c.shared_bucket $c.conv_scope $c.conv_collection
-    # Index for the session_id + timestamp query in conversation_service.py
+    # Plain GSI index for the session_id + timestamp query in conversation_service.py
     ensure-gsi-index $c.shared_bucket $c.conv_scope $c.conv_collection "idx_conversations_session_ts" "session_id, `timestamp` DESC"
 
     # ── 3. Semantic cache (Cached, Chat History, RAG) ─────────────────────────
@@ -135,9 +173,16 @@ export def setup [] {
     ensure-bucket $c.cache_bucket
     ensure-scope  $c.cache_bucket "_default"
     ensure-collection $c.cache_bucket "_default" "semantic"
+    # FTS index
+    print "     FTS vector index:"
     ensure-vector-index $c.cache_bucket "_default" "semantic" $c.cache_index "vector" $c.dims
+    # GSI index
+    print "     GSI vector index:"
+    ensure-gsi-vector-index $c.cache_bucket "_default" "semantic" $c.cache_index "vector" $c.dims
 
     print "\n=== Setup complete ===\n"
+    print "FTS indexes  — ready on all clusters (7.0+)"
+    print "GSI indexes  — ready on 7.6.4+ clusters (skipped with ⚠ on older versions)\n"
     print "Next step: ingest documentation content."
     print "  use scripts/importers.nu *"
     print $"  import_markdown_in_folder \"scripts/content/files/en-us/glossary1\" \"mdn-glossary\" \"MDN Web Docs glossary\"\n"
