@@ -1,11 +1,10 @@
 # setup.nu — provision all Couchbase resources required by the AIS HOL backend
 #
-# Creates indexes for BOTH vector search approaches:
-#   FTS  — Search Service, available since 7.0, queried via scope.search()
-#          Created automatically by this script via cbsh vector create-index.
-#   GSI  — Index Service, requires 7.6.4+, queried via SQL++ ANN_DISTANCE()
-#          cbsh 1.1.0 cannot execute CREATE VECTOR INDEX DDL directly.
-#          This script prints the statements to run in the Capella Query Workbench.
+# Creates FTS vector indexes for all collections.
+# All vector search uses the FTS Search Service (scope.search + VectorQuery).
+#
+# NOTE: CREATE VECTOR INDEX (GSI) is not available on Capella — the query
+# service rejects VECTOR as a reserved word regardless of cluster version.
 #
 # Run inside couchbase-shell (cbsh):
 #   use scripts/setup.nu *
@@ -98,25 +97,6 @@ def ensure-vector-index [
     }
 }
 
-# Print the GSI vector index DDL to run manually in the Couchbase UI Query Workbench.
-#
-# cbsh 1.1.0 routes `query` through an endpoint that rejects the VECTOR keyword
-# in DDL statements — CREATE VECTOR INDEX cannot be executed from cbsh directly.
-# Run the printed statement in the Couchbase Capella UI → Query Workbench instead.
-def ensure-gsi-vector-index [
-    bucket: string,
-    scope: string,
-    collection: string,
-    index_name: string,
-    field: string,
-    dims: int,
-] {
-    let full_name = $"($bucket).($scope).($index_name)_gsi"
-    let sql = $"CREATE VECTOR INDEX `($full_name)` ON `($bucket)`.`($scope)`.`($collection)` \(`($field)` VECTOR\) WITH {\"dimension\": ($dims), \"similarity\": \"L2\", \"description\": \"IVF,SQ8\"}"
-    print $"  ⚠ GSI vector index — run in Capella UI → Query Workbench:"
-    print $"      ($sql)"
-}
-
 # Create a plain GSI index. Errors from "already exists" are silently swallowed.
 def ensure-gsi-index [
     bucket: string,
@@ -151,12 +131,7 @@ export def setup [] {
     ensure-bucket $c.shared_bucket
     ensure-scope  $c.shared_bucket "public"
     ensure-collection $c.shared_bucket "public" "documentation"
-    # FTS index — Search Service, works on 7.0+, queried via scope.search()
-    print "     FTS vector index:"
     ensure-vector-index $c.shared_bucket "public" "documentation" $c.search_index "vector" $c.dims
-    # GSI index — Index Service, requires 7.6.4+, queried via SQL++ ANN_DISTANCE()
-    print "     GSI vector index:"
-    ensure-gsi-vector-index $c.shared_bucket "public" "documentation" $c.search_index "vector" $c.dims
 
     # ── 2. Conversation history (Chat History, RAG) ───────────────────────────
     print "\n── 2. Conversation history (shared._default.conversations)"
@@ -170,16 +145,9 @@ export def setup [] {
     ensure-bucket $c.cache_bucket
     ensure-scope  $c.cache_bucket "_default"
     ensure-collection $c.cache_bucket "_default" "semantic"
-    # FTS index
-    print "     FTS vector index:"
     ensure-vector-index $c.cache_bucket "_default" "semantic" $c.cache_index "vector" $c.dims
-    # GSI index
-    print "     GSI vector index:"
-    ensure-gsi-vector-index $c.cache_bucket "_default" "semantic" $c.cache_index "vector" $c.dims
 
     print "\n=== Setup complete ===\n"
-    print "FTS indexes  — created automatically (7.0+)"
-    print "GSI indexes  — copy the ⚠ statements above into the Capella UI → Query Workbench\n"
     print "Next step: ingest documentation content."
     print "  use scripts/importers.nu *"
     print $"  import_markdown_in_folder \"scripts/content/files/en-us/glossary1\" \"mdn-glossary\" \"MDN Web Docs glossary\"\n"
