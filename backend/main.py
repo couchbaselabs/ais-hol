@@ -2553,7 +2553,7 @@ async def vector_search_compare(body: VectorSearchCompareRequest):
         fts_error = str(e)
     fts_ms = round((_time.perf_counter() - t0) * 1000)
 
-    # ── GSI vector search (requires 7.6.4+) ──────────────────────────────────
+    # ── GSI vector search (requires Couchbase Server 8.0+ / not available on Capella) ──
     gsi_results = []
     gsi_error = None
     t0 = _time.perf_counter()
@@ -2564,7 +2564,7 @@ async def vector_search_compare(body: VectorSearchCompareRequest):
                    d.content,
                    ANN_DISTANCE(d.vector, $embedding, "L2") AS score
             FROM `{bucket_name}`.`public`.`documentation` AS d
-            USE INDEX ({index_name} USING GSI)
+            USE INDEX ({index_name}_gsi USING GSI)
             ORDER BY ANN_DISTANCE(d.vector, $embedding, "L2")
             LIMIT {limit}
         """
@@ -2577,7 +2577,11 @@ async def vector_search_compare(body: VectorSearchCompareRequest):
                 "score": round(row.get("score", 0.0), 4),
             })
     except Exception as e:
-        gsi_error = str(e)
+        err = str(e)
+        if "reserved word" in err or "syntax error" in err or "index not found" in err.lower():
+            gsi_error = "Not available on this cluster. CREATE VECTOR INDEX (GSI) requires Couchbase Server 8.0+ and is not supported on Capella managed clusters."
+        else:
+            gsi_error = err
     gsi_ms = round((_time.perf_counter() - t0) * 1000)
 
     return {

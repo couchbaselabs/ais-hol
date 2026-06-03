@@ -166,7 +166,7 @@ similarity = await cosine(emb_a, emb_b)
       'Results returned with scores, doc IDs, filepaths, and content previews',
     ],
     limitations: [
-      'GSI vector search requires Couchbase 7.6.4+ — on older clusters the GSI column shows an error',
+      'GSI vector search (CREATE VECTOR INDEX) is not available on Capella managed clusters — the query service rejects VECTOR as a reserved word. Expected to be supported in Couchbase 8.0.',
       'FTS scores are similarity values (higher = better); GSI scores are L2 distances (lower = better) — they are not directly comparable',
       'FTS index is managed via the Search Service UI or REST API; GSI index via SQL++ DDL',
       'FTS supports hybrid search (vector + keyword in one query); GSI vector search is vector-only',
@@ -223,9 +223,10 @@ for row in rows.rows():
       {
         title: 'Trade-off summary',
         language: 'text',
-        code: `Feature              FTS                    GSI (7.6.4+)
-─────────────────────────────────────────────────────────
-Min version          7.0                    7.6.4
+        code: `Feature              FTS                    GSI (Server 8.0+)
+─────────────────────────────────────────────────────────────
+Capella support      ✓ all versions         ✗ not yet (8.0 planned)
+Min server version   7.0                    8.0
 Index type           HNSW (Search Service)  IVF (Index Service)
 Query API            scope.search()         SQL++ ANN_DISTANCE()
 Score semantics      higher = more similar  lower = more similar
