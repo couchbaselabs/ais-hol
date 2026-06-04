@@ -86,7 +86,7 @@ def ensure-vector-index [
     # Pre-check FTS service availability and index existence before calling create.
     let fts_running = (nodes | where ($it.services | str contains "fts") | is-empty | not $in)
     if not $fts_running {
-        print $"  ⚠ FTS vector index skipped: Search Service (fts) not running on this cluster"
+        print $"  ⚠ FTS vector index skipped: Search Service \(fts\) not running on this cluster"
         return
     }
 
