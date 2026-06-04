@@ -164,11 +164,12 @@ def ensure-gsi-index [
         query $sql
         print $"  ✓ GSI index created: ($index_name)"
     } catch {|e|
-        let msg = ($e.msg | str downcase)
+        let msg = ($e | to json | str downcase)
         if ($msg | str contains "already exist") {
             print $"  · GSI index exists:  ($index_name)"
         } else {
-            error make { msg: $e.msg }
+            print $"  ✗ GSI index error: ($msg)"
+            error make { msg: "GSI index creation failed" }
         }
     }
 }
