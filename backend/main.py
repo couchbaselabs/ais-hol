@@ -61,18 +61,6 @@ _STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 if os.path.isdir(_STATIC_DIR):
     app.mount("/assets", StaticFiles(directory=os.path.join(_STATIC_DIR, "assets")), name="assets")
 
-    @app.get("/", include_in_schema=False)
-    @app.get("/{full_path:path}", include_in_schema=False)
-    async def serve_frontend(full_path: str = ""):
-        # Let /api/* and /health fall through to their own routes
-        if full_path.startswith("api/") or full_path == "health":
-            raise HTTPException(status_code=404)
-        index = os.path.join(_STATIC_DIR, "index.html")
-        return FileResponse(index, headers={
-            "Cross-Origin-Opener-Policy": "same-origin",
-            "Cross-Origin-Embedder-Policy": "require-corp",
-        })
-
 
 # ---------------------------------------------------------------------------
 # Health check
@@ -2684,6 +2672,20 @@ async def prompt_injection(body: InjectionRequest):
         "injection_likely_succeeded": leaked,
         "tokens": completion.usage.completion_tokens,
     }
+
+
+# ---------------------------------------------------------------------------
+# Frontend catch-all — must be registered LAST so all API routes take priority
+# ---------------------------------------------------------------------------
+
+if os.path.isdir(_STATIC_DIR):
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_frontend(full_path: str = ""):
+        index = os.path.join(_STATIC_DIR, "index.html")
+        return FileResponse(index, headers={
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Cross-Origin-Embedder-Policy": "require-corp",
+        })
 
 
 # ---------------------------------------------------------------------------
