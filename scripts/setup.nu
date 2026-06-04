@@ -1,10 +1,12 @@
 # setup.nu — provision all Couchbase resources required by the AIS HOL backend
 #
-# Creates FTS vector indexes for all collections.
-# All vector search uses the FTS Search Service (scope.search + VectorQuery).
+# Creates vector indexes for all collections.
 #
-# NOTE: CREATE VECTOR INDEX (GSI) is not available on Capella — the query
-# service rejects VECTOR as a reserved word regardless of cluster version.
+# FTS vector index  — created via cbsh if the Search Service is running.
+# GSI vector index  — created via SQL++ if the Index Service is running (Server 8.0+).
+#                     Not available on Capella managed clusters.
+#
+# Both are attempted; whichever services are present will be set up.
 #
 # Run inside couchbase-shell (cbsh):
 #   use scripts/setup.nu *
@@ -81,7 +83,13 @@ def ensure-vector-index [
     dims: int,
 ] {
     # cbsh built-in commands panic on error and cannot be caught with try/catch.
-    # Pre-check existence via query indexes to avoid calling create when it already exists.
+    # Pre-check FTS service availability and index existence before calling create.
+    let fts_running = (nodes | where ($it.services | str contains "fts") | is-empty | not $in)
+    if not $fts_running {
+        print $"  ⚠ FTS vector index skipped: Search Service (fts) not running on this cluster"
+        return
+    }
+
     let fts_name = $"($bucket).($scope).($index_name)"
     let exists = (
         query indexes
@@ -95,6 +103,51 @@ def ensure-vector-index [
         vector create-index --bucket $bucket --scope $scope --collection $collection --similarity-metric dot_product $index_name $field $dims
         print $"  ✓ FTS vector index created: ($fts_name)"
     }
+}
+
+# Create a GSI vector index via SQL++ CREATE VECTOR INDEX (Server 8.0+, not on Capella).
+# Pre-checks server version and Index Service availability before attempting DDL.
+# cbsh panics on query errors so we gate on version rather than catching errors.
+def ensure-gsi-vector-index [
+    bucket: string,
+    scope: string,
+    collection: string,
+    index_name: string,
+    field: string,
+    dims: int,
+] {
+    # Require Index Service
+    let index_running = (nodes | where ($it.services | str contains "index") | is-empty | not $in)
+    if not $index_running {
+        print $"  ⚠ GSI vector index skipped: Index Service not running"
+        return
+    }
+
+    # Require Server 8.0+ (VECTOR keyword not supported on earlier versions or Capella)
+    let version = (nodes | get version | first | split row "-" | first)
+    let major = ($version | split row "." | first | into int)
+    if $major < 8 {
+        print $"  ⚠ GSI vector index skipped: requires Server 8.0+ \(found ($version)\)"
+        return
+    }
+
+    let full_name = $"($bucket).($scope).($index_name)_gsi"
+
+    # Check existence via query indexes (works with standard user rights)
+    let exists = (
+        query indexes
+        | where type == "gsi" and name == $full_name
+        | is-empty
+        | not $in
+    )
+    if $exists {
+        print $"  · GSI vector index exists:  ($full_name)"
+        return
+    }
+
+    let sql = $"CREATE VECTOR INDEX `($full_name)` ON `($bucket)`.`($scope)`.`($collection)` \(`($field)` VECTOR\) WITH {\"dimension\": ($dims), \"similarity\": \"L2\", \"description\": \"IVF,SQ8\"}"
+    query $sql
+    print $"  ✓ GSI vector index created: ($full_name)"
 }
 
 # Create a plain GSI index. Errors from "already exists" are silently swallowed.
@@ -131,7 +184,8 @@ export def setup [] {
     ensure-bucket $c.shared_bucket
     ensure-scope  $c.shared_bucket "public"
     ensure-collection $c.shared_bucket "public" "documentation"
-    ensure-vector-index $c.shared_bucket "public" "documentation" $c.search_index "vector" $c.dims
+    ensure-vector-index     $c.shared_bucket "public" "documentation" $c.search_index "vector" $c.dims
+    ensure-gsi-vector-index $c.shared_bucket "public" "documentation" $c.search_index "vector" $c.dims
 
     # ── 2. Conversation history (Chat History, RAG) ───────────────────────────
     print "\n── 2. Conversation history (shared._default.conversations)"
@@ -145,7 +199,8 @@ export def setup [] {
     ensure-bucket $c.cache_bucket
     ensure-scope  $c.cache_bucket "_default"
     ensure-collection $c.cache_bucket "_default" "semantic"
-    ensure-vector-index $c.cache_bucket "_default" "semantic" $c.cache_index "vector" $c.dims
+    ensure-vector-index     $c.cache_bucket "_default" "semantic" $c.cache_index "vector" $c.dims
+    ensure-gsi-vector-index $c.cache_bucket "_default" "semantic" $c.cache_index "vector" $c.dims
 
     print "\n=== Setup complete ===\n"
     print "Next step: ingest documentation content."
