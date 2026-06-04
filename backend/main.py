@@ -2679,7 +2679,7 @@ async def prompt_injection(body: InjectionRequest):
 # ---------------------------------------------------------------------------
 
 if os.path.isdir(_STATIC_DIR):
-    @app.get("/{full_path:path}", include_in_schema=False)
+    @app.api_route("/{full_path:path}", methods=["GET", "HEAD"], include_in_schema=False)
     async def serve_frontend(full_path: str = ""):
         index = os.path.join(_STATIC_DIR, "index.html")
         return FileResponse(index, headers={
