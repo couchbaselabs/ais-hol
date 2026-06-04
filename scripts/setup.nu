@@ -151,7 +151,7 @@ def ensure-gsi-vector-index [
     print $"  ✓ GSI vector index created: ($full_name)"
 }
 
-# Create a plain GSI index. Errors from "already exists" are silently swallowed.
+# Create a plain GSI index. Pre-checks existence to avoid cbsh panic on 409.
 def ensure-gsi-index [
     bucket: string,
     scope: string,
@@ -159,19 +159,19 @@ def ensure-gsi-index [
     index_name: string,
     fields: string,   # e.g. "session_id, `timestamp` DESC"
 ] {
-    let sql = $"CREATE INDEX `($index_name)` ON `($bucket)`.`($scope)`.`($collection)` \(($fields)\)"
-    try {
-        query $sql
-        print $"  ✓ GSI index created: ($index_name)"
-    } catch {|e|
-        let msg = ($e | to json | str downcase)
-        if ($msg | str contains "already exist") {
-            print $"  · GSI index exists:  ($index_name)"
-        } else {
-            print $"  ✗ GSI index error: ($msg)"
-            error make { msg: "GSI index creation failed" }
-        }
+    let exists = (
+        query indexes
+        | where type == "gsi" and name == $index_name
+        | is-empty
+        | not $in
+    )
+    if $exists {
+        print $"  · GSI index exists:  ($index_name)"
+        return
     }
+    let sql = $"CREATE INDEX `($index_name)` ON `($bucket)`.`($scope)`.`($collection)` \(($fields)\)"
+    query $sql
+    print $"  ✓ GSI index created: ($index_name)"
 }
 
 # ── main ──────────────────────────────────────────────────────────────────────
