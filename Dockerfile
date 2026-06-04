@@ -33,6 +33,6 @@ COPY backend/ ./
 # Copy built frontend into a directory the backend will serve as static files
 COPY --from=frontend-build /app/frontend/dist ./static
 
-EXPOSE 8080
+EXPOSE 10000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]

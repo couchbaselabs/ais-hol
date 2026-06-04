@@ -6,8 +6,6 @@ services:
     region: oregon
     healthCheckPath: /health
     envVars:
-      - key: PORT
-        value: "8080"
       - key: INFERENCE_MODEL
         value: gpt-4o-mini
       - key: EMBEDDING_MODEL
