@@ -145,7 +145,8 @@ def ensure-gsi-vector-index [
         return
     }
 
-    let sql = $"CREATE VECTOR INDEX `($full_name)` ON `($bucket)`.`($scope)`.`($collection)` \(`($field)` VECTOR\) WITH {\"dimension\": ($dims), \"similarity\": \"L2\", \"description\": \"IVF,SQ8\"}"
+    # defer_build: true — avoids ErrTraining on empty collections; index builds as data is ingested
+    let sql = $"CREATE VECTOR INDEX `($full_name)` ON `($bucket)`.`($scope)`.`($collection)` \(`($field)` VECTOR\) WITH {\"dimension\": ($dims), \"similarity\": \"L2\", \"description\": \"IVF256,SQ8\", \"defer_build\": true}"
     query $sql
     print $"  ✓ GSI vector index created: ($full_name)"
 }
