@@ -2564,7 +2564,7 @@ async def vector_search_compare(body: VectorSearchCompareRequest):
                    d.content,
                    ANN_DISTANCE(d.vector, $embedding, "L2") AS score
             FROM `{bucket_name}`.`public`.`documentation` AS d
-            USE INDEX ({index_name}_gsi USING GSI)
+            USE INDEX ({bucket_name}_public_{index_name}_gsi USING GSI)
             ORDER BY ANN_DISTANCE(d.vector, $embedding, "L2")
             LIMIT {limit}
         """

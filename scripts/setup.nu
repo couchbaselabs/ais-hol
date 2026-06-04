@@ -131,7 +131,7 @@ def ensure-gsi-vector-index [
         return
     }
 
-    let full_name = $"($bucket).($scope).($index_name)_gsi"
+    let full_name = $"($bucket)_($scope)_($index_name)_gsi"
 
     # Check existence via query indexes (works with standard user rights)
     let exists = (
