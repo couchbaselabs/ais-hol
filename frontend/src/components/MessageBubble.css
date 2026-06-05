@@ -45,6 +45,63 @@
   text-align: left;
 }
 
+/* Source citations */
+.message-citations {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.citations-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 0.2rem;
+}
+
+.citation-chip {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #f0f4ff;
+  color: #3b5bdb;
+  border: 1px solid #c5d0fa;
+  cursor: default;
+  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Faithfulness verdict badge */
+.message-faithfulness {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: default;
+}
+
+.faithfulness-label {
+  letter-spacing: 0.02em;
+}
+
+.faithfulness-score {
+  opacity: 0.75;
+  font-weight: 400;
+}
+
 /* Agent routing badges */
 .message-badge {
   margin-top: 0.4rem;

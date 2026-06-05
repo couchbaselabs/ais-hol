@@ -176,6 +176,19 @@ async def _mock_cache_put(query: str, embedding: list[float], llm_sig: str, resp
     _MOCK_CACHE[key] = response
 
 
+async def _mock_cache_invalidate_all() -> int:
+    count = len(_MOCK_CACHE)
+    _MOCK_CACHE.clear()
+    return count
+
+
+async def _mock_cache_invalidate_by_signature(llm_signature: str) -> int:
+    keys = [k for k in list(_MOCK_CACHE) if k.startswith(f"{llm_signature}::")]
+    for k in keys:
+        del _MOCK_CACHE[k]
+    return len(keys)
+
+
 # ---------------------------------------------------------------------------
 # Patch faq_catalog_service
 # ---------------------------------------------------------------------------
@@ -249,6 +262,8 @@ def _apply():
     if cache:
         cache.cache_get = _mock_cache_get
         cache.cache_put = _mock_cache_put
+        cache.cache_invalidate_all = _mock_cache_invalidate_all
+        cache.cache_invalidate_by_signature = _mock_cache_invalidate_by_signature
 
     # Also patch names already bound in main (imported before _apply ran)
     main = sys.modules.get("main")
@@ -257,6 +272,10 @@ def _apply():
             main.cache_get = _mock_cache_get
         if hasattr(main, "cache_put"):
             main.cache_put = _mock_cache_put
+        if hasattr(main, "cache_invalidate_all"):
+            main.cache_invalidate_all = _mock_cache_invalidate_all
+        if hasattr(main, "cache_invalidate_by_signature"):
+            main.cache_invalidate_by_signature = _mock_cache_invalidate_by_signature
 
     # faq_catalog_service
     faq = sys.modules.get("services.faq_catalog_service")

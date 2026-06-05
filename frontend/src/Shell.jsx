@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import InfoPanel from './components/InfoPanel'
+import ErrorBoundary from './components/ErrorBoundary'
 import AppChat from './AppChat'
 import AppChatStream from './AppChatStream'
 import AppChatCached from './AppChatCached'
@@ -63,6 +64,7 @@ function Shell() {
       <Header />
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        <ErrorBoundary key={activeTab}>
         {activeTab === 'chat'       && <AppChat           key="chat" />}
         {activeTab === 'stream'     && <AppChatStream     key="stream"     />}
         {activeTab === 'cached'     && <AppChatCached     key="cached"     />}
@@ -115,6 +117,7 @@ function Shell() {
         {activeTab === 'vector-search'      && <AppVectorSearch       key="vector-search"      />}
         {activeTab === 'metadata-filtering' && <AppMetadataFiltering  key="metadata-filtering" />}
         {activeTab === 'multi-vector'       && <AppMultiVector         key="multi-vector"       />}
+        </ErrorBoundary>
         <InfoPanel tab={activeTab} onTabChange={setActiveTab} />
       </div>
     </div>

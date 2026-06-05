@@ -138,3 +138,6 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 scripts/content/files/en-us/glossary1/**/*.json
+-e 
+# Runtime trace file
+backend/traces.jsonl

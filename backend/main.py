@@ -9,7 +9,13 @@ from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+# Shared field length limits — applied to all user-supplied text fields.
+_MAX_MSG   = int(os.environ.get("MAX_MESSAGE_CHARS", "32000"))   # ~8k tokens
+_MAX_TEXT  = int(os.environ.get("MAX_TEXT_CHARS",    "128000"))  # ~32k tokens
+_MAX_LABEL = 256   # short strings: titles, categories, session IDs
+_MAX_FILE_BYTES = int(os.environ.get("MAX_UPLOAD_BYTES", str(20 * 1024 * 1024)))  # 20 MB
 
 from services.openai_service import generate_response, get_embedding, stream_completion
 from services.couchbase_service import get_relevant_documents
@@ -20,16 +26,67 @@ from services.conversation_service import (
     clear_conversation_history,
     summarize_conversation,
 )
-from services.semantic_cache_service import cache_get, cache_put, create_llm_signature
+from services.semantic_cache_service import (
+    cache_get, cache_put, create_llm_signature,
+    cache_invalidate_all, cache_invalidate_by_signature,
+)
 
 EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small")
 INFERENCE_MODEL = os.environ.get("INFERENCE_MODEL", "gpt-4o-mini")
 
+# ---------------------------------------------------------------------------
+# Token budget utilities — used by pipeline endpoints to prevent context overflow.
+# ---------------------------------------------------------------------------
+try:
+    import tiktoken as _tiktoken
+    _tok_enc = _tiktoken.get_encoding("cl100k_base")
+except Exception:
+    _tok_enc = None
+
+def _count_tokens(text: str) -> int:
+    if _tok_enc:
+        return len(_tok_enc.encode(text))
+    return len(text.split()) * 4 // 3  # rough fallback when tiktoken unavailable
+
+def _truncate_to_tokens(text: str, max_tokens: int) -> str:
+    """Truncate *text* to at most *max_tokens* tokens, at a token boundary."""
+    if _tok_enc is None:
+        # Fallback: rough character truncation
+        return text[: max_tokens * 4]
+    tokens = _tok_enc.encode(text)
+    if len(tokens) <= max_tokens:
+        return text
+    return _tok_enc.decode(tokens[:max_tokens])
+
+# Reserve tokens for the completion; the rest is available for the prompt.
+_MODEL_CONTEXT = {
+    "gpt-4o": 128_000, "gpt-4o-mini": 128_000,
+    "gpt-4": 8_192, "gpt-3.5-turbo": 16_385,
+}
+_MAX_COMPLETION_TOKENS = int(os.environ.get("MAX_COMPLETION_TOKENS", "1024"))
+_PROMPT_TOKEN_BUDGET = (
+    _MODEL_CONTEXT.get(INFERENCE_MODEL, 128_000) - _MAX_COMPLETION_TOKENS - 256  # 256 overhead
+)
+
+# Semaphore to cap concurrent OpenAI API calls (embeddings + completions).
+# Prevents a single large ingest/summarise request from exhausting the rate limit.
+_MAX_CONCURRENT_API_CALLS = int(os.environ.get("MAX_CONCURRENT_API_CALLS", "10"))
+_api_semaphore = asyncio.Semaphore(_MAX_CONCURRENT_API_CALLS)
+
+
+async def _embed_with_semaphore(text: str) -> list[float]:
+    """Embed *text* with the shared concurrency semaphore applied."""
+    async with _api_semaphore:
+        return (await client.embeddings.create(model=EMBEDDING_MODEL, input=text)).data[0].embedding
+
 # Module-level OpenAI client used by endpoints that don't go through openai_service.
-from openai import AsyncOpenAI as _AsyncOpenAI
+from openai import AsyncOpenAI as _AsyncOpenAI, Timeout as _OAITimeout
 client = _AsyncOpenAI(
     base_url=os.environ.get("INFERENCE_MODEL_BASE_URL", "https://api.openai.com/v1"),
     api_key=os.environ.get("INFERENCE_MODEL_API_KEY", "no-key"),
+    # Explicit timeout prevents hung async workers on stalled requests.
+    # connect=10s, read=60s (covers long streaming completions).
+    timeout=_OAITimeout(connect=10.0, read=60.0, write=10.0, pool=10.0),
 )
 
 # ---------------------------------------------------------------------------
@@ -48,9 +105,69 @@ app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?|.*\.gitpod\.dev|.*\.github\.dev|.*\.ona\.app",
     allow_methods=["GET", "POST", "DELETE"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "Authorization", "X-Session-Id"],
+    expose_headers=["X-Cache-Hit", "X-Citations", "X-Request-Id"],
     allow_credentials=True,
 )
+
+# ---------------------------------------------------------------------------
+# Rate limiting — prevents a single client from exhausting OpenAI quota.
+# Limits are intentionally generous for a workshop; tighten for production.
+# Set RATE_LIMIT_PER_MINUTE env var to override (default: 60).
+# ---------------------------------------------------------------------------
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.errors import RateLimitExceeded
+from starlette.requests import Request as _StarletteRequest
+
+def _real_client_ip(request: _StarletteRequest) -> str:
+    """Extract the real client IP, honouring X-Forwarded-For from trusted proxies.
+
+    On Fly.io, Render, and most PaaS platforms the app runs behind a reverse
+    proxy. request.client.host is the proxy's internal IP, not the user's IP,
+    so all users share one rate-limit bucket. Reading X-Forwarded-For (first
+    entry) gives the actual client address.
+    """
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        # X-Forwarded-For: client, proxy1, proxy2 — take the leftmost (client)
+        return forwarded_for.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+_rate_limit = os.environ.get("RATE_LIMIT_PER_MINUTE", "60")
+limiter = Limiter(key_func=_real_client_ip, default_limits=[f"{_rate_limit}/minute"])
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
+
+# ---------------------------------------------------------------------------
+# Startup validation — fail fast with a clear message if required env vars
+# are missing, rather than crashing with a bare KeyError mid-request.
+# ---------------------------------------------------------------------------
+_REQUIRED_ENV_VARS = [
+    "INFERENCE_MODEL_API_KEY",
+    "EMBEDDING_MODEL_API_KEY",
+]
+_COUCHBASE_ENV_VARS = [
+    "COUCHBASE_CONNECTION_STRING",
+    "COUCHBASE_USERNAME",
+    "COUCHBASE_PASSWORD",
+    "COUCHBASE_BUCKET_NAME",
+    "COUCHBASE_SEARCH_INDEX_NAME",
+]
+
+@app.on_event("startup")
+async def _validate_env():
+    missing = [v for v in _REQUIRED_ENV_VARS if not os.environ.get(v)]
+    if os.environ.get("MOCK_MODE", "").lower() != "true":
+        missing += [v for v in _COUCHBASE_ENV_VARS if not os.environ.get(v)]
+    if missing:
+        import sys
+        print(f"[startup] ❌ Missing required environment variables: {', '.join(missing)}", flush=True)
+        print("[startup] Set them in .env or export them before starting the server.", flush=True)
+        sys.exit(1)
+    print(f"[startup] ✅ Environment validated. MOCK_MODE={os.environ.get('MOCK_MODE', 'false')}", flush=True)
 
 
 # ---------------------------------------------------------------------------
@@ -69,7 +186,24 @@ if os.path.isdir(_STATIC_DIR):
 
 @app.get("/health")
 async def health():
-    return {"status": "OK", "message": "Server is running"}
+    """Liveness + readiness probe. Reports DB connectivity status."""
+    db_status = "unavailable"
+    db_error = None
+    if os.environ.get("MOCK_MODE", "").lower() == "true":
+        db_status = "mock"
+    else:
+        try:
+            from services.couchbase_service import _get_cluster
+            _get_cluster()
+            db_status = "ok"
+        except Exception as e:
+            db_error = str(e)[:120]
+
+    return {
+        "status": "ok",
+        "db": db_status,
+        **({"db_error": db_error} if db_error else {}),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -78,11 +212,8 @@ async def health():
 
 
 class ChatRequest(BaseModel):
-    message: str
-    systemPrompt: str | None = None
-
-
-INFERENCE_MODEL = os.environ.get("INFERENCE_MODEL", "gpt-4o-mini")
+    message: str = Field(..., max_length=_MAX_MSG)
+    systemPrompt: str | None = Field(None, max_length=_MAX_MSG)
 
 
 @app.post("/api/chat")
@@ -318,10 +449,6 @@ async def chat_hyde(body: HydeRequest):
     from openai import AsyncOpenAI
     import asyncio
 
-    client = AsyncOpenAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
 
     # Step 1: generate hypothetical answer
     hyp_completion = await client.chat.completions.create(
@@ -407,10 +534,6 @@ async def chat_evaluate(body: EvaluateRequest):
     import json as _json
     from openai import AsyncOpenAI
 
-    client = AsyncOpenAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
 
     # Step 1: RAG
     embedding = await get_embedding(body.q)
@@ -485,7 +608,7 @@ def _split_into_chunks(text: str, chunk_size: int = _CHUNK_SIZE, overlap: int = 
 
 
 class SummariseRequest(BaseModel):
-    text: str
+    text: str = Field(..., max_length=_MAX_TEXT)
     focus: str | None = None        # optional focus instruction
     chunk_size: int = _CHUNK_SIZE   # words per chunk (for visualising chunking strategies)
 
@@ -507,10 +630,6 @@ async def summarise(body: SummariseRequest):
     import asyncio
     from openai import AsyncOpenAI
 
-    client = AsyncOpenAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
 
     focus_clause = f" Focus on: {body.focus}." if body.focus else ""
     chunk_size = max(50, min(body.chunk_size, 2000))
@@ -581,7 +700,7 @@ async def summarise(body: SummariseRequest):
 
 
 class StreamChatRequest(BaseModel):
-    message: str
+    message: str = Field(..., max_length=_MAX_MSG)
     systemPrompt: str | None = None
 
 
@@ -628,11 +747,6 @@ async def chat_structured(body: StructuredRequest):
     if not body.text or not body.text.strip():
         raise HTTPException(status_code=400, detail="Text is required.")
 
-    from openai import AsyncOpenAI
-    client = AsyncOpenAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
 
     system_prompt = (
         "You are a text analysis assistant. Analyse the user's text and respond "
@@ -739,11 +853,6 @@ async def chat_rerank(body: RerankRequest):
         f"Return only the JSON array, no explanation."
     )
 
-    from openai import AsyncOpenAI
-    client = AsyncOpenAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
     completion = await client.chat.completions.create(
         model=INFERENCE_MODEL,
         messages=[
@@ -835,7 +944,7 @@ PROMPT_PRESETS = {
 
 
 class PromptRequest(BaseModel):
-    message: str
+    message: str = Field(..., max_length=_MAX_MSG)
     presets: list[str] = ["terse", "verbose", "chain_of_thought"]
 
 
@@ -852,10 +961,6 @@ async def chat_prompt(body: PromptRequest):
     import asyncio
     from openai import AsyncOpenAI
 
-    client = AsyncOpenAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
 
     async def call_one(preset_name: str) -> dict:
         system_prompt = PROMPT_PRESETS.get(preset_name, "You are a helpful assistant.")
@@ -894,7 +999,7 @@ async def chat_prompt(body: PromptRequest):
 
 
 class CachedChatRequest(BaseModel):
-    message: str
+    message: str = Field(..., max_length=_MAX_MSG)
     systemPrompt: str | None = None
 
 
@@ -931,7 +1036,7 @@ async def chat_cached(body: CachedChatRequest):
 
 
 class HistoryChatRequest(BaseModel):
-    message: str
+    message: str = Field(..., max_length=_MAX_MSG)
     session_id: str | None = None
     systemPrompt: str | None = None
 
@@ -942,7 +1047,7 @@ async def chat_history(body: HistoryChatRequest):
     if not body.message or not body.message.strip():
         raise HTTPException(status_code=400, detail="Message is required.")
 
-    session_id = body.session_id or "default-session"
+    session_id = body.session_id or str(__import__("uuid").uuid4())
     system_prompt = body.systemPrompt or "You are a helpful AI assistant. Be concise and friendly."
     llm_sig = create_llm_signature(INFERENCE_MODEL, 0.7, 1000, system_prompt)
     embedding = await get_embedding(body.message)
@@ -958,6 +1063,12 @@ async def chat_history(body: HistoryChatRequest):
     await add_message(session_id, body.message, "user")
     history = await get_conversation_history(session_id)
     formatted = format_conversation_history(history)
+
+    # Guard: ensure the assembled prompt fits within the model's context window.
+    base = f"{system_prompt}\n\nCURRENT MESSAGE: {body.message}"
+    base_tokens = _count_tokens(base)
+    history_budget = _PROMPT_TOKEN_BUDGET - base_tokens
+    formatted = _truncate_to_tokens(formatted, max(0, history_budget))
 
     prompt = (
         f"{system_prompt}\n\n"
@@ -981,7 +1092,7 @@ async def chat_history(body: HistoryChatRequest):
 
 
 class RagChatRequest(BaseModel):
-    message: str
+    message: str = Field(..., max_length=_MAX_MSG)
     session_id: str | None = None
 
 
@@ -991,7 +1102,7 @@ async def chat_rag(body: RagChatRequest):
     if not body.message or not body.message.strip():
         raise HTTPException(status_code=400, detail="Message is required.")
 
-    session_id = body.session_id or "default-session"
+    session_id = body.session_id or str(__import__("uuid").uuid4())
     llm_sig = create_llm_signature(INFERENCE_MODEL, 0.7, 1000, "MDN expert")
     embedding = await get_embedding(body.message)
 
@@ -1010,6 +1121,21 @@ async def chat_rag(body: RagChatRequest):
         f"Document {i+1}:\n  ID: {doc['id']}\n  Filepath: {doc['filepath']}\n  Score: {doc['score']}\n  Content: {doc['content']}"
         for i, doc in enumerate(documents)
     )
+
+    # Guard: truncate history + docs if the assembled prompt would overflow.
+    static_parts = (
+        "You are a Web MDN Documentation expert with access to conversation history.\n\n"
+        f"CURRENT QUERY: {body.message}\n\n"
+        "Answer using the documents and history. Reference document IDs and filepaths where relevant."
+    )
+    static_tokens = _count_tokens(static_parts)
+    remaining = _PROMPT_TOKEN_BUDGET - static_tokens
+    doc_tokens = _count_tokens(document_list)
+    if doc_tokens > remaining * 0.75:
+        document_list = _truncate_to_tokens(document_list, int(remaining * 0.75))
+    history_budget = remaining - _count_tokens(document_list)
+    formatted_history = _truncate_to_tokens(formatted_history, max(0, history_budget))
+
     prompt = (
         "You are a Web MDN Documentation expert with access to conversation history.\n\n"
         f"CONVERSATION SUMMARY:\n{formatted_history}\n\n"
@@ -1017,6 +1143,14 @@ async def chat_rag(body: RagChatRequest):
         f"CURRENT QUERY: {body.message}\n\n"
         "Answer using the documents and history. Reference document IDs and filepaths where relevant."
     )
+
+    import json as _json
+    citations = [
+        {"id": doc["id"], "filepath": doc.get("filepath", ""), "score": round(doc.get("score", 0.0), 3)}
+        for doc in documents
+    ]
+    # Grounding context for faithfulness check (first 2000 chars to keep it cheap)
+    grounding_context = "\n\n".join(doc.get("content", "") for doc in documents)[:2000]
 
     async def generate_and_store():
         full_response = ""
@@ -1026,9 +1160,37 @@ async def chat_rag(body: RagChatRequest):
         await add_message(session_id, full_response, "assistant")
         await cache_put(body.message, embedding, llm_sig, full_response)
 
+        # Faithfulness check — runs after streaming completes.
+        # Result is appended as a sentinel line the frontend strips from display.
+        if grounding_context and full_response:
+            try:
+                check_prompt = (
+                    f"Question: {body.message}\n\n"
+                    f"Answer: {full_response[:1000]}\n\n"
+                    f"Grounding documents:\n{grounding_context}\n\n"
+                    "Is every claim in the answer supported by the grounding documents? "
+                    "Return JSON: {\"verdict\": \"grounded\"|\"hallucinated\"|\"uncertain\", "
+                    "\"confidence\": 0.0-1.0, \"issues\": [str]}"
+                )
+                check = await client.chat.completions.create(
+                    model=INFERENCE_MODEL,
+                    messages=[{"role": "user", "content": check_prompt}],
+                    response_format={"type": "json_object"},
+                    temperature=0,
+                    max_tokens=256,
+                )
+                faith = _json.loads(check.choices[0].message.content)
+                yield f"\n__FAITHFULNESS__:{_json.dumps(faith)}"
+            except Exception:
+                pass   # faithfulness check is best-effort; never block the response
+
     return StreamingResponse(
         generate_and_store(), media_type="text/plain; charset=utf-8",
-        headers={"X-Cache-Hit": "false"}
+        headers={
+            "X-Cache-Hit": "false",
+            "X-Citations": _json.dumps(citations),
+            "Access-Control-Expose-Headers": "X-Cache-Hit, X-Citations",
+        }
     )
 
 
@@ -1048,7 +1210,7 @@ async def query(body: QueryRequest):
     if not body.q or not body.q.strip():
         raise HTTPException(status_code=400, detail="Query is required.")
 
-    session_id = body.session_id or "default-session"
+    session_id = body.session_id or str(__import__("uuid").uuid4())
     llm_sig = create_llm_signature(INFERENCE_MODEL, 0.7, 1000, "MDN expert")
 
     # Exercise 3: embed the query
@@ -1074,6 +1236,20 @@ async def query(body: QueryRequest):
         f"Document {i+1}:\n  ID: {doc['id']}\n  Filepath: {doc['filepath']}\n  Score: {doc['score']}\n  Content: {doc['content']}"
         for i, doc in enumerate(documents)
     )
+
+    # Guard: truncate history + docs if the assembled prompt would overflow.
+    _static = (
+        "You are a Web MDN Documentation expert with access to conversation history.\n\n"
+        f"CURRENT QUERY: {body.q}\n\n"
+        "Answer using the documents and history. Reference document IDs and filepaths where relevant."
+    )
+    _remaining = _PROMPT_TOKEN_BUDGET - _count_tokens(_static)
+    if _count_tokens(document_list) > _remaining * 0.75:
+        document_list = _truncate_to_tokens(document_list, int(_remaining * 0.75))
+    formatted_history = _truncate_to_tokens(
+        formatted_history, max(0, _remaining - _count_tokens(document_list))
+    )
+
     prompt = (
         "You are a Web MDN Documentation expert with access to conversation history.\n\n"
         f"CONVERSATION SUMMARY:\n{formatted_history}\n\n"
@@ -1081,6 +1257,12 @@ async def query(body: QueryRequest):
         f"CURRENT QUERY: {body.q}\n\n"
         "Answer using the documents and history. Reference document IDs and filepaths where relevant."
     )
+
+    import json as _json_q
+    _citations_q = [
+        {"id": doc["id"], "filepath": doc.get("filepath", ""), "score": round(doc.get("score", 0.0), 3)}
+        for doc in documents
+    ]
 
     async def generate_and_store():
         full_response = ""
@@ -1093,7 +1275,11 @@ async def query(body: QueryRequest):
         await cache_put(body.q, embedding, llm_sig, full_response)
 
     return StreamingResponse(
-        generate_and_store(), media_type="text/plain; charset=utf-8"
+        generate_and_store(), media_type="text/plain; charset=utf-8",
+        headers={
+            "X-Citations": _json_q.dumps(_citations_q),
+            "Access-Control-Expose-Headers": "X-Citations",
+        }
     )
 
 
@@ -1119,12 +1305,47 @@ async def clear_history(body: ClearRequest):
 
 
 # ---------------------------------------------------------------------------
+# Cache invalidation endpoints
+# Call after a knowledge-base update to prevent stale cached answers.
+# ---------------------------------------------------------------------------
+
+@app.delete("/api/cache")
+async def invalidate_cache_all():
+    """Flush the entire semantic cache.
+
+    Call this after ingesting new documents or updating the knowledge base
+    so users don't receive answers cached against the old corpus.
+    """
+    deleted = await cache_invalidate_all()
+    return {"deleted": deleted, "message": f"Removed {deleted} cache entries."}
+
+
+class CacheInvalidateBySignatureRequest(BaseModel):
+    model: str = INFERENCE_MODEL
+    temperature: float = 0.7
+    max_tokens: int = 1000
+    system_prompt: str = "MDN expert"
+
+
+@app.delete("/api/cache/signature")
+async def invalidate_cache_by_signature(body: CacheInvalidateBySignatureRequest):
+    """Flush cache entries tied to a specific model/prompt configuration.
+
+    Use when the model, temperature, or system prompt changes — cached responses
+    generated under the old configuration should not be served.
+    """
+    sig = create_llm_signature(body.model, body.temperature, body.max_tokens, body.system_prompt)
+    deleted = await cache_invalidate_by_signature(sig)
+    return {"deleted": deleted, "signature": sig, "message": f"Removed {deleted} entries for this configuration."}
+
+
+# ---------------------------------------------------------------------------
 # Exercise 6 & 7 — Multi-agent endpoint
 # ---------------------------------------------------------------------------
 
 
 class AgentRequest(BaseModel):
-    message: str
+    message: str = Field(..., max_length=_MAX_MSG)
     session_id: str | None = None
 
 
@@ -1149,7 +1370,7 @@ async def agent(body: AgentRequest):
 
     from agents.graph import agent_graph
 
-    session_id = body.session_id or "agent-default-session"
+    session_id = body.session_id or str(__import__("uuid").uuid4())
 
     # Load conversation history for memory
     raw_history = await get_conversation_history(session_id, limit=10)
@@ -1194,13 +1415,10 @@ async def voice_transcribe(audio: UploadFile = File(...)):
     Accepts any audio format supported by Whisper (webm, mp4, wav, mp3, etc.).
     Returns the transcript text.
     """
-    from openai import AsyncOpenAI as _OAI
-    client = _OAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
 
     audio_bytes = await audio.read()
+    if len(audio_bytes) > _MAX_FILE_BYTES:
+        raise HTTPException(status_code=413, detail=f"Audio file too large (max {_MAX_FILE_BYTES // 1024 // 1024} MB).")
 
     if _MOCK_MODE:
         return {"transcript": "[Mock transcript] Hello, this is a simulated transcription of your audio."}
@@ -1216,14 +1434,19 @@ async def voice_transcribe(audio: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Transcription failed: {e}")
 
 
+class VoiceSpeakRequest(BaseModel):
+    text: str = Field(..., max_length=4096)   # OpenAI TTS limit is 4096 chars
+    voice: str = Field("alloy", pattern=r"^(alloy|echo|fable|onyx|nova|shimmer)$")
+
+
 @app.post("/api/voice/speak")
-async def voice_speak(body: dict):
+async def voice_speak(body: VoiceSpeakRequest):
     """Convert text to speech using the OpenAI TTS API.
 
     Returns raw MP3 audio bytes with content-type audio/mpeg.
     """
-    text = body.get("text", "").strip()
-    voice = body.get("voice", "alloy")   # alloy | echo | fable | onyx | nova | shimmer
+    text = body.text.strip()
+    voice = body.voice
     if not text:
         raise HTTPException(status_code=400, detail="text is required.")
 
@@ -1239,10 +1462,6 @@ async def voice_speak(body: dict):
 
     from openai import AsyncOpenAI as _OAI
     from fastapi.responses import Response as _Resp
-    client = _OAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
     try:
         response = await client.audio.speech.create(
             model="tts-1",
@@ -1292,11 +1511,6 @@ async def temperature_demo(body: TemperatureRequest):
     if not body.message.strip():
         raise HTTPException(status_code=400, detail="message is required.")
 
-    from openai import AsyncOpenAI
-    client = AsyncOpenAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
 
     async def call_at_temp(temp: float) -> dict:
         completion = await client.chat.completions.create(
@@ -1322,7 +1536,7 @@ async def temperature_demo(body: TemperatureRequest):
 
 
 class ToolCallRequest(BaseModel):
-    message: str
+    message: str = Field(..., max_length=_MAX_MSG)
 
 
 @app.post("/api/tool-calling")
@@ -1336,11 +1550,6 @@ async def tool_calling_demo(body: ToolCallRequest):
     if not body.message.strip():
         raise HTTPException(status_code=400, detail="message is required.")
 
-    from openai import AsyncOpenAI
-    client = AsyncOpenAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
 
     tools = [
         {
@@ -1422,11 +1631,31 @@ async def tool_calling_demo(body: ToolCallRequest):
         temp_val = 22 if unit == "celsius" else 72
         tool_result = f"{city}: {temp_val}°{'C' if unit == 'celsius' else 'F'}, partly cloudy. [simulated]"
     elif tool_name == "calculate":
+        import re as _re, ast as _ast, operator as _op
         expr = tool_args.get("expression", "0")
-        try:
-            tool_result = str(eval(expr, {"__builtins__": {}}, {}))  # noqa: S307
-        except Exception:
-            tool_result = "Could not evaluate expression."
+        # Whitelist: only digits, arithmetic operators, parens, spaces, and decimal points.
+        # eval() with __builtins__={} is NOT a safe sandbox in CPython — use ast instead.
+        if not _re.fullmatch(r'[\d\s\+\-\*/\(\)\.]+', expr):
+            tool_result = "Invalid expression: only numeric arithmetic is allowed."
+        else:
+            try:
+                _SAFE_OPS = {
+                    _ast.Add: _op.add, _ast.Sub: _op.sub,
+                    _ast.Mult: _op.mul, _ast.Div: _op.truediv,
+                    _ast.USub: _op.neg,
+                }
+                def _safe_eval(node):
+                    if isinstance(node, _ast.Constant) and isinstance(node.value, (int, float)):
+                        return node.value
+                    if isinstance(node, _ast.BinOp) and type(node.op) in _SAFE_OPS:
+                        return _SAFE_OPS[type(node.op)](_safe_eval(node.left), _safe_eval(node.right))
+                    if isinstance(node, _ast.UnaryOp) and type(node.op) in _SAFE_OPS:
+                        return _SAFE_OPS[type(node.op)](_safe_eval(node.operand))
+                    raise ValueError("Unsupported operation")
+                result = _safe_eval(_ast.parse(expr, mode='eval').body)
+                tool_result = str(round(result, 10))
+            except Exception:
+                tool_result = "Could not evaluate expression."
     elif tool_name == "search_docs":
         query = tool_args.get("query", "")
         tool_result = f"Found 3 docs matching '{query}': [Doc A], [Doc B], [Doc C]. [simulated]"
@@ -1535,11 +1764,6 @@ async def query_expansion(body: QueryExpansionRequest):
     if not body.query.strip():
         raise HTTPException(status_code=400, detail="query is required.")
 
-    from openai import AsyncOpenAI
-    client = AsyncOpenAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
 
     # Step 1: Generate alternative phrasings
     completion = await client.chat.completions.create(
@@ -1627,10 +1851,6 @@ async def cost_latency(body: CostRequest):
     from openai import AsyncOpenAI
     import time
 
-    client = AsyncOpenAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
 
     async def call_model(model: str) -> dict:
         pricing = MODEL_PRICING.get(model, {"input": 1.0, "output": 1.0, "context": 128_000})
@@ -1685,7 +1905,7 @@ async def cost_latency(body: CostRequest):
 
 
 class GuardrailsRequest(BaseModel):
-    message: str
+    message: str = Field(..., max_length=_MAX_MSG)
 
 
 @app.post("/api/guardrails")
@@ -1703,10 +1923,6 @@ async def guardrails_demo(body: GuardrailsRequest):
     from openai import AsyncOpenAI
     import json as _json
 
-    client = AsyncOpenAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
 
     async def classify(text: str, role: str) -> dict:
         completion = await client.chat.completions.create(
@@ -1886,26 +2102,26 @@ def _capella_cluster():
 
 
 class CapellaTextRequest(BaseModel):
-    text: str
+    text: str = Field(..., max_length=_MAX_TEXT)
 
 
 class CapellaClassificationRequest(BaseModel):
-    text: str
+    text: str = Field(..., max_length=_MAX_TEXT)
     labels: list[str] = ["positive", "negative", "neutral"]
 
 
 class CapellaExtractionRequest(BaseModel):
-    text: str
+    text: str = Field(..., max_length=_MAX_TEXT)
     labels: list[str] = ["person", "location", "organization", "date"]
 
 
 class CapellaTranslationRequest(BaseModel):
-    text: str
+    text: str = Field(..., max_length=_MAX_TEXT)
     to_language: str = "French"
 
 
 class CapellaMaskingRequest(BaseModel):
-    text: str
+    text: str = Field(..., max_length=_MAX_TEXT)
     labels: list[str] = ["person", "email", "phone", "location"]
 
 
@@ -2212,11 +2428,6 @@ async def image_generate(body: ImageGenerateRequest):
     if body.style and body.style in _STYLE_SUFFIXES:
         final_prompt = f"{final_prompt}. Style: {_STYLE_SUFFIXES[body.style]}"
 
-    from openai import AsyncOpenAI as _OAI
-    _client = _OAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
 
     # Cost estimates (USD, approximate as of 2025)
     _COST = {
@@ -2230,7 +2441,7 @@ async def image_generate(body: ImageGenerateRequest):
     cost = _COST.get((size, quality), 0.040)
 
     try:
-        response = await _client.images.generate(
+        response = await client.images.generate(
             model="dall-e-3",
             prompt=final_prompt,
             size=size,
@@ -2271,7 +2482,7 @@ async def image_generate(body: ImageGenerateRequest):
 # ---------------------------------------------------------------------------
 
 class ModerationRequest(BaseModel):
-    text: str
+    text: str = Field(..., max_length=_MAX_TEXT)
 
 
 @app.post("/api/moderation")
@@ -2285,17 +2496,12 @@ async def moderation(body: ModerationRequest):
     if not body.text.strip():
         raise HTTPException(status_code=400, detail="text is required")
 
-    from openai import AsyncOpenAI as _OAI
-    _client = _OAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
 
     # ── OpenAI Moderation API ────────────────────────────────────────────────
     mod_result = None
     mod_error = None
     try:
-        mod_response = await _client.moderations.create(input=body.text)
+        mod_response = await client.moderations.create(input=body.text)
         result = mod_response.results[0]
         # Flatten categories and scores into plain dicts
         cats   = result.categories.model_dump()
@@ -2344,7 +2550,7 @@ async def moderation(body: ModerationRequest):
             '"categories": ["list of triggered categories or empty"], '
             '"confidence": 0.0-1.0, "reason": "one sentence"}'
         )
-        llm_resp = await _client.chat.completions.create(
+        llm_resp = await client.chat.completions.create(
             model=INFERENCE_MODEL,
             messages=[
                 {"role": "system", "content": classify_system},
@@ -2414,7 +2620,7 @@ async def few_shot(body: FewShotRequest):
 # ---------------------------------------------------------------------------
 
 class ChunkRequest(BaseModel):
-    text: str
+    text: str = Field(..., max_length=_MAX_TEXT)
     strategy: str = "fixed"   # fixed | sentence | paragraph | semantic
     chunk_size: int = 200
     overlap: int = 20
@@ -2582,7 +2788,7 @@ async def model_compare(body: ModelCompareRequest):
 
 class PersonaRequest(BaseModel):
     system_prompt: str
-    message: str
+    message: str = Field(..., max_length=_MAX_MSG)
 
 
 @app.post("/api/persona")
@@ -2708,9 +2914,12 @@ async def agentic_rag(body: AgenticRagRequest):
         if decision.get("action") == "answer":
             break
 
-        # Retrieve
+        # Retrieve — embed the search query first, then do vector search
         search_query = decision.get("query", question)
-        docs = await get_relevant_documents(search_query, limit=3)
+        search_embedding = (
+            await client.embeddings.create(model=EMBEDDING_MODEL, input=search_query)
+        ).data[0].embedding
+        docs = await get_relevant_documents(search_embedding)
         retrieved = "\n\n".join(
             f"[Doc {i+1}] {d.get('content', d.get('text', str(d)))}"
             for i, d in enumerate(docs)
@@ -2869,13 +3078,12 @@ async def ingest_document(body: IngestRequest):
 
     t_chunk = len(raw_chunks)
 
-    # 2. Embed all chunks concurrently
+    # 2. Embed all chunks concurrently (semaphore caps concurrent API calls)
     t0 = _time.perf_counter()
-    embeddings = await _asyncio.gather(
-        *[client.embeddings.create(model=EMBEDDING_MODEL, input=c) for c in raw_chunks]
+    vectors = await _asyncio.gather(
+        *[_embed_with_semaphore(c) for c in raw_chunks]
     )
     embed_ms = round((_time.perf_counter() - t0) * 1000)
-    vectors = [e.data[0].embedding for e in embeddings]
 
     # 3. Attempt to store in Couchbase (gracefully skip if not configured)
     stored = 0
@@ -2923,6 +3131,119 @@ async def ingest_document(body: IngestRequest):
     }
 
 
+def _extract_text_from_file(filename: str, content: bytes) -> str:
+    """Extract plain text from PDF, DOCX, HTML, or plain-text files.
+
+    Returns the extracted text string. Raises ValueError for unsupported types.
+    """
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    if ext == "pdf":
+        import io
+        from pypdf import PdfReader
+        reader = PdfReader(io.BytesIO(content))
+        pages = [page.extract_text() or "" for page in reader.pages]
+        return "\n\n".join(p.strip() for p in pages if p.strip())
+
+    if ext in ("docx",):
+        import io
+        from docx import Document
+        doc = Document(io.BytesIO(content))
+        return "\n\n".join(p.text for p in doc.paragraphs if p.text.strip())
+
+    if ext in ("html", "htm"):
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(content, "html.parser")
+        # Remove script/style noise
+        for tag in soup(["script", "style", "nav", "footer", "header"]):
+            tag.decompose()
+        return soup.get_text(separator="\n", strip=True)
+
+    if ext in ("txt", "md", "rst", "csv", "") :
+        return content.decode("utf-8", errors="replace")
+
+    raise ValueError(f"Unsupported file type: .{ext}. Supported: pdf, docx, html, htm, txt, md")
+
+
+@app.post("/api/ingest/file")
+async def ingest_file(
+    file: UploadFile = File(...),
+    chunk_size: int = 150,
+    overlap: int = 20,
+):
+    """Ingest a file (PDF, DOCX, HTML, TXT) by extracting its text and
+    passing it through the same chunking + embedding pipeline as /api/ingest.
+    """
+    import re as _re, asyncio as _asyncio, time as _time, uuid as _uuid
+
+    raw_bytes = await file.read()
+    if len(raw_bytes) > _MAX_FILE_BYTES:
+        raise HTTPException(status_code=413, detail=f"File too large (max {_MAX_FILE_BYTES // 1024 // 1024} MB).")
+    filename = file.filename or "upload"
+
+    try:
+        text = _extract_text_from_file(filename, raw_bytes)
+    except ValueError as e:
+        raise HTTPException(status_code=415, detail=str(e))
+
+    text = text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="No text could be extracted from the file.")
+
+    title = filename.rsplit(".", 1)[0]
+
+    # Chunk
+    words = text.split()
+    step = max(1, chunk_size - overlap)
+    raw_chunks = []
+    i = 0
+    while i < len(words):
+        raw_chunks.append(" ".join(words[i: i + chunk_size]))
+        i += step
+
+    # Embed concurrently (semaphore caps concurrent API calls)
+    t0 = _time.perf_counter()
+    vectors = await _asyncio.gather(
+        *[_embed_with_semaphore(c) for c in raw_chunks]
+    )
+    embed_ms = round((_time.perf_counter() - t0) * 1000)
+
+    # Store in Couchbase
+    stored = 0
+    store_error = None
+    try:
+        from services.couchbase_service import _get_cluster
+        cluster = _get_cluster()
+        bucket_name = os.environ["COUCHBASE_BUCKET_NAME"]
+        collection = cluster.bucket(bucket_name).scope("public").collection("documentation")
+        for idx, (chunk, vector) in enumerate(zip(raw_chunks, vectors)):
+            doc = {
+                "filepath": f"ingested/{title.replace(' ', '_')}/{idx}",
+                "content": chunk,
+                "vector": vector,
+                "title": title,
+                "chunk_index": idx,
+                "source_file": filename,
+            }
+            collection.upsert(str(_uuid.uuid4()), doc)
+            stored += 1
+    except Exception as e:
+        store_error = str(e)
+
+    dim = len(vectors[0]) if vectors else 0
+    return {
+        "filename": filename,
+        "title": title,
+        "total_words": len(words),
+        "chunk_count": len(raw_chunks),
+        "embedding_dim": dim,
+        "embed_ms": embed_ms,
+        "stored": stored,
+        "store_error": store_error,
+        "text_preview": text[:300],
+    }
+
+
 # ---------------------------------------------------------------------------
 # Parallel Requests demo
 # ---------------------------------------------------------------------------
@@ -2947,15 +3268,10 @@ async def parallel_demo(body: ParallelRequest):
 
     model = body.model or INFERENCE_MODEL
 
-    from openai import AsyncOpenAI as _OAI
-    _client = _OAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
 
     async def call_one(prompt: str, idx: int) -> dict:
         t0 = _time.perf_counter()
-        completion = await _client.chat.completions.create(
+        completion = await client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=120,
@@ -3013,7 +3329,7 @@ _OUTPUT_FORMAT_PRESETS = {
 
 
 class OutputFormatRequest(BaseModel):
-    message: str
+    message: str = Field(..., max_length=_MAX_MSG)
     formats: list[str] = list(_OUTPUT_FORMAT_PRESETS.keys())
 
 
@@ -3031,15 +3347,10 @@ async def output_format_demo(body: OutputFormatRequest):
     if not formats:
         formats = list(_OUTPUT_FORMAT_PRESETS.keys())
 
-    from openai import AsyncOpenAI as _OAI
-    _client = _OAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
 
     async def call_format(fmt: str) -> dict:
         system = _OUTPUT_FORMAT_PRESETS[fmt]
-        completion = await _client.chat.completions.create(
+        completion = await client.chat.completions.create(
             model=INFERENCE_MODEL,
             messages=[
                 {"role": "system", "content": system},
@@ -3084,10 +3395,6 @@ async def retry_demo(body: RetryRequest):
     fallback = body.fallback_model or "gpt-4o-mini"
 
     from openai import AsyncOpenAI as _OAI, RateLimitError, APITimeoutError, APIStatusError
-    _client = _OAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
 
     attempt_log: list[dict] = []
     fail_mode = body.simulate_failure
@@ -3128,7 +3435,7 @@ async def retry_demo(body: RetryRequest):
 
         # Real call
         try:
-            resp = await _client.chat.completions.create(
+            resp = await client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": body.message}],
                 max_tokens=150,
@@ -3143,28 +3450,52 @@ async def retry_demo(body: RetryRequest):
             entry["error"] = str(e)[:120]
             return entry, None
 
+    # Use tenacity for real exponential back-off with jitter.
+    # The simulation layer (call_model) returns (entry, None) on failure so
+    # tenacity sees a sentinel exception rather than a real API error.
+    from tenacity import (
+        retry, stop_after_attempt, wait_exponential_jitter,
+        retry_if_exception_type, RetryError,
+    )
+
+    class _SimulatedFailure(Exception):
+        pass
+
     response_text = None
     max_retries = 3 if strategy in ("retry", "fallback") else 1
 
-    for attempt in range(1, max_retries + 1):
-        delay_ms = 0 if attempt == 1 else int(1000 * (2 ** (attempt - 2)))  # 0, 1000, 2000
-        if delay_ms > 0:
-            await asyncio.sleep(delay_ms / 1000)
-
-        entry, text = await call_model(primary, attempt, delay_ms)
+    if strategy == "none":
+        entry, text = await call_model(primary, 1, 0)
         attempt_log.append(entry)
+        response_text = text
+    else:
+        attempt_counter = 0
 
-        if text is not None:
-            response_text = text
-            break
+        @retry(
+            retry=retry_if_exception_type(_SimulatedFailure),
+            stop=stop_after_attempt(max_retries),
+            wait=wait_exponential_jitter(initial=0.5, max=8, jitter=0.5),
+            reraise=False,
+        )
+        async def _attempt_with_tenacity():
+            nonlocal attempt_counter
+            attempt_counter += 1
+            # Compute the back-off delay tenacity applied (approximate from attempt number)
+            delay_ms = 0 if attempt_counter == 1 else int(500 * (2 ** (attempt_counter - 2)))
+            entry, text = await call_model(primary, attempt_counter, delay_ms)
+            attempt_log.append(entry)
+            if text is None:
+                raise _SimulatedFailure(entry.get("error", "failed"))
+            return text
 
-        if strategy == "none":
-            break
+        try:
+            response_text = await _attempt_with_tenacity()
+        except (RetryError, _SimulatedFailure):
+            response_text = None
 
     # Fallback to secondary model if all retries failed
     if response_text is None and strategy == "fallback":
-        delay_ms = 0
-        entry, text = await call_model(fallback, len(attempt_log) + 1, delay_ms)
+        entry, text = await call_model(fallback, len(attempt_log) + 1, 0)
         entry["is_fallback"] = True
         attempt_log.append(entry)
         if text is not None:
@@ -3173,16 +3504,16 @@ async def retry_demo(body: RetryRequest):
     total_ms = sum(e["delay_before_ms"] + e["latency_ms"] for e in attempt_log)
 
     return {
-        "message":       body.message,
-        "strategy":      strategy,
-        "simulate":      fail_mode,
-        "primary_model": primary,
+        "message":        body.message,
+        "strategy":       strategy,
+        "simulate":       fail_mode,
+        "primary_model":  primary,
         "fallback_model": fallback,
-        "attempt_log":   attempt_log,
-        "response":      response_text,
-        "succeeded":     response_text is not None,
-        "total_ms":      total_ms,
-        "used_fallback": any(e.get("is_fallback") for e in attempt_log),
+        "attempt_log":    attempt_log,
+        "response":       response_text,
+        "succeeded":      response_text is not None,
+        "total_ms":       total_ms,
+        "used_fallback":  any(e.get("is_fallback") for e in attempt_log),
     }
 
 
@@ -3285,13 +3616,32 @@ async def token_budget(body: TokenBudgetRequest):
 
 import hashlib as _hashlib
 import uuid as _uuid
+import json as _json_trace
 
+# ---------------------------------------------------------------------------
+# Trace sink — writes every trace as a JSONL line to a file AND keeps a
+# ring buffer for fast in-process reads.  The file persists across restarts;
+# swap _write_trace() for an OTLP/Langfuse/Datadog exporter in production.
+# ---------------------------------------------------------------------------
 _TRACE_STORE: list[dict] = []   # in-memory ring buffer, max 200 entries
 _TRACE_MAX = 200
+_TRACE_FILE = os.environ.get("TRACE_FILE", os.path.join(os.path.dirname(__file__), "traces.jsonl"))
+
+def _write_trace(entry: dict) -> None:
+    """Append *entry* to the JSONL trace file (non-blocking best-effort).
+
+    Runs in a thread pool via asyncio.to_thread() at the call site so the
+    synchronous file I/O does not block the event loop.
+    """
+    try:
+        with open(_TRACE_FILE, "a", encoding="utf-8") as _f:
+            _f.write(_json_trace.dumps(entry) + "\n")
+    except Exception as _e:
+        print(f"[trace] write error: {_e}")
 
 
 class ObservedChatRequest(BaseModel):
-    message: str
+    message: str = Field(..., max_length=_MAX_MSG)
     session_id: str = ""
     model: str = ""
 
@@ -3313,11 +3663,6 @@ async def observed_chat(body: ObservedChatRequest):
     session_id = body.session_id or str(_uuid.uuid4())[:8]
     prompt_hash = _hashlib.sha256(body.message.encode()).hexdigest()[:12]
 
-    from openai import AsyncOpenAI as _OAI
-    _client = _OAI(
-        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
-        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
-    )
 
     # Cost per 1M tokens (approximate, USD)
     _COST_PER_1M = {
@@ -3337,7 +3682,7 @@ async def observed_chat(body: ObservedChatRequest):
     input_tokens = output_tokens = 0
 
     try:
-        resp = await _client.chat.completions.create(
+        resp = await client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": body.message}],
             max_tokens=300,
@@ -3373,6 +3718,7 @@ async def observed_chat(body: ObservedChatRequest):
     _TRACE_STORE.append(trace_entry)
     if len(_TRACE_STORE) > _TRACE_MAX:
         _TRACE_STORE.pop(0)
+    await asyncio.to_thread(_write_trace, trace_entry)   # non-blocking file I/O
 
     return {
         "response":    response_text,
@@ -3397,10 +3743,35 @@ async def get_traces(session_id: str = "", limit: int = 50):
     }
 
 
+@app.get("/api/traces/export")
+async def export_traces(token: str = ""):
+    """Download the full JSONL trace file for offline analysis.
+
+    Requires the TRACE_EXPORT_TOKEN env var to be set and matched.
+    If the env var is not set, the endpoint is disabled entirely.
+    """
+    _export_token = os.environ.get("TRACE_EXPORT_TOKEN", "")
+    if not _export_token:
+        raise HTTPException(status_code=403, detail="Trace export is disabled. Set TRACE_EXPORT_TOKEN to enable.")
+    if token != _export_token:
+        raise HTTPException(status_code=403, detail="Invalid token.")
+    if not os.path.exists(_TRACE_FILE):
+        raise HTTPException(status_code=404, detail="No trace file found.")
+    return FileResponse(
+        _TRACE_FILE,
+        media_type="application/x-ndjson",
+        filename="traces.jsonl",
+    )
+
+
 @app.delete("/api/traces")
 async def clear_traces():
-    """Clear the in-memory trace store."""
+    """Clear the in-memory trace store and truncate the JSONL file."""
     _TRACE_STORE.clear()
+    try:
+        open(_TRACE_FILE, "w").close()   # truncate
+    except Exception:
+        pass
     return {"cleared": True}
 
 
@@ -3559,7 +3930,7 @@ LIMIT {limit};"""
 
 class MultiVectorRequest(BaseModel):
     query: str
-    text: str = ""   # optional: ingest this text as parent-child chunks on the fly
+    text: str = Field("", max_length=_MAX_TEXT)   # optional: ingest this text as parent-child chunks on the fly
     parent_size: int = 200   # words per parent chunk
     child_size: int = 50     # words per child chunk
 

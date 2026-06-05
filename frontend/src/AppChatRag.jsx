@@ -58,6 +58,11 @@ function AppChatRag() {
       if (!response.ok) throw new Error('Request failed')
 
       const cacheHit = response.headers.get('X-Cache-Hit') === 'true'
+      let citations = []
+      try {
+        const raw = response.headers.get('X-Citations')
+        if (raw) citations = JSON.parse(raw)
+      } catch { /* ignore malformed header */ }
 
       // Stream token-by-token
       const reader = response.body.getReader()
@@ -71,15 +76,31 @@ function AppChatRag() {
         sender: 'bot',
         timestamp: new Date(),
         cacheHit,
+        citations,
         badge: <CacheIndicator hit={cacheHit} />,
       }])
 
+      let faithfulness = null
       while (true) {
         const { value, done } = await reader.read()
         if (done) break
-        botText += decoder.decode(value, { stream: true })
+        const chunk = decoder.decode(value, { stream: true })
+        botText += chunk
+
+        // Strip faithfulness sentinel from display text
+        const sentinelIdx = botText.indexOf('\n__FAITHFULNESS__:')
+        if (sentinelIdx !== -1) {
+          try {
+            faithfulness = JSON.parse(botText.slice(sentinelIdx + '\n__FAITHFULNESS__:'.length))
+          } catch { /* ignore */ }
+          botText = botText.slice(0, sentinelIdx)
+        }
+
         setMessages(prev =>
-          prev.map(msg => msg.id === botId ? { ...msg, text: botText } : msg)
+          prev.map(msg => msg.id === botId
+            ? { ...msg, text: botText, faithfulness }
+            : msg
+          )
         )
       }
     } catch {
