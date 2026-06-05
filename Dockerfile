@@ -22,9 +22,14 @@ RUN curl -sSL https://install.python-poetry.org | python3 - \
 
 WORKDIR /app
 
-# Install dependencies via Poetry (no virtualenv — we're in a container)
+# Install dependencies via Poetry (no virtualenv — we're in a container).
+# torch is pre-installed from the CPU-only index so Poetry/pip does not pull
+# the multi-GB CUDA variant that sentence-transformers would otherwise request.
 COPY backend/pyproject.toml backend/poetry.lock* ./
-RUN poetry config virtualenvs.create false \
+RUN pip install --no-cache-dir \
+        torch==2.11.0+cpu \
+        --index-url https://download.pytorch.org/whl/cpu \
+    && poetry config virtualenvs.create false \
     && poetry install --only main --no-root --no-interaction --no-ansi
 
 # Copy backend source
