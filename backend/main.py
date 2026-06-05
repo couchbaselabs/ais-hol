@@ -1875,6 +1875,261 @@ async def capella_sentiment(body: CapellaSentimentRequest):
 
 
 # ---------------------------------------------------------------------------
+# Capella AI Functions — additional functions
+# ---------------------------------------------------------------------------
+
+def _capella_cluster():
+    """Return a Couchbase cluster connection, or raise if unavailable."""
+    from services.conversation_service import _get_cluster
+    from couchbase.options import QueryOptions
+    return _get_cluster(), QueryOptions
+
+
+class CapellaTextRequest(BaseModel):
+    text: str
+
+
+class CapellaClassificationRequest(BaseModel):
+    text: str
+    labels: list[str] = ["positive", "negative", "neutral"]
+
+
+class CapellaExtractionRequest(BaseModel):
+    text: str
+    labels: list[str] = ["person", "location", "organization", "date"]
+
+
+class CapellaTranslationRequest(BaseModel):
+    text: str
+    to_language: str = "French"
+
+
+class CapellaMaskingRequest(BaseModel):
+    text: str
+    labels: list[str] = ["person", "email", "phone", "location"]
+
+
+class CapellaSimilarityRequest(BaseModel):
+    text1: str
+    text2: str
+
+
+class CapellaCompletionRequest(BaseModel):
+    system_prompt: str = "You are a helpful assistant."
+    user_prompt: str
+
+
+@app.post("/api/capella-classification")
+async def capella_classification(body: CapellaClassificationRequest):
+    """Classify text into user-defined categories using ai_classification()."""
+    if not body.text.strip():
+        raise HTTPException(status_code=400, detail="text is required")
+    labels = body.labels[:10] or ["positive", "negative", "neutral"]
+
+    if _MOCK_MODE:
+        import random as _r
+        _r.seed(hash(body.text) % 2**32)
+        chosen = _r.choice(labels)
+        score  = round(_r.uniform(0.65, 0.97), 3)
+        return {
+            "classification": chosen,
+            "score": score,
+            "labels": labels,
+            "source": "mock",
+            "sql": f'SELECT default:ai_classification({{"text": $text, "labels": {labels}}}) AS result',
+        }
+
+    try:
+        cluster, QueryOptions = _capella_cluster()
+        sql = 'SELECT default:ai_classification({"text": $text, "labels": $labels}) AS result'
+        rows = list(cluster.query(sql, QueryOptions(named_parameters={"text": body.text, "labels": labels})).rows())
+        result = rows[0]["result"][0]
+        return {"classification": result.get("classification"), "score": result.get("score", 0.0),
+                "labels": labels, "source": "capella_ai_classification",
+                "sql": sql.replace("$text", f'"{body.text[:60]}"').replace("$labels", str(labels))}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ai_classification() failed: {e}")
+
+
+@app.post("/api/capella-extraction")
+async def capella_extraction(body: CapellaExtractionRequest):
+    """Extract named entities using ai_extraction()."""
+    if not body.text.strip():
+        raise HTTPException(status_code=400, detail="text is required")
+    labels = body.labels[:10] or ["person", "location", "organization", "date"]
+
+    if _MOCK_MODE:
+        import re as _re
+        mock_entities: list[dict] = []
+        if "person" in labels:
+            for name in _re.findall(r'\b[A-Z][a-z]+ [A-Z][a-z]+\b', body.text):
+                mock_entities.append({"label": "person", "text": name})
+        if "date" in labels:
+            for d in _re.findall(r'\b\d{4}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}\b', body.text):
+                mock_entities.append({"label": "date", "text": d})
+        if not mock_entities:
+            mock_entities = [{"label": labels[0], "text": "[mock entity]"}]
+        return {"entities": mock_entities, "labels": labels, "source": "mock",
+                "sql": f'SELECT default:ai_extraction({{"text": $text, "labels": {labels}}}) AS result'}
+
+    try:
+        cluster, QueryOptions = _capella_cluster()
+        sql = 'SELECT default:ai_extraction({"text": $text, "labels": $labels}) AS result'
+        rows = list(cluster.query(sql, QueryOptions(named_parameters={"text": body.text, "labels": labels})).rows())
+        entities = rows[0]["result"][0].get("entities", [])
+        return {"entities": entities, "labels": labels, "source": "capella_ai_extraction",
+                "sql": sql}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ai_extraction() failed: {e}")
+
+
+@app.post("/api/capella-translation")
+async def capella_translation(body: CapellaTranslationRequest):
+    """Translate text using ai_translation()."""
+    if not body.text.strip():
+        raise HTTPException(status_code=400, detail="text is required")
+
+    if _MOCK_MODE:
+        return {
+            "translation": f"[Mock translation to {body.to_language}] {body.text}",
+            "to_language": body.to_language,
+            "source": "mock",
+            "sql": f'SELECT default:ai_translation({{"text": $text, "to_language": "{body.to_language}"}}) AS result',
+        }
+
+    try:
+        cluster, QueryOptions = _capella_cluster()
+        sql = 'SELECT default:ai_translation({"text": $text, "to_language": $lang}) AS result'
+        rows = list(cluster.query(sql, QueryOptions(named_parameters={"text": body.text, "lang": body.to_language})).rows())
+        result = rows[0]["result"][0]
+        return {"translation": result.get("translation", ""), "to_language": body.to_language,
+                "source": "capella_ai_translation", "sql": sql}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ai_translation() failed: {e}")
+
+
+@app.post("/api/capella-masking")
+async def capella_masking(body: CapellaMaskingRequest):
+    """Mask PII using ai_masked()."""
+    if not body.text.strip():
+        raise HTTPException(status_code=400, detail="text is required")
+    labels = body.labels[:8] or ["person", "email", "phone", "location"]
+
+    if _MOCK_MODE:
+        import re as _re
+        masked = body.text
+        if "email" in labels:
+            masked = _re.sub(r'[\w.+-]+@[\w-]+\.[a-zA-Z]+', '[EMAIL]', masked)
+        if "phone" in labels:
+            masked = _re.sub(r'\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b', '[PHONE]', masked)
+        if "person" in labels:
+            masked = _re.sub(r'\b[A-Z][a-z]+ [A-Z][a-z]+\b', '[PERSON]', masked)
+        return {"masked": masked, "original": body.text, "labels": labels, "source": "mock",
+                "sql": f'SELECT default:ai_masked({{"text": $text, "labels": {labels}}}) AS result'}
+
+    try:
+        cluster, QueryOptions = _capella_cluster()
+        sql = 'SELECT default:ai_masked({"text": $text, "labels": $labels}) AS result'
+        rows = list(cluster.query(sql, QueryOptions(named_parameters={"text": body.text, "labels": labels})).rows())
+        result = rows[0]["result"][0]
+        return {"masked": result.get("masked_text", ""), "original": body.text,
+                "labels": labels, "source": "capella_ai_masked", "sql": sql}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ai_masked() failed: {e}")
+
+
+@app.post("/api/capella-similarity")
+async def capella_similarity(body: CapellaSimilarityRequest):
+    """Compute semantic similarity between two texts using ai_similarity()."""
+    if not body.text1.strip() or not body.text2.strip():
+        raise HTTPException(status_code=400, detail="text1 and text2 are required")
+
+    # Also compute cosine similarity via embeddings for comparison
+    cosine_score = None
+    try:
+        import math as _math
+        embs = await asyncio.gather(
+            client.embeddings.create(model=EMBEDDING_MODEL, input=body.text1),
+            client.embeddings.create(model=EMBEDDING_MODEL, input=body.text2),
+        )
+        v1, v2 = embs[0].data[0].embedding, embs[1].data[0].embedding
+        dot = sum(a * b for a, b in zip(v1, v2))
+        n1  = _math.sqrt(sum(a*a for a in v1))
+        n2  = _math.sqrt(sum(b*b for b in v2))
+        cosine_score = round(dot / (n1 * n2 + 1e-9), 4)
+    except Exception:
+        pass
+
+    if _MOCK_MODE:
+        import difflib as _dl
+        ratio = _dl.SequenceMatcher(None, body.text1.lower(), body.text2.lower()).ratio()
+        mock_score = round(0.3 + ratio * 0.65, 4)
+        return {"similarity": mock_score, "cosine": cosine_score, "source": "mock",
+                "sql": 'SELECT default:ai_similarity({"text1": $t1, "text2": $t2}) AS result'}
+
+    try:
+        cluster, QueryOptions = _capella_cluster()
+        sql = 'SELECT default:ai_similarity({"text1": $t1, "text2": $t2}) AS result'
+        rows = list(cluster.query(sql, QueryOptions(named_parameters={"t1": body.text1, "t2": body.text2})).rows())
+        result = rows[0]["result"][0]
+        return {"similarity": result.get("similarity", 0.0), "cosine": cosine_score,
+                "source": "capella_ai_similarity", "sql": sql}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ai_similarity() failed: {e}")
+
+
+@app.post("/api/capella-completion")
+async def capella_completion(body: CapellaCompletionRequest):
+    """Run a custom LLM prompt inside the database using ai_completion()."""
+    if not body.user_prompt.strip():
+        raise HTTPException(status_code=400, detail="user_prompt is required")
+
+    if _MOCK_MODE:
+        return {
+            "completion": f"[Mock] Response to: {body.user_prompt[:80]}",
+            "source": "mock",
+            "sql": 'SELECT default:ai_completion({"system_prompt": $sys, "user_prompt": $usr}) AS result',
+        }
+
+    try:
+        cluster, QueryOptions = _capella_cluster()
+        sql = 'SELECT default:ai_completion({"system_prompt": $sys, "user_prompt": $usr}) AS result'
+        rows = list(cluster.query(sql, QueryOptions(named_parameters={
+            "sys": body.system_prompt, "usr": body.user_prompt})).rows())
+        result = rows[0]["result"][0]
+        return {"completion": result.get("response", ""), "source": "capella_ai_completion", "sql": sql}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ai_completion() failed: {e}")
+
+
+@app.post("/api/capella-grammar")
+async def capella_grammar(body: CapellaTextRequest):
+    """Correct grammar using ai_corrected_grammar()."""
+    if not body.text.strip():
+        raise HTTPException(status_code=400, detail="text is required")
+
+    if _MOCK_MODE:
+        # Simple mock: capitalise first letter, ensure period at end
+        corrected = body.text.strip()
+        if corrected:
+            corrected = corrected[0].upper() + corrected[1:]
+        if corrected and corrected[-1] not in '.!?':
+            corrected += '.'
+        return {"corrected": corrected, "original": body.text, "source": "mock",
+                "sql": 'SELECT default:ai_corrected_grammar({"text": $text}) AS result'}
+
+    try:
+        cluster, QueryOptions = _capella_cluster()
+        sql = 'SELECT default:ai_corrected_grammar({"text": $text}) AS result'
+        rows = list(cluster.query(sql, QueryOptions(named_parameters={"text": body.text})).rows())
+        result = rows[0]["result"][0]
+        return {"corrected": result.get("corrected_text", ""), "original": body.text,
+                "source": "capella_ai_corrected_grammar", "sql": sql}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ai_corrected_grammar() failed: {e}")
+
+
+# ---------------------------------------------------------------------------
 # Vision
 # ---------------------------------------------------------------------------
 
@@ -1915,6 +2170,201 @@ async def vision(body: VisionRequest):
         "model": completion.model,
         "input_tokens": completion.usage.prompt_tokens,
         "output_tokens": completion.usage.completion_tokens,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Image Generation (DALL-E 3)
+# ---------------------------------------------------------------------------
+
+_STYLE_SUFFIXES = {
+    "photorealistic": "photorealistic, high detail, natural lighting",
+    "illustration":   "digital illustration, vibrant colors, clean lines",
+    "sketch":         "pencil sketch, hand-drawn, black and white",
+    "oil-painting":   "oil painting, textured brushstrokes, classical style",
+    "pixel-art":      "pixel art, 16-bit style, retro game aesthetic",
+}
+
+
+class ImageGenerateRequest(BaseModel):
+    prompt: str
+    style: str = ""          # key from _STYLE_SUFFIXES, or empty for no suffix
+    size: str = "1024x1024"  # "1024x1024" | "1792x1024" | "1024x1792"
+    quality: str = "standard"  # "standard" | "hd"
+
+
+@app.post("/api/image-generate")
+async def image_generate(body: ImageGenerateRequest):
+    """Generate an image with DALL-E 3.
+
+    Appends a style suffix to the prompt when a style preset is selected.
+    Returns the image URL, the revised prompt DALL-E actually used, and
+    cost/quality metadata.
+    """
+    if not body.prompt.strip():
+        raise HTTPException(status_code=400, detail="prompt is required")
+
+    size = body.size if body.size in ("1024x1024", "1792x1024", "1024x1792") else "1024x1024"
+    quality = body.quality if body.quality in ("standard", "hd") else "standard"
+
+    # Build the final prompt
+    final_prompt = body.prompt.strip()
+    if body.style and body.style in _STYLE_SUFFIXES:
+        final_prompt = f"{final_prompt}. Style: {_STYLE_SUFFIXES[body.style]}"
+
+    from openai import AsyncOpenAI as _OAI
+    _client = _OAI(
+        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
+        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
+    )
+
+    # Cost estimates (USD, approximate as of 2025)
+    _COST = {
+        ("1024x1024", "standard"): 0.040,
+        ("1024x1024", "hd"):       0.080,
+        ("1792x1024", "standard"): 0.080,
+        ("1792x1024", "hd"):       0.120,
+        ("1024x1792", "standard"): 0.080,
+        ("1024x1792", "hd"):       0.120,
+    }
+    cost = _COST.get((size, quality), 0.040)
+
+    try:
+        response = await _client.images.generate(
+            model="dall-e-3",
+            prompt=final_prompt,
+            size=size,
+            quality=quality,
+            n=1,
+        )
+        image_data = response.data[0]
+        return {
+            "url":            image_data.url,
+            "revised_prompt": image_data.revised_prompt or final_prompt,
+            "original_prompt": body.prompt,
+            "final_prompt":   final_prompt,
+            "style":          body.style,
+            "size":           size,
+            "quality":        quality,
+            "cost_usd":       cost,
+        }
+    except Exception as e:
+        err = str(e)
+        # Provide a helpful mock response when DALL-E is not available
+        if "dall-e" in err.lower() or "model" in err.lower() or "not found" in err.lower():
+            return {
+                "url":            None,
+                "revised_prompt": f"[Mock] {final_prompt} — DALL-E 3 not available in mock mode.",
+                "original_prompt": body.prompt,
+                "final_prompt":   final_prompt,
+                "style":          body.style,
+                "size":           size,
+                "quality":        quality,
+                "cost_usd":       cost,
+                "mock":           True,
+            }
+        raise HTTPException(status_code=500, detail=err)
+
+
+# ---------------------------------------------------------------------------
+# Content Moderation (OpenAI Moderation API)
+# ---------------------------------------------------------------------------
+
+class ModerationRequest(BaseModel):
+    text: str
+
+
+@app.post("/api/moderation")
+async def moderation(body: ModerationRequest):
+    """Run text through the OpenAI Moderation API.
+
+    Returns category flags and scores (0–1) for hate, harassment, self-harm,
+    sexual, and violence categories.  Also runs the same text through the
+    LLM guardrail classifier so the UI can compare both approaches.
+    """
+    if not body.text.strip():
+        raise HTTPException(status_code=400, detail="text is required")
+
+    from openai import AsyncOpenAI as _OAI
+    _client = _OAI(
+        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
+        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
+    )
+
+    # ── OpenAI Moderation API ────────────────────────────────────────────────
+    mod_result = None
+    mod_error = None
+    try:
+        mod_response = await _client.moderations.create(input=body.text)
+        result = mod_response.results[0]
+        # Flatten categories and scores into plain dicts
+        cats   = result.categories.model_dump()
+        scores = result.category_scores.model_dump()
+        mod_result = {
+            "flagged":          result.flagged,
+            "categories":       cats,
+            "category_scores":  {k: round(v, 4) for k, v in scores.items()},
+        }
+    except Exception as e:
+        mod_error = str(e)
+        # Mock fallback — deterministic based on text content
+        text_lower = body.text.lower()
+        _HARM_WORDS = {"kill", "hate", "attack", "bomb", "hurt", "violence", "harm"}
+        flagged = bool(set(text_lower.split()) & _HARM_WORDS)
+        score = 0.85 if flagged else 0.02
+        mod_result = {
+            "flagged": flagged,
+            "categories": {
+                "hate": flagged, "hate/threatening": False,
+                "harassment": flagged, "harassment/threatening": False,
+                "self-harm": False, "self-harm/intent": False, "self-harm/instructions": False,
+                "sexual": False, "sexual/minors": False,
+                "violence": flagged, "violence/graphic": False,
+            },
+            "category_scores": {
+                "hate": score if flagged else 0.01,
+                "hate/threatening": 0.001,
+                "harassment": score if flagged else 0.01,
+                "harassment/threatening": 0.001,
+                "self-harm": 0.001, "self-harm/intent": 0.001, "self-harm/instructions": 0.001,
+                "sexual": 0.001, "sexual/minors": 0.001,
+                "violence": score if flagged else 0.01, "violence/graphic": 0.001,
+            },
+            "mock": True,
+            "mock_reason": mod_error,
+        }
+
+    # ── LLM classifier (same as guardrails tab) ──────────────────────────────
+    llm_result = None
+    llm_error = None
+    try:
+        classify_system = (
+            "You are a content safety classifier. Analyse the text and return JSON with:\n"
+            '{"verdict": "safe"|"borderline"|"harmful", '
+            '"categories": ["list of triggered categories or empty"], '
+            '"confidence": 0.0-1.0, "reason": "one sentence"}'
+        )
+        llm_resp = await _client.chat.completions.create(
+            model=INFERENCE_MODEL,
+            messages=[
+                {"role": "system", "content": classify_system},
+                {"role": "user",   "content": body.text},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0,
+            max_tokens=150,
+        )
+        import json as _json
+        llm_result = _json.loads(llm_resp.choices[0].message.content)
+        llm_result["tokens"] = llm_resp.usage.total_tokens
+    except Exception as e:
+        llm_error = str(e)
+
+    return {
+        "text":        body.text,
+        "moderation":  mod_result,
+        "llm_classifier": llm_result,
+        "llm_error":   llm_error,
     }
 
 
@@ -2470,6 +2920,799 @@ async def ingest_document(body: IngestRequest):
         "stored": stored,
         "store_error": store_error,
         "chunks": chunks_preview,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Parallel Requests demo
+# ---------------------------------------------------------------------------
+
+class ParallelRequest(BaseModel):
+    prompts: list[str]
+    model: str = ""
+
+
+@app.post("/api/parallel")
+async def parallel_demo(body: ParallelRequest):
+    """Run N prompts concurrently with asyncio.gather and compare wall-clock
+    time against the estimated sequential time.
+
+    Returns per-request latency so the UI can render a timeline.
+    """
+    import time as _time
+
+    if not body.prompts:
+        raise HTTPException(status_code=400, detail="prompts list is required")
+    prompts = body.prompts[:10]   # cap at 10
+
+    model = body.model or INFERENCE_MODEL
+
+    from openai import AsyncOpenAI as _OAI
+    _client = _OAI(
+        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
+        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
+    )
+
+    async def call_one(prompt: str, idx: int) -> dict:
+        t0 = _time.perf_counter()
+        completion = await _client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=120,
+            temperature=0.7,
+        )
+        elapsed_ms = round((_time.perf_counter() - t0) * 1000)
+        return {
+            "index": idx,
+            "prompt": prompt,
+            "response": completion.choices[0].message.content.strip(),
+            "latency_ms": elapsed_ms,
+            "tokens": completion.usage.completion_tokens,
+        }
+
+    wall_start = _time.perf_counter()
+    results = await asyncio.gather(*[call_one(p, i) for i, p in enumerate(prompts)])
+    wall_ms = round((_time.perf_counter() - wall_start) * 1000)
+
+    sequential_estimate_ms = sum(r["latency_ms"] for r in results)
+
+    return {
+        "results": list(results),
+        "wall_ms": wall_ms,
+        "sequential_estimate_ms": sequential_estimate_ms,
+        "speedup": round(sequential_estimate_ms / max(wall_ms, 1), 2),
+        "model": model,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Output Format demo
+# ---------------------------------------------------------------------------
+
+_OUTPUT_FORMAT_PRESETS = {
+    "prose": (
+        "Answer in clear, flowing prose. Write 2-3 sentences. No lists, no headers."
+    ),
+    "bullets": (
+        "Answer using a bullet list only. Each bullet should be one concise point. "
+        "Use 3-5 bullets. No prose introduction."
+    ),
+    "table": (
+        "Answer using a markdown table. Include a header row. "
+        "Use columns that make sense for the topic. No prose outside the table."
+    ),
+    "json": (
+        "Answer ONLY with a valid JSON object. Choose appropriate keys. "
+        "No prose, no markdown fences — raw JSON only."
+    ),
+    "steps": (
+        "Answer as a numbered step-by-step list. Each step should be actionable. "
+        "Use 3-6 steps. No prose introduction."
+    ),
+}
+
+
+class OutputFormatRequest(BaseModel):
+    message: str
+    formats: list[str] = list(_OUTPUT_FORMAT_PRESETS.keys())
+
+
+@app.post("/api/output-format")
+async def output_format_demo(body: OutputFormatRequest):
+    """Run the same prompt through multiple output-format system prompts in parallel.
+
+    Shows how the same content can be shaped into prose, bullets, table,
+    JSON, or numbered steps purely through the system prompt.
+    """
+    if not body.message.strip():
+        raise HTTPException(status_code=400, detail="message is required")
+
+    formats = [f for f in body.formats if f in _OUTPUT_FORMAT_PRESETS][:5]
+    if not formats:
+        formats = list(_OUTPUT_FORMAT_PRESETS.keys())
+
+    from openai import AsyncOpenAI as _OAI
+    _client = _OAI(
+        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
+        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
+    )
+
+    async def call_format(fmt: str) -> dict:
+        system = _OUTPUT_FORMAT_PRESETS[fmt]
+        completion = await _client.chat.completions.create(
+            model=INFERENCE_MODEL,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user",   "content": body.message},
+            ],
+            max_tokens=300,
+            temperature=0.3,
+        )
+        return {
+            "format": fmt,
+            "system_prompt": system,
+            "response": completion.choices[0].message.content.strip(),
+            "tokens": completion.usage.completion_tokens,
+        }
+
+    results = await asyncio.gather(*[call_format(f) for f in formats])
+    return {"results": list(results), "message": body.message}
+
+
+# ---------------------------------------------------------------------------
+# Retry & Fallback demo
+# ---------------------------------------------------------------------------
+
+class RetryRequest(BaseModel):
+    message: str
+    simulate_failure: str = "none"   # "none" | "rate_limit" | "timeout" | "unavailable"
+    strategy: str = "retry"          # "none" | "retry" | "fallback"
+    primary_model: str = ""
+    fallback_model: str = ""
+
+
+@app.post("/api/retry-demo")
+async def retry_demo(body: RetryRequest):
+    """Demonstrate retry with exponential backoff and model fallback.
+
+    Simulates failure modes (rate limit, timeout, model unavailable) and
+    shows the attempt log so the UI can visualise the retry timeline.
+    """
+    import time as _time
+
+    primary = body.primary_model or INFERENCE_MODEL
+    fallback = body.fallback_model or "gpt-4o-mini"
+
+    from openai import AsyncOpenAI as _OAI, RateLimitError, APITimeoutError, APIStatusError
+    _client = _OAI(
+        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
+        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
+    )
+
+    attempt_log: list[dict] = []
+    fail_mode = body.simulate_failure
+    strategy  = body.strategy
+
+    # How many times to simulate failure before succeeding
+    _fail_count = {"rate_limit": 2, "timeout": 1, "unavailable": 3, "none": 0}
+    max_failures = _fail_count.get(fail_mode, 0)
+    failures_so_far = 0
+
+    async def call_model(model: str, attempt: int, delay_ms: int) -> dict:
+        nonlocal failures_so_far
+        t0 = _time.perf_counter()
+        entry = {
+            "attempt": attempt,
+            "model": model,
+            "delay_before_ms": delay_ms,
+            "outcome": None,
+            "error": None,
+            "latency_ms": 0,
+        }
+        # Inject simulated failure
+        if failures_so_far < max_failures and fail_mode != "none":
+            failures_so_far += 1
+            entry["latency_ms"] = round((_time.perf_counter() - t0) * 1000)
+            if fail_mode == "rate_limit":
+                entry["outcome"] = "rate_limit_429"
+                entry["error"] = "Rate limit exceeded (simulated 429)"
+            elif fail_mode == "timeout":
+                await asyncio.sleep(0.3)
+                entry["latency_ms"] = round((_time.perf_counter() - t0) * 1000)
+                entry["outcome"] = "timeout"
+                entry["error"] = "Request timed out (simulated)"
+            elif fail_mode == "unavailable":
+                entry["outcome"] = "model_unavailable"
+                entry["error"] = f"Model '{model}' not available (simulated 503)"
+            return entry, None
+
+        # Real call
+        try:
+            resp = await _client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": body.message}],
+                max_tokens=150,
+                temperature=0.7,
+            )
+            entry["latency_ms"] = round((_time.perf_counter() - t0) * 1000)
+            entry["outcome"] = "success"
+            return entry, resp.choices[0].message.content.strip()
+        except Exception as e:
+            entry["latency_ms"] = round((_time.perf_counter() - t0) * 1000)
+            entry["outcome"] = "error"
+            entry["error"] = str(e)[:120]
+            return entry, None
+
+    response_text = None
+    max_retries = 3 if strategy in ("retry", "fallback") else 1
+
+    for attempt in range(1, max_retries + 1):
+        delay_ms = 0 if attempt == 1 else int(1000 * (2 ** (attempt - 2)))  # 0, 1000, 2000
+        if delay_ms > 0:
+            await asyncio.sleep(delay_ms / 1000)
+
+        entry, text = await call_model(primary, attempt, delay_ms)
+        attempt_log.append(entry)
+
+        if text is not None:
+            response_text = text
+            break
+
+        if strategy == "none":
+            break
+
+    # Fallback to secondary model if all retries failed
+    if response_text is None and strategy == "fallback":
+        delay_ms = 0
+        entry, text = await call_model(fallback, len(attempt_log) + 1, delay_ms)
+        entry["is_fallback"] = True
+        attempt_log.append(entry)
+        if text is not None:
+            response_text = text
+
+    total_ms = sum(e["delay_before_ms"] + e["latency_ms"] for e in attempt_log)
+
+    return {
+        "message":       body.message,
+        "strategy":      strategy,
+        "simulate":      fail_mode,
+        "primary_model": primary,
+        "fallback_model": fallback,
+        "attempt_log":   attempt_log,
+        "response":      response_text,
+        "succeeded":     response_text is not None,
+        "total_ms":      total_ms,
+        "used_fallback": any(e.get("is_fallback") for e in attempt_log),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Token Budget demo
+# ---------------------------------------------------------------------------
+
+class TokenBudgetRequest(BaseModel):
+    model: str = ""
+    system_prompt: str = ""
+    history: list[dict] = []   # [{role, content}]
+    rag_context: str = ""
+    response_reserve: int = 500
+
+
+@app.post("/api/token-budget")
+async def token_budget(body: TokenBudgetRequest):
+    """Count tokens for each component of a prompt and report headroom.
+
+    Uses tiktoken to count tokens per component (system prompt, history,
+    RAG context, response reserve) and returns a budget breakdown with
+    overflow detection and truncation suggestions.
+    """
+    try:
+        import tiktoken as _tiktoken
+    except ImportError:
+        raise HTTPException(status_code=500, detail="tiktoken not installed")
+
+    model = body.model or INFERENCE_MODEL
+
+    # Map model name to tiktoken encoding
+    def _get_encoding(m: str):
+        try:
+            return _tiktoken.encoding_for_model(m)
+        except KeyError:
+            return _tiktoken.get_encoding("cl100k_base")
+
+    enc = _get_encoding(model)
+
+    def count(text: str) -> int:
+        return len(enc.encode(text)) if text else 0
+
+    # Per-message overhead (role tokens)
+    MSG_OVERHEAD = 4
+
+    system_tokens  = count(body.system_prompt) + MSG_OVERHEAD
+    history_tokens = sum(count(m.get("content", "")) + MSG_OVERHEAD for m in body.history)
+    rag_tokens     = count(body.rag_context) + (MSG_OVERHEAD if body.rag_context else 0)
+    reserve        = max(0, body.response_reserve)
+
+    # Model context windows (approximate)
+    _LIMITS = {
+        "gpt-4o":          128_000,
+        "gpt-4o-mini":     128_000,
+        "gpt-4-turbo":     128_000,
+        "gpt-4":             8_192,
+        "gpt-3.5-turbo":   16_385,
+        "o1":              200_000,
+        "o1-mini":         128_000,
+    }
+    limit = next((v for k, v in _LIMITS.items() if k in model.lower()), 128_000)
+
+    used    = system_tokens + history_tokens + rag_tokens + reserve
+    headroom = limit - used
+    overflow = headroom < 0
+
+    # Truncation suggestions
+    suggestions = []
+    if overflow:
+        if history_tokens > 2000:
+            suggestions.append("Truncate history: keep only the last 4–6 turns (sliding window)")
+        if rag_context_tokens := rag_tokens:
+            if rag_context_tokens > 3000:
+                suggestions.append("Reduce RAG context: retrieve fewer chunks or shorten each chunk")
+        if system_tokens > 500:
+            suggestions.append("Shorten system prompt: remove redundant instructions")
+        if not suggestions:
+            suggestions.append("Switch to a model with a larger context window")
+
+    return {
+        "model":   model,
+        "limit":   limit,
+        "budget": {
+            "system_prompt":    system_tokens,
+            "history":          history_tokens,
+            "rag_context":      rag_tokens,
+            "response_reserve": reserve,
+            "total_used":       used,
+            "headroom":         headroom,
+        },
+        "overflow":    overflow,
+        "suggestions": suggestions,
+        "history_turns": len(body.history),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Observability — structured LLM call tracing
+# ---------------------------------------------------------------------------
+
+import hashlib as _hashlib
+import uuid as _uuid
+
+_TRACE_STORE: list[dict] = []   # in-memory ring buffer, max 200 entries
+_TRACE_MAX = 200
+
+
+class ObservedChatRequest(BaseModel):
+    message: str
+    session_id: str = ""
+    model: str = ""
+
+
+@app.post("/api/observed-chat")
+async def observed_chat(body: ObservedChatRequest):
+    """Chat endpoint that emits a structured trace entry for every call.
+
+    Records: latency, input/output tokens, cost estimate, model,
+    prompt hash, and session ID.  Trace entries are stored in-memory
+    and retrievable via GET /api/traces.
+    """
+    import time as _time
+
+    if not body.message.strip():
+        raise HTTPException(status_code=400, detail="message is required")
+
+    model = body.model or INFERENCE_MODEL
+    session_id = body.session_id or str(_uuid.uuid4())[:8]
+    prompt_hash = _hashlib.sha256(body.message.encode()).hexdigest()[:12]
+
+    from openai import AsyncOpenAI as _OAI
+    _client = _OAI(
+        api_key=os.environ["INFERENCE_MODEL_API_KEY"],
+        base_url=os.environ.get("INFERENCE_MODEL_BASE_URL") or None,
+    )
+
+    # Cost per 1M tokens (approximate, USD)
+    _COST_PER_1M = {
+        "gpt-4o":       {"input": 2.50,  "output": 10.00},
+        "gpt-4o-mini":  {"input": 0.15,  "output": 0.60},
+        "gpt-4-turbo":  {"input": 10.00, "output": 30.00},
+        "gpt-3.5-turbo":{"input": 0.50,  "output": 1.50},
+    }
+    cost_rates = next(
+        (v for k, v in _COST_PER_1M.items() if k in model.lower()),
+        {"input": 2.50, "output": 10.00}
+    )
+
+    t0 = _time.perf_counter()
+    error_msg = None
+    response_text = ""
+    input_tokens = output_tokens = 0
+
+    try:
+        resp = await _client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": body.message}],
+            max_tokens=300,
+            temperature=0.7,
+        )
+        latency_ms = round((_time.perf_counter() - t0) * 1000)
+        response_text  = resp.choices[0].message.content.strip()
+        input_tokens   = resp.usage.prompt_tokens
+        output_tokens  = resp.usage.completion_tokens
+    except Exception as e:
+        latency_ms = round((_time.perf_counter() - t0) * 1000)
+        error_msg  = str(e)[:120]
+
+    cost_usd = (
+        input_tokens  / 1_000_000 * cost_rates["input"] +
+        output_tokens / 1_000_000 * cost_rates["output"]
+    )
+
+    trace_entry = {
+        "id":            str(_uuid.uuid4())[:8],
+        "ts":            datetime.now(timezone.utc).isoformat(),
+        "session_id":    session_id,
+        "model":         model,
+        "prompt_hash":   prompt_hash,
+        "input_tokens":  input_tokens,
+        "output_tokens": output_tokens,
+        "total_tokens":  input_tokens + output_tokens,
+        "latency_ms":    latency_ms,
+        "cost_usd":      round(cost_usd, 6),
+        "error":         error_msg,
+    }
+
+    _TRACE_STORE.append(trace_entry)
+    if len(_TRACE_STORE) > _TRACE_MAX:
+        _TRACE_STORE.pop(0)
+
+    return {
+        "response":    response_text,
+        "trace":       trace_entry,
+        "session_id":  session_id,
+    }
+
+
+@app.get("/api/traces")
+async def get_traces(session_id: str = "", limit: int = 50):
+    """Return recent trace entries, optionally filtered by session_id."""
+    entries = _TRACE_STORE[-min(limit, _TRACE_MAX):]
+    if session_id:
+        entries = [e for e in entries if e["session_id"] == session_id]
+    total_cost = sum(e["cost_usd"] for e in entries)
+    total_tokens = sum(e["total_tokens"] for e in entries)
+    return {
+        "traces":       list(reversed(entries)),
+        "total_cost_usd": round(total_cost, 6),
+        "total_tokens": total_tokens,
+        "count":        len(entries),
+    }
+
+
+@app.delete("/api/traces")
+async def clear_traces():
+    """Clear the in-memory trace store."""
+    _TRACE_STORE.clear()
+    return {"cleared": True}
+
+
+# ---------------------------------------------------------------------------
+# Metadata Filtering — hybrid metadata + vector search
+# ---------------------------------------------------------------------------
+
+class MetadataFilterRequest(BaseModel):
+    query: str
+    category: str = ""          # e.g. "api", "javascript", "css" — empty = no filter
+    filepath_prefix: str = ""   # e.g. "web/api/" — empty = no filter
+    limit: int = 6
+
+
+@app.post("/api/metadata-filter-search")
+async def metadata_filter_search(body: MetadataFilterRequest):
+    """Demonstrate hybrid metadata + vector search.
+
+    Embeds the query, then retrieves candidates via FTS vector search.
+    A post-retrieval metadata filter is applied to show the difference
+    between filtering before vs after vector retrieval.  In a real SQL++
+    ANN query the WHERE clause runs before the ANN scan (pre-filter),
+    which is more efficient.
+    """
+    import time as _time
+    from services.couchbase_service import _get_cluster
+    from couchbase.search import SearchRequest
+    from couchbase.vector_search import VectorQuery, VectorSearch
+    from couchbase.options import SearchOptions, QueryOptions
+
+    if not body.query.strip():
+        raise HTTPException(status_code=400, detail="query is required")
+
+    limit = max(1, min(body.limit, 10))
+    broad_k = limit * 3   # fetch more candidates so filtering has something to work with
+
+    embedding = await get_embedding(body.query)
+
+    # ── Unfiltered retrieval (baseline) ─────────────────────────────────────
+    unfiltered: list[dict] = []
+    latency_unfiltered_ms = 0
+    error_unfiltered = None
+    t0 = _time.perf_counter()
+    try:
+        from services.couchbase_service import _get_cluster as _gcb
+        cluster = _gcb()
+        bucket_name = os.environ["COUCHBASE_BUCKET_NAME"]
+        index_name = os.environ["COUCHBASE_SEARCH_INDEX_NAME"]
+        scope = cluster.bucket(bucket_name).scope("public")
+        search_req = SearchRequest.create(
+            VectorSearch.from_vector_query(
+                VectorQuery("vector", embedding, num_candidates=broad_k)
+            )
+        )
+        rows = scope.search(index_name, search_req,
+                            SearchOptions(limit=broad_k, fields=["filepath", "content", "title"]))
+        for row in rows.rows():
+            f = row.fields or {}
+            unfiltered.append({
+                "id": row.id,
+                "filepath": f.get("filepath", ""),
+                "title": f.get("title", ""),
+                "content": (f.get("content", "") or "")[:200],
+                "score": round(row.score, 4),
+            })
+    except Exception as e:
+        error_unfiltered = str(e)
+        # Mock fallback
+        unfiltered = [
+            {"id": f"mock-doc-{i+1}", "filepath": fp, "title": t,
+             "content": c[:200], "score": round(0.95 - i * 0.05, 4)}
+            for i, (fp, t, c) in enumerate([
+                ("web/api/fetch/index.md", "Fetch API",
+                 "The Fetch API provides a JavaScript interface for making HTTP requests."),
+                ("web/javascript/reference/statements/let/index.md", "let declaration",
+                 "The let declaration declares a block-scoped local variable."),
+                ("web/css/box_model/index.md", "CSS Box Model",
+                 "The CSS box model describes the rectangular boxes generated for elements."),
+                ("web/api/web_workers_api/index.md", "Web Workers",
+                 "Web Workers allow JavaScript to run in background threads."),
+                ("web/javascript/reference/global_objects/promise/index.md", "Promise",
+                 "A Promise represents the eventual completion or failure of an async operation."),
+                ("web/api/canvas_api/index.md", "Canvas API",
+                 "The Canvas API provides a means for drawing graphics via JavaScript."),
+            ])
+        ]
+    latency_unfiltered_ms = round((_time.perf_counter() - t0) * 1000)
+
+    # ── Apply metadata filter (post-filter on the broad result set) ──────────
+    # In production this would be a SQL++ WHERE clause (pre-filter).
+    def matches_filter(doc: dict) -> bool:
+        fp = doc.get("filepath", "").lower()
+        if body.category:
+            cat = body.category.lower()
+            # Map category to filepath segment
+            cat_map = {
+                "api":        "web/api/",
+                "javascript": "web/javascript/",
+                "css":        "web/css/",
+                "html":       "web/html/",
+            }
+            prefix = cat_map.get(cat, cat)
+            if prefix not in fp:
+                return False
+        if body.filepath_prefix:
+            if not fp.startswith(body.filepath_prefix.lower()):
+                return False
+        return True
+
+    filtered = [d for d in unfiltered if matches_filter(d)][:limit]
+    excluded = [d for d in unfiltered if not matches_filter(d)]
+
+    # ── SQL++ equivalent (for display) ──────────────────────────────────────
+    where_clauses = []
+    if body.category:
+        cat_map = {"api": "web/api/", "javascript": "web/javascript/",
+                   "css": "web/css/", "html": "web/html/"}
+        prefix = cat_map.get(body.category.lower(), body.category.lower())
+        where_clauses.append(f'CONTAINS(LOWER(d.filepath), "{prefix}")')
+    if body.filepath_prefix:
+        where_clauses.append(f'LOWER(d.filepath) LIKE "{body.filepath_prefix.lower()}%"')
+    where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else "-- no filter applied"
+
+    sql_example = f"""SELECT META(d).id, d.filepath, d.content,
+       ANN_DISTANCE(d.vector, $embedding, "L2") AS score
+FROM `bucket`.`public`.`documentation` AS d
+{where_sql}
+ORDER BY ANN_DISTANCE(d.vector, $embedding, "L2")
+LIMIT {limit};"""
+
+    return {
+        "query": body.query,
+        "filters": {
+            "category": body.category,
+            "filepath_prefix": body.filepath_prefix,
+        },
+        "unfiltered": {
+            "results": unfiltered[:limit],
+            "total_candidates": len(unfiltered),
+            "latency_ms": latency_unfiltered_ms,
+            "error": error_unfiltered,
+        },
+        "filtered": {
+            "results": filtered,
+            "total_matched": len(filtered),
+            "total_excluded": len(excluded),
+            "excluded_previews": [{"id": d["id"], "filepath": d["filepath"]} for d in excluded[:4]],
+        },
+        "sql_example": sql_example,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Multi-Vector (Parent-Child) Retrieval
+# ---------------------------------------------------------------------------
+
+class MultiVectorRequest(BaseModel):
+    query: str
+    text: str = ""   # optional: ingest this text as parent-child chunks on the fly
+    parent_size: int = 200   # words per parent chunk
+    child_size: int = 50     # words per child chunk
+
+
+# In-memory store for the demo (keyed by a session-scoped hash)
+_MULTI_VECTOR_STORE: dict[str, dict] = {}   # child_id → {content, parent_id, vector}
+_MULTI_VECTOR_PARENTS: dict[str, dict] = {} # parent_id → {content, children: [child_id]}
+
+
+@app.post("/api/multi-vector-search")
+async def multi_vector_search(body: MultiVectorRequest):
+    """Demonstrate parent-child (multi-vector) chunking and retrieval.
+
+    Small child chunks are embedded for precise retrieval.  When a child
+    matches the query, its parent chunk (larger context window) is returned
+    as the context for the LLM.  This avoids the chunk-size dilemma: small
+    chunks for retrieval precision, large chunks for answer quality.
+    """
+    import time as _time, math as _math, hashlib as _hashlib
+
+    if not body.query.strip():
+        raise HTTPException(status_code=400, detail="query is required")
+
+    # ── Ingest sample text if provided (or use built-in demo corpus) ─────────
+    sample_text = body.text.strip() or (
+        "The Fetch API provides a JavaScript interface for accessing and manipulating parts of the "
+        "HTTP pipeline, such as requests and responses. It also provides a global fetch() method "
+        "that provides an easy, logical way to fetch resources asynchronously across the network. "
+        "Unlike XMLHttpRequest, the Fetch API uses Promises, which enables a simpler and cleaner "
+        "API, avoiding callback hell and having to remember the complex API of XMLHttpRequest. "
+        "The fetch() method takes one mandatory argument, the path to the resource you want to "
+        "fetch. It returns a Promise that resolves to the Response to that request. You can also "
+        "optionally pass an init options object as the second argument. Once a Response is "
+        "retrieved, there are a number of methods available to define what the body content is "
+        "and how it should be handled. You can create a request and response directly using the "
+        "Request() and Response() constructors, but it is uncommon to do this directly. Instead, "
+        "these are more likely to be created as results of other API actions, for example "
+        "FetchEvent.respondWith() from service workers. The Fetch API is intentionally low-level "
+        "and does not handle things like CORS preflight requests automatically in all cases. "
+        "Promises make it easy to chain fetch calls and handle errors in a clean way using "
+        ".then() and .catch() or async/await syntax. The Response object has properties like "
+        "status, statusText, headers, and body. You can check response.ok to see if the request "
+        "succeeded. Common response methods include response.json(), response.text(), and "
+        "response.blob() for different content types."
+    )
+
+    parent_size = max(50, min(body.parent_size, 500))
+    child_size = max(20, min(body.child_size, parent_size // 2))
+
+    # Build parent chunks
+    words = sample_text.split()
+    parents: list[dict] = []
+    i = 0
+    while i < len(words):
+        chunk = " ".join(words[i: i + parent_size])
+        pid = f"parent-{i // parent_size}"
+        parents.append({"id": pid, "content": chunk, "start_word": i,
+                        "word_count": len(chunk.split())})
+        i += parent_size
+
+    # Build child chunks (subdivide each parent)
+    children: list[dict] = []
+    for parent in parents:
+        p_words = parent["content"].split()
+        j = 0
+        child_idx = 0
+        while j < len(p_words):
+            chunk = " ".join(p_words[j: j + child_size])
+            cid = f"{parent['id']}-child-{child_idx}"
+            children.append({"id": cid, "content": chunk, "parent_id": parent["id"],
+                             "word_count": len(chunk.split())})
+            j += child_size
+            child_idx += 1
+
+    # Embed query + all children concurrently
+    t0 = _time.perf_counter()
+    all_texts = [body.query] + [c["content"] for c in children]
+    try:
+        embeddings = await asyncio.gather(
+            *[client.embeddings.create(model=EMBEDDING_MODEL, input=t) for t in all_texts]
+        )
+        vectors = [e.data[0].embedding for e in embeddings]
+    except Exception:
+        # Deterministic mock fallback
+        import hashlib as _h, math as _m
+        def _mock_embed(text: str) -> list[float]:
+            seed = int(_h.sha256(text.encode()).hexdigest(), 16)
+            vec = []
+            for _ in range(1536):
+                seed = (seed * 6364136223846793005 + 1442695040888963407) & 0xFFFFFFFFFFFFFFFF
+                vec.append((seed / 0xFFFFFFFFFFFFFFFF) * 2 - 1)
+            mag = _m.sqrt(sum(x*x for x in vec))
+            return [x / mag for x in vec]
+        vectors = [_mock_embed(t) for t in all_texts]
+
+    embed_ms = round((_time.perf_counter() - t0) * 1000)
+
+    query_vec = vectors[0]
+    child_vecs = vectors[1:]
+
+    # Cosine similarity
+    def cosine(a: list[float], b: list[float]) -> float:
+        dot = sum(x * y for x, y in zip(a, b))
+        na = _math.sqrt(sum(x*x for x in a))
+        nb = _math.sqrt(sum(x*x for x in b))
+        return dot / (na * nb + 1e-9)
+
+    # Score each child
+    scored_children = sorted(
+        [{"child": c, "score": round(cosine(query_vec, child_vecs[i]), 4)}
+         for i, c in enumerate(children)],
+        key=lambda x: x["score"], reverse=True
+    )
+
+    # Top-k children → fetch their parents (deduplicated)
+    top_k = 3
+    top_children = scored_children[:top_k]
+    seen_parents: set[str] = set()
+    retrieved_parents: list[dict] = []
+    for item in top_children:
+        pid = item["child"]["parent_id"]
+        if pid not in seen_parents:
+            seen_parents.add(pid)
+            parent = next(p for p in parents if p["id"] == pid)
+            retrieved_parents.append(parent)
+
+    return {
+        "query": body.query,
+        "corpus_stats": {
+            "total_words": len(words),
+            "parent_count": len(parents),
+            "child_count": len(children),
+            "parent_size_words": parent_size,
+            "child_size_words": child_size,
+            "embed_ms": embed_ms,
+        },
+        "parents": [
+            {"id": p["id"], "content": p["content"], "word_count": p["word_count"],
+             "child_ids": [c["id"] for c in children if c["parent_id"] == p["id"]]}
+            for p in parents
+        ],
+        "children": [
+            {"id": c["id"], "content": c["content"], "parent_id": c["parent_id"],
+             "word_count": c["word_count"],
+             "score": next((s["score"] for s in scored_children if s["child"]["id"] == c["id"]), 0.0)}
+            for c in children
+        ],
+        "top_children": [
+            {"id": item["child"]["id"], "content": item["child"]["content"],
+             "parent_id": item["child"]["parent_id"], "score": item["score"]}
+            for item in top_children
+        ],
+        "retrieved_parents": retrieved_parents,
     }
 
 

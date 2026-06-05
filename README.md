@@ -868,6 +868,22 @@ What works in mock mode:
 | LLM-as-Judge | ✅ | Returns fixed scores (faithfulness 4, relevance 4, completeness 3) |
 | Summarisation | ✅ | Per-chunk and final summaries are mock text |
 | Token Counter | ✅ | Uses tiktoken locally — no API call needed at all |
+| Metadata Filtering | ✅ | Returns stub docs filtered by mock category/date |
+| Multi-Vector Search | ✅ | Returns stub results for dense + sparse + hybrid modes |
+| Parallel Requests | ✅ | Runs 3 mock completions concurrently |
+| Output Format | ✅ | Returns mock JSON, markdown, and plain text variants |
+| Image Generation | ✅ | Returns `mock: true` notice instead of a real image |
+| Moderation | ✅ | Returns fixed category scores |
+| Retry Demo | ✅ | Simulates transient failures and exponential back-off |
+| Token Budget | ✅ | Counts tokens locally with tiktoken; mock completion returned |
+| Observability | ✅ | Records mock traces in-memory; trace list endpoint works |
+| Capella Classification | ✅ | Heuristic label returned without a real DB connection |
+| Capella Extraction | ✅ | Regex-based entity extraction fallback |
+| Capella Translation | ✅ | Returns `[MOCK TRANSLATION]` prefix response |
+| Capella Masking | ✅ | Regex PII masking applied locally |
+| Capella Similarity | ✅ | Returns fixed similarity score (0.87) |
+| Capella Completion | ✅ | Returns mock completion text |
+| Capella Grammar | ✅ | Returns lightly corrected mock text |
 
 > **Note:** Embeddings in mock mode are deterministic but not semantically
 > meaningful. Cosine similarity scores in the Embeddings Explorer will not
