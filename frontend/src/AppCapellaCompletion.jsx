@@ -3,6 +3,7 @@ import './App.css'
 import './CapellaTab.css'
 import CapellaTab from './CapellaTab'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
+import CapellaDiyBanner from './components/CapellaDiyBanner'
 
 const PRESETS = [
   { label: 'Product description', system: 'You are a product copywriter. Write a compelling 2-sentence product description.', user: 'A wireless ergonomic keyboard with backlit keys and 6-month battery life.' },
@@ -48,6 +49,7 @@ export default function AppCapellaCompletion() {
     <div className="app">
       <CapellaTab endpoint="/api/capella-completion" buildBody={() => ({ system_prompt: system, user_prompt: user })}
         renderControls={renderControls} renderResult={renderResult} examples={[]}
+        banner={<CapellaDiyBanner diyTab="rag" diyLabel="RAG Pipeline" replaces="build prompt string → POST to LLM API" />}
         placeholder={<div className="cap-placeholder"><p><code>ai_completion()</code> is the escape hatch — run any custom system+user prompt from inside SQL++. Use it for tasks not covered by the other AI Functions.</p></div>} />
     </div>
   )

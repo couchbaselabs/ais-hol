@@ -3,6 +3,7 @@ import './App.css'
 import './CapellaTab.css'
 import CapellaTab from './CapellaTab'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
+import CapellaDiyBanner from './components/CapellaDiyBanner'
 
 const EXAMPLES = [
   'Contact John Smith at john.smith@example.com or call 555-867-5309.',
@@ -66,6 +67,7 @@ export default function AppCapellaMasking() {
     <div className="app">
       <CapellaTab endpoint="/api/capella-masking" buildBody={() => ({ text, labels })}
         renderControls={renderControls} renderResult={renderResult} examples={EXAMPLES}
+        banner={<CapellaDiyBanner diyTab={null} diyLabel={null} replaces="regex + NER model + manual redaction logic" />}
         placeholder={<div className="cap-placeholder"><p><code>ai_masked()</code> replaces PII with placeholders before data leaves the database — useful for GDPR compliance and audit logging.</p></div>} />
     </div>
   )

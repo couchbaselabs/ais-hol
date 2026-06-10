@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppCapellaSummarise.css'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
+import CapellaDiyBanner from './components/CapellaDiyBanner'
 
 const EXAMPLES = [
   `The World Wide Web was invented by Tim Berners-Lee at CERN in 1989. It opened to the public in 1991 and has since become the world's dominant software platform. Documents are accessed via HTTP using URLs, and web pages are written in HTML. CSS and JavaScript are the other two core technologies of the web. As of 2023, 98.7% of websites use JavaScript on the client side.`,
@@ -51,6 +52,11 @@ export default function AppCapellaSummarise() {
 
   return (
     <div className="app capella-summarise-app">
+      <CapellaDiyBanner
+        diyTab="summarise"
+        diyLabel="Summarisation"
+        replaces="map-reduce LLM summarisation pipeline"
+      />
       <div className="capella-layout">
         {/* Input */}
         <div className="capella-input-panel">

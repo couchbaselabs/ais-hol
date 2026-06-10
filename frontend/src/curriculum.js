@@ -135,6 +135,8 @@ export const MODULES = [
     icon: '🗄️',
     level: 'advanced',
     tabs: [
+      { id: 'capella-intro',           label: '🗄️ Introduction' },
+      { id: 'capella-service',         label: '🗄️ Capella as a Service' },
       { id: 'capella-summarise',       label: '🗄️ AI Summarisation' },
       { id: 'capella-sentiment',        label: '🗄️ AI Sentiment' },
       { id: 'capella-classification',   label: '🗄️ AI Classification' },
@@ -144,6 +146,8 @@ export const MODULES = [
       { id: 'capella-similarity',       label: '🗄️ AI Similarity' },
       { id: 'capella-completion',       label: '🗄️ AI Completion' },
       { id: 'capella-grammar',          label: '🗄️ AI Grammar' },
+      { id: 'capella-model-service',    label: '🗄️ Model Service' },
+      { id: 'capella-ingestion',        label: '🗄️ Ingestion Pipeline' },
     ],
   },
 ]

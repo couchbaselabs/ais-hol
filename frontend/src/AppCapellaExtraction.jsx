@@ -3,6 +3,7 @@ import './App.css'
 import './CapellaTab.css'
 import CapellaTab from './CapellaTab'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
+import CapellaDiyBanner from './components/CapellaDiyBanner'
 
 const EXAMPLES = [
   'John Smith met with Apple CEO Tim Cook in San Francisco on March 15, 2024.',
@@ -79,6 +80,7 @@ export default function AppCapellaExtraction() {
     <div className="app">
       <CapellaTab endpoint="/api/capella-extraction" buildBody={() => ({ text, labels })}
         renderControls={renderControls} renderResult={renderResult} examples={EXAMPLES}
+        banner={<CapellaDiyBanner diyTab="structured" diyLabel="Structured Output" replaces="LLM call with JSON schema prompt + manual parse" />}
         placeholder={<div className="cap-placeholder"><p><code>ai_extraction()</code> finds named entities in text — persons, locations, organisations, dates, and any custom type you define.</p></div>} />
     </div>
   )

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import './App.css'
 import './AppCapellaSentiment.css'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
+import CapellaDiyBanner from './components/CapellaDiyBanner'
 
 const SENTIMENT_STYLE = {
   positive: { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0', bar: '#22c55e' },
@@ -71,6 +72,11 @@ export default function AppCapellaSentiment() {
 
   return (
     <div className="app capella-sentiment-app">
+      <CapellaDiyBanner
+        diyTab="moderation"
+        diyLabel="Moderation"
+        replaces="OpenAI moderation API call + response parsing"
+      />
       <div className="capella-layout">
         {/* Input */}
         <div className="capella-input-panel">

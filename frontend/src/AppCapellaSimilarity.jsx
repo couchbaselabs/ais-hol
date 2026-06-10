@@ -3,6 +3,7 @@ import './App.css'
 import './CapellaTab.css'
 import CapellaTab from './CapellaTab'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
+import CapellaDiyBanner from './components/CapellaDiyBanner'
 
 const EXAMPLE_PAIRS = [
   ['The cat sat on the mat.', 'A feline rested on the rug.'],
@@ -74,6 +75,7 @@ export default function AppCapellaSimilarity() {
     <div className="app">
       <CapellaTab endpoint="/api/capella-similarity" buildBody={() => ({ text1, text2 })}
         renderControls={renderControls} renderResult={renderResult} examples={[]}
+        banner={<CapellaDiyBanner diyTab="cached" diyLabel="Semantic Cache" replaces="embed query → ANN search → threshold check" />}
         placeholder={<div className="cap-placeholder"><p><code>ai_similarity()</code> scores semantic similarity between two texts (0–1) from inside SQL++. Compare it with embedding cosine similarity to see how they differ.</p></div>} />
     </div>
   )

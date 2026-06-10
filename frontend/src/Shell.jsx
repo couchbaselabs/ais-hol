@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import InfoPanel from './components/InfoPanel'
@@ -17,6 +17,10 @@ import AppChatHyde from './AppChatHyde'
 import AppChatEvaluate from './AppChatEvaluate'
 import AppSummarise from './AppSummarise'
 import AppTokens from './AppTokens'
+import AppCapellaIntro from './AppCapellaIntro'
+import AppCapellaModelService from './AppCapellaModelService'
+import AppCapellaIngestion from './AppCapellaIngestion'
+import AppCapellaService from './AppCapellaService'
 import AppCapellaSummarise from './AppCapellaSummarise'
 import AppCapellaSentiment from './AppCapellaSentiment'
 import AppCapellaClassification from './AppCapellaClassification'
@@ -59,6 +63,12 @@ import AppObservability      from './AppObservability'
 function Shell() {
   const [activeTab, setActiveTab] = useState('chat')
 
+  useEffect(() => {
+    const handler = (e) => setActiveTab(e.detail)
+    window.addEventListener('shell:navigate', handler)
+    return () => window.removeEventListener('shell:navigate', handler)
+  }, [])
+
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header />
@@ -79,6 +89,8 @@ function Shell() {
         {activeTab === 'evaluate'   && <AppChatEvaluate   key="evaluate"   />}
         {activeTab === 'summarise'  && <AppSummarise      key="summarise"  />}
         {activeTab === 'tokens'            && <AppTokens          key="tokens"            />}
+        {activeTab === 'capella-intro'          && <AppCapellaIntro          key="capella-intro" />}
+        {activeTab === 'capella-service'        && <AppCapellaService        key="capella-service" />}
         {activeTab === 'capella-summarise'     && <AppCapellaSummarise     key="capella-summarise" />}
         {activeTab === 'capella-sentiment'      && <AppCapellaSentiment      key="capella-sentiment" />}
         {activeTab === 'capella-classification' && <AppCapellaClassification key="capella-classification" />}
@@ -88,6 +100,8 @@ function Shell() {
         {activeTab === 'capella-similarity'     && <AppCapellaSimilarity     key="capella-similarity" />}
         {activeTab === 'capella-completion'     && <AppCapellaCompletion     key="capella-completion" />}
         {activeTab === 'capella-grammar'        && <AppCapellaGrammar        key="capella-grammar" />}
+        {activeTab === 'capella-model-service'  && <AppCapellaModelService   key="capella-model-service" />}
+        {activeTab === 'capella-ingestion'      && <AppCapellaIngestion      key="capella-ingestion" />}
         {activeTab === 'temperature'       && <AppTemperature      key="temperature"       />}
         {activeTab === 'tool-calling'      && <AppToolCalling      key="tool-calling"      />}
         {activeTab === 'context-window'    && <AppContextWindow    key="context-window"    />}

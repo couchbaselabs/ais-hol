@@ -3,6 +3,7 @@ import './App.css'
 import './CapellaTab.css'
 import CapellaTab from './CapellaTab'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
+import CapellaDiyBanner from './components/CapellaDiyBanner'
 
 const EXAMPLES = [
   'their going to the store tomorrow',
@@ -73,6 +74,7 @@ export default function AppCapellaGrammar() {
     <div className="app">
       <CapellaTab endpoint="/api/capella-grammar" buildBody={() => ({ text })}
         renderControls={renderControls} renderResult={renderResult} examples={EXAMPLES}
+        banner={<CapellaDiyBanner diyTab={null} diyLabel={null} replaces="LLM call with grammar correction prompt" />}
         placeholder={<div className="cap-placeholder"><p><code>ai_corrected_grammar()</code> fixes grammar errors in text from inside SQL++. Useful for cleaning user-generated content before storage or display. Corrections are highlighted in green.</p></div>} />
     </div>
   )

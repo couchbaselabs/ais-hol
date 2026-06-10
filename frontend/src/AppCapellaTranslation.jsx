@@ -3,6 +3,7 @@ import './App.css'
 import './CapellaTab.css'
 import CapellaTab from './CapellaTab'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
+import CapellaDiyBanner from './components/CapellaDiyBanner'
 
 const EXAMPLES = [
   'The quick brown fox jumps over the lazy dog.',
@@ -56,6 +57,7 @@ export default function AppCapellaTranslation() {
     <div className="app">
       <CapellaTab endpoint="/api/capella-translation" buildBody={() => ({ text, to_language: lang })}
         renderControls={renderControls} renderResult={renderResult} examples={EXAMPLES}
+        banner={<CapellaDiyBanner diyTab={null} diyLabel={null} replaces="LLM call with 'translate to X' prompt" />}
         placeholder={<div className="cap-placeholder"><p><code>ai_translation()</code> translates text to any target language from inside a SQL++ query — no application-side translation library needed.</p></div>} />
     </div>
   )

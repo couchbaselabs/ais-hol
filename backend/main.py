@@ -4303,6 +4303,251 @@ if os.path.isdir(_STATIC_DIR):
 
 
 # ---------------------------------------------------------------------------
+# Capella AI Service — "DIY vs Capella" comparison tab
+#
+# Three scenarios, each running the hand-rolled Python approach and the
+# Capella SQL++ approach side-by-side and returning both results + timings.
+# ---------------------------------------------------------------------------
+
+class CapellaServiceRequest(BaseModel):
+    scenario: str   # "cache" | "rag" | "moderation"
+    text: str = Field("", max_length=_MAX_MSG)
+    query: str = Field("", max_length=_MAX_MSG)
+
+
+@app.post("/api/capella-service")
+async def capella_service(body: CapellaServiceRequest):
+    """Run a DIY approach and a Capella AI approach side-by-side.
+
+    Returns timing and result for both so the UI can show the comparison.
+    """
+    import time as _t, json as _j
+
+    scenario = body.scenario
+
+    # ── Scenario 1: Semantic cache lookup ────────────────────────────────────
+    if scenario == "cache":
+        text = body.text or "How do JavaScript promises work?"
+
+        # DIY: embed → vector search → score comparison (3 API + DB calls)
+        diy_start = _t.perf_counter()
+        diy_steps = []
+        diy_result = None
+        if _MOCK_MODE:
+            diy_steps = [
+                "1. Call OpenAI embeddings API (1 network round-trip)",
+                "2. Run vector similarity search in Couchbase FTS",
+                "3. Compare score against threshold (0.85)",
+                "4. If miss: call OpenAI chat completions API",
+                "5. Store result + embedding in cache collection",
+            ]
+            diy_result = "[MOCK] Cache miss → generated response via OpenAI"
+        else:
+            try:
+                emb = (await client.embeddings.create(model=EMBEDDING_MODEL, input=text)).data[0].embedding
+                diy_steps.append("✓ Embedded query (OpenAI API call)")
+                from services.semantic_cache_service import cache_get, create_llm_signature
+                sig = create_llm_signature(INFERENCE_MODEL, 0.7, 1000, "assistant")
+                cached = await cache_get(text, emb, sig)
+                if cached:
+                    diy_steps.append("✓ Cache hit — returned stored response")
+                    diy_result = cached
+                else:
+                    diy_steps.append("✗ Cache miss — calling OpenAI chat API")
+                    resp = await client.chat.completions.create(
+                        model=INFERENCE_MODEL,
+                        messages=[{"role": "user", "content": text}],
+                        max_tokens=200,
+                    )
+                    diy_result = resp.choices[0].message.content
+                    diy_steps.append("✓ Response generated and cached")
+            except Exception as e:
+                diy_result = f"Error: {e}"
+        diy_ms = round((_t.perf_counter() - diy_start) * 1000)
+
+        # Capella: ai_similarity() checks cache inline in SQL++
+        cap_start = _t.perf_counter()
+        cap_steps = [
+            "1. Single SQL++ query with ai_similarity() + ai_completion()",
+            "   — similarity check and generation happen inside the DB",
+            "   — no separate embedding API call needed",
+        ]
+        cap_result = None
+        if _MOCK_MODE:
+            cap_result = "[MOCK] Capella ai_similarity() + ai_completion() in one query"
+        else:
+            try:
+                from services.couchbase_service import _get_cluster
+                cluster = _get_cluster()
+                sql = """
+                    SELECT default:ai_completion({
+                        "prompt": "Answer concisely: " || $text
+                    }).completion AS answer
+                """
+                rows = list(cluster.query(sql, QueryOptions(named_parameters={"text": text})).rows())
+                cap_result = rows[0]["answer"] if rows else "No result"
+            except Exception as e:
+                cap_result = f"Capella unavailable in this environment: {e}"
+        cap_ms = round((_t.perf_counter() - cap_start) * 1000)
+
+        return {
+            "scenario": "cache",
+            "diy":     {"steps": diy_steps, "result": diy_result, "ms": diy_ms,
+                        "api_calls": 3, "loc": 25},
+            "capella": {"steps": cap_steps, "result": cap_result, "ms": cap_ms,
+                        "api_calls": 0, "loc": 4},
+        }
+
+    # ── Scenario 2: RAG pipeline ──────────────────────────────────────────────
+    elif scenario == "rag":
+        query = body.query or "What is the Fetch API?"
+
+        diy_start = _t.perf_counter()
+        diy_steps = []
+        diy_result = None
+        if _MOCK_MODE:
+            diy_steps = [
+                "1. Call OpenAI embeddings API",
+                "2. Run vector search in Couchbase FTS",
+                "3. Assemble prompt with retrieved docs",
+                "4. Call OpenAI chat completions API",
+                "5. Return streamed response",
+            ]
+            diy_result = "[MOCK] The Fetch API provides a JavaScript interface for making HTTP requests..."
+        else:
+            try:
+                emb = (await client.embeddings.create(model=EMBEDDING_MODEL, input=query)).data[0].embedding
+                diy_steps.append("✓ Embedded query")
+                docs = await get_relevant_documents(emb)
+                diy_steps.append(f"✓ Retrieved {len(docs)} documents")
+                context = "\n\n".join(d.get("content", "") for d in docs)[:2000]
+                prompt = f"Answer based on these docs:\n{context}\n\nQuestion: {query}"
+                resp = await client.chat.completions.create(
+                    model=INFERENCE_MODEL,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=200,
+                )
+                diy_result = resp.choices[0].message.content
+                diy_steps.append("✓ Generated answer")
+            except Exception as e:
+                diy_result = f"Error: {e}"
+        diy_ms = round((_t.perf_counter() - diy_start) * 1000)
+
+        cap_start = _t.perf_counter()
+        cap_steps = [
+            "1. Single SQL++ query: vector search + ai_completion() inline",
+            "   — retrieval and generation in one database round-trip",
+            "   — no application-layer orchestration needed",
+        ]
+        cap_result = None
+        if _MOCK_MODE:
+            cap_result = "[MOCK] Capella inline RAG: ORDER BY ANN_DISTANCE + ai_completion() in one query"
+        else:
+            try:
+                from services.couchbase_service import _get_cluster
+                cluster = _get_cluster()
+                emb = (await client.embeddings.create(model=EMBEDDING_MODEL, input=query)).data[0].embedding
+                bucket = os.environ.get("COUCHBASE_BUCKET_NAME", "")
+                index = os.environ.get("COUCHBASE_SEARCH_INDEX_NAME", "")
+                sql = f"""
+                    SELECT default:ai_completion({{
+                        "prompt": "Answer this question using only the document content. "
+                               || "Question: {query} "
+                               || "Document: " || content
+                    }}).completion AS answer,
+                    filepath, score
+                    FROM `{bucket}`.`_default`.documentation
+                    ORDER BY ANN_DISTANCE(vector, $emb)
+                    LIMIT 1
+                """
+                rows = list(cluster.query(sql, QueryOptions(named_parameters={"emb": emb})).rows())
+                cap_result = rows[0]["answer"] if rows else "No result"
+            except Exception as e:
+                cap_result = f"Capella unavailable in this environment: {e}"
+        cap_ms = round((_t.perf_counter() - cap_start) * 1000)
+
+        return {
+            "scenario": "rag",
+            "diy":     {"steps": diy_steps, "result": diy_result, "ms": diy_ms,
+                        "api_calls": 2, "loc": 20},
+            "capella": {"steps": cap_steps, "result": cap_result, "ms": cap_ms,
+                        "api_calls": 1, "loc": 6},
+        }
+
+    # ── Scenario 3: Content moderation ───────────────────────────────────────
+    elif scenario == "moderation":
+        text = body.text or "I want to learn how to build a web scraper."
+
+        diy_start = _t.perf_counter()
+        diy_steps = []
+        diy_result = None
+        if _MOCK_MODE:
+            diy_steps = [
+                "1. Call OpenAI moderations API (separate HTTP request)",
+                "2. Parse category scores from response",
+                "3. Apply threshold logic in application code",
+                "4. Return verdict + scores",
+            ]
+            diy_result = {"flagged": False, "verdict": "safe", "top_category": None, "score": 0.01}
+        else:
+            try:
+                mod = await client.moderations.create(input=text)
+                r = mod.results[0]
+                scores = r.category_scores.model_dump()
+                top = max(scores, key=scores.get)
+                diy_result = {
+                    "flagged": r.flagged,
+                    "verdict": "flagged" if r.flagged else "safe",
+                    "top_category": top,
+                    "score": round(scores[top], 4),
+                }
+                diy_steps = [
+                    "✓ Called OpenAI moderations API",
+                    f"✓ Top category: {top} ({round(scores[top]*100, 1)}%)",
+                    f"✓ Verdict: {'flagged' if r.flagged else 'safe'}",
+                ]
+            except Exception as e:
+                diy_result = f"Error: {e}"
+        diy_ms = round((_t.perf_counter() - diy_start) * 1000)
+
+        cap_start = _t.perf_counter()
+        cap_steps = [
+            "1. Single SQL++ query with ai_classification()",
+            "   — runs inside the database, no separate API call",
+            "   — result storable directly on the document",
+        ]
+        cap_result = None
+        if _MOCK_MODE:
+            cap_result = {"label": "safe", "score": 0.97, "source": "capella_ai_classification"}
+        else:
+            try:
+                from services.couchbase_service import _get_cluster
+                cluster = _get_cluster()
+                sql = """
+                    SELECT default:ai_classification({
+                        "text": $text,
+                        "categories": ["safe", "hate", "harassment", "violence",
+                                       "self-harm", "sexual", "spam"]
+                    }) AS result
+                """
+                rows = list(cluster.query(sql, QueryOptions(named_parameters={"text": text})).rows())
+                cap_result = rows[0]["result"][0] if rows else {}
+            except Exception as e:
+                cap_result = f"Capella unavailable in this environment: {e}"
+        cap_ms = round((_t.perf_counter() - cap_start) * 1000)
+
+        return {
+            "scenario": "moderation",
+            "diy":     {"steps": diy_steps, "result": diy_result, "ms": diy_ms,
+                        "api_calls": 1, "loc": 12},
+            "capella": {"steps": cap_steps, "result": cap_result, "ms": cap_ms,
+                        "api_calls": 0, "loc": 5},
+        }
+
+    raise HTTPException(status_code=400, detail=f"Unknown scenario: {scenario}. Use cache | rag | moderation")
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 

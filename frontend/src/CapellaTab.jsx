@@ -23,6 +23,7 @@ export default function CapellaTab({
   examples = [],
   placeholder,
   onQuestion,
+  banner,
 }) {
   const [result, setResult]   = useState(null)
   const [loading, setLoading] = useState(false)
@@ -52,6 +53,7 @@ export default function CapellaTab({
 
   return (
     <div className="cap-tab">
+      {banner}
       {renderControls(run, loading, examples, onQuestion)}
       {error && <div className="cap-error">{error}</div>}
       {result ? (

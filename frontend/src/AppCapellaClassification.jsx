@@ -3,6 +3,7 @@ import './App.css'
 import './CapellaTab.css'
 import CapellaTab from './CapellaTab'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
+import CapellaDiyBanner from './components/CapellaDiyBanner'
 
 const EXAMPLES = [
   'The new product launch exceeded all expectations.',
@@ -82,6 +83,7 @@ export default function AppCapellaClassification() {
     <div className="app">
       <CapellaTab
         endpoint="/api/capella-classification"
+        banner={<CapellaDiyBanner diyTab="moderation" diyLabel="Moderation" replaces="LLM call + JSON parse + label validation" />}
         buildBody={() => ({ text, labels })}
         renderControls={renderControls}
         renderResult={renderResult}

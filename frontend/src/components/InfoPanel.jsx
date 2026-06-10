@@ -2464,6 +2464,200 @@ if (blocked_at === 'input') {
       },
     ],
   },
+  'capella-intro': {
+    title: 'Capella AI Functions — Introduction',
+    subtitle: 'What they are, which DIY patterns they replace, and how to use them',
+    color: CB_ACCENT,
+    icon: '🗄️',
+    what: 'Capella AI Functions expose LLM capabilities as SQL++ built-in functions. Instead of embedding → search → LLM call → parse in application code, you write a single SELECT statement. The query engine calls the configured LLM provider internally and returns the result as a field in the row — alongside your document data, in one round trip.',
+    how: [
+      'Configure an LLM provider once in the Capella UI (OpenAI, Bedrock, Vertex…)',
+      'Call default:ai_summary(), default:ai_completion(), etc. in any SQL++ query',
+      'Results come back as fields in the result set — no extra HTTP calls from your app',
+      'Works in SELECT, UPDATE, and INSERT — including bulk enrichment over entire collections',
+      'Requires query_external_access role on the database user',
+    ],
+    limitations: [
+      'Capella-only — not available on self-managed Couchbase Server',
+      'Each function requires the corresponding AI Function to be enabled on the cluster',
+      'LLM provider and credentials are managed in Capella, not in application code',
+      'Counts against Capella AI quota, separate from direct LLM API usage',
+    ],
+    stack: ['Couchbase Capella AI Functions', 'SQL++', 'FastAPI'],
+    questions: [
+      'Which DIY pattern from earlier in the lab does ai_similarity() replace?',
+      'What application code is eliminated when you use ai_completion() instead of calling OpenAI directly?',
+      'When would you still call an LLM API directly rather than using Capella AI Functions?',
+    ],
+    snippets: [
+      {
+        title: 'Pattern: replace embed → search → LLM with one query',
+        language: 'python',
+        code: `# DIY: three separate operations
+vec = openai.embeddings.create(input=query, model="text-embedding-3-small").data[0].embedding
+hits = scope.search("idx", VectorSearch.from_vector_query(VectorQuery("embedding", vec)))
+answer = openai.chat.completions.create(model="gpt-4o-mini", messages=[...]).choices[0].message.content
+
+# Capella: one SQL++ query
+rows = list(cluster.query("""
+    SELECT default:ai_completion({
+        "prompt": CONCAT("Context: ", d.text, "\\nQuestion: ", $q),
+        "model": "gpt-4o-mini"
+    }) AS answer
+    FROM documents d
+    ORDER BY ANN_DISTANCE(d.embedding, $vec, "L2") ASC
+    LIMIT 1
+""", QueryOptions(named_parameters={"q": query, "vec": vec})).rows())`,
+      },
+      {
+        title: 'Pattern: bulk enrichment over a collection',
+        language: 'sql',
+        code: `-- Summarise every document that hasn't been summarised yet
+UPDATE documents d
+SET d.summary = default:ai_summary({
+    "text":      d.body,
+    "max_words": 80
+})[0].response
+WHERE d.summary IS MISSING
+  AND LENGTH(d.body) > 200`,
+      },
+      {
+        title: 'All available functions',
+        language: 'text',
+        code: `default:ai_summary()             Summarise text (replaces Summarisation tab)
+default:ai_sentiment()           Sentiment label + confidence score
+default:ai_classification()      Classify into custom label sets (replaces Moderation tab)
+default:ai_extraction()          Extract named entities as structured JSON
+default:ai_translation()         Translate to 12 languages, auto-detect source
+default:ai_masked()              Redact PII for compliance
+default:ai_similarity()          Semantic similarity score (replaces Semantic Cache tab)
+default:ai_completion()          General-purpose LLM call from SQL++ (replaces RAG tab)
+default:ai_corrected_grammar()   Fix spelling, grammar, punctuation`,
+      },
+    ],
+  },
+  'capella-service': {
+    title: 'Capella as a Service',
+    subtitle: 'DIY Python vs Capella SQL++ — three AI scenarios side by side',
+    color: CB_ACCENT,
+    icon: '🗄️',
+    what: 'This tab compares two implementation approaches for three common AI patterns: Semantic Cache, RAG Pipeline, and Content Moderation. The DIY column shows a typical Python + OpenAI implementation. The Capella column shows the same result achieved with a single SQL++ query using Capella AI Functions — no extra API calls, no vector store setup, no application-side orchestration.',
+    how: [
+      'Select a scenario (Semantic Cache, RAG Pipeline, or Content Moderation)',
+      'Enter a query or text and click Run',
+      'Backend executes both approaches and returns timing + results',
+      'DIY column: Python calls OpenAI + Couchbase SDK separately',
+      'Capella column: single SQL++ query with ai_similarity() / ai_completion() / ai_classification()',
+    ],
+    limitations: [
+      'Capella AI Functions require the relevant functions to be enabled on the cluster',
+      'Requires the query_external_access role on the database user',
+      'Not available on self-managed Couchbase Server — Capella only',
+      'Mock mode returns simulated timings when Capella is not configured',
+    ],
+    stack: ['Couchbase Capella AI Functions', 'ai_similarity() / ai_completion() / ai_classification()', 'FastAPI', 'React'],
+    questions: [
+      'Which scenario shows the biggest latency difference between DIY and Capella?',
+      'What application code is eliminated when using Capella AI Functions?',
+      'How does ai_similarity() replace a Python embedding + ANN search pipeline?',
+    ],
+    snippets: [
+      {
+        title: 'DIY Semantic Cache — Python',
+        language: 'python',
+        code: `# 1. Embed the query
+embedding = openai.embeddings.create(
+    model="text-embedding-3-small", input=query
+).data[0].embedding
+
+# 2. ANN search in Couchbase
+results = scope.search(
+    "cache_index",
+    VectorSearch.from_vector_query(
+        VectorQuery("embedding", embedding, num_candidates=5)
+    ),
+    SearchOptions(limit=1, fields=["query", "response"]),
+)
+hit = next(results.rows(), None)
+if hit and hit.score > THRESHOLD:
+    return hit.fields["response"]   # cache hit
+
+# 3. Cache miss — call LLM
+response = openai.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": query}],
+).choices[0].message.content
+
+# 4. Store embedding + response
+collection.upsert(key, {"query": query, "embedding": embedding, "response": response})`,
+      },
+      {
+        title: 'Capella Semantic Cache — SQL++',
+        language: 'sql',
+        code: `-- Single query: similarity search + conditional LLM call
+SELECT
+  CASE
+    WHEN ai_similarity({"text": $query, "candidates": cache_docs}) > 0.85
+    THEN (SELECT r.response FROM cache_docs r LIMIT 1)[0].response
+    ELSE default:ai_completion({"prompt": $query, "model": "gpt-4o-mini"})
+  END AS result,
+  ai_similarity({"text": $query, "candidates": cache_docs}) AS score
+FROM (
+  SELECT ARRAY_AGG({"id": META().id, "text": c.query, "response": c.response}) AS cache_docs
+  FROM semantic_cache c
+  USE INDEX (USING FTS)
+  WHERE ANN_DISTANCE(c.embedding, ENCODE_VECTOR($query_vec, FALSE), "L2") < 0.5
+  LIMIT 5
+) AS sub`,
+      },
+      {
+        title: 'DIY RAG Pipeline — Python',
+        language: 'python',
+        code: `# 1. Embed the question
+q_vec = openai.embeddings.create(
+    model="text-embedding-3-small", input=question
+).data[0].embedding
+
+# 2. Vector search for relevant chunks
+hits = scope.search(
+    "docs_index",
+    VectorSearch.from_vector_query(VectorQuery("embedding", q_vec, num_candidates=10)),
+    SearchOptions(limit=3, fields=["text", "source"]),
+)
+context = "\\n\\n".join(h.fields["text"] for h in hits.rows())
+
+# 3. Build prompt and call LLM
+prompt = f"Answer using only this context:\\n{context}\\n\\nQuestion: {question}"
+answer = openai.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": prompt}],
+).choices[0].message.content`,
+      },
+      {
+        title: 'Capella RAG Pipeline — SQL++',
+        language: 'sql',
+        code: `-- Retrieve chunks and generate answer in one query
+SELECT default:ai_completion({
+  "prompt": CONCAT(
+    "Answer using only this context:\\n",
+    ARRAY_TO_STRING(
+      ARRAY c.text FOR c IN chunks END,
+      "\\n\\n"
+    ),
+    "\\n\\nQuestion: ", $question
+  ),
+  "model": "gpt-4o-mini"
+}) AS answer,
+ARRAY {"source": c.source, "score": c._score} FOR c IN chunks END AS sources
+FROM (
+  SELECT d.text, d.source, ANN_DISTANCE(d.embedding, $q_vec, "L2") AS _score
+  FROM documents d
+  ORDER BY _score ASC
+  LIMIT 3
+) AS chunks`,
+      },
+    ],
+  },
   'capella-summarise': {
     title: 'Capella AI Summarisation',
     subtitle: 'default:ai_summary() — summarisation runs inside the database as a SQL++ query',
@@ -2943,6 +3137,185 @@ Skip it for:
   ✗ High-throughput pipelines (use spell-check instead)
   ✗ Code or technical strings (will be mangled)
   ✗ Intentionally informal content (dialect, slang)` },
+    ],
+  },
+
+  'capella-model-service': {
+    title: 'Capella Model Service',
+    subtitle: 'LLM gateway with guardrails, semantic cache, provider routing, and rate limiting',
+    color: CB_ACCENT,
+    icon: '🗄️',
+    what: 'The Capella Model Service is a managed LLM gateway that sits between your application and any LLM provider. It adds guardrails, semantic caching, rate limiting, and observability to every request — configured once in the Capella UI, applied transparently to all calls. Your application calls one endpoint regardless of which provider is configured behind it.',
+    how: [
+      'Configure an LLM provider (OpenAI, Bedrock, Vertex AI, Capella-hosted) in the Capella UI',
+      'Enable capabilities: guardrails, semantic cache, rate limits, observability',
+      'Your application calls the Model Service endpoint — same interface for all providers',
+      'Guardrails classify input and output; blocked requests return a structured error',
+      'Semantic cache returns cached responses for similar queries without calling the LLM',
+      'Rate limits are enforced per user or globally before requests reach the provider',
+    ],
+    limitations: [
+      'Capella-only — not available on self-managed Couchbase Server',
+      'Guardrail latency adds ~100–300ms per request (two LLM classification calls)',
+      'Semantic cache requires a similarity threshold — tune carefully to avoid false hits',
+      'Provider switching requires re-testing prompts that rely on model-specific behaviour',
+    ],
+    stack: ['Couchbase Capella Model Service', 'FastAPI', 'React'],
+    questions: [
+      'Try a harmful message through the Guardrails demo — which gate blocks it?',
+      'Send the same question twice through the Semantic Cache demo — does the second hit the cache?',
+      'What application code is eliminated when guardrails are handled by the Model Service?',
+      'How does provider abstraction help when a provider has an outage?',
+    ],
+    snippets: [
+      {
+        title: 'DIY guardrails vs Model Service',
+        language: 'python',
+        code: `# DIY: two extra LLM calls per request
+input_check  = await classify(message, "input")
+if not input_check["safe"]: return {"blocked": True}
+response     = await generate_response(message)
+output_check = await classify(response, "output")
+return response if output_check["safe"] else "[blocked]"
+
+# Model Service: zero extra code
+response = await capella_model_service.complete(prompt=message)
+# guardrails applied automatically`,
+      },
+      {
+        title: 'DIY semantic cache vs Model Service',
+        language: 'python',
+        code: `# DIY: embed → search → threshold → store
+vec  = await embed(query)
+hit  = await vector_search(vec, threshold=0.85)
+if hit: return hit.response
+resp = await generate_response(query)
+await store(query, vec, resp)
+return resp
+
+# Model Service: zero extra code
+response = await capella_model_service.complete(prompt=query)
+# cache checked and populated automatically`,
+      },
+      {
+        title: 'Architecture: your app → Model Service → provider',
+        language: 'text',
+        code: `Your App
+  │
+  ▼
+Capella Model Service
+  ├── 🛡️  Input guardrail  (classify → block or pass)
+  ├── ⚡  Semantic cache   (similar query? return cached)
+  ├── 🪙  Rate limiter     (over budget? return 429)
+  ├── 🔌  Provider router  (OpenAI / Bedrock / Vertex / Capella)
+  └── 📊  Observability    (latency, tokens, cost, errors)
+  │
+  ▼
+LLM Provider
+  │
+  ▼
+Capella Model Service
+  ├── 🛡️  Output guardrail (classify → block or pass)
+  └── ⚡  Cache store      (store response for future hits)
+  │
+  ▼
+Your App`,
+      },
+    ],
+  },
+
+  'capella-ingestion': {
+    title: 'Capella Ingestion Pipeline',
+    subtitle: 'UI-driven chunk → embed → store → index workflow — no application code required',
+    color: CB_ACCENT,
+    icon: '🗄️',
+    what: 'The Capella AI Services ingestion workflow replaces the entire DIY pipeline — chunking, embedding, storing, and vector index creation — with a UI-driven configuration. Connect a data source (Capella collection, S3, web URL, or file upload), choose a chunking strategy and embedding model, select a target collection, and run. Capella handles the rest, including creating the vector search index automatically.',
+    how: [
+      'Choose a data source: existing Capella collection, S3 bucket, web URL, or file upload',
+      'Configure chunking: strategy (fixed, sentence, paragraph, semantic), size, and overlap',
+      'Select an embedding model: OpenAI, AWS Bedrock Titan, or a Capella-hosted model',
+      'Set the target bucket, scope, and collection in Couchbase',
+      'Run the workflow — Capella chunks, embeds, stores, and creates the vector index',
+      'Schedule recurring runs or trigger on data change events',
+    ],
+    limitations: [
+      'Capella-only — not available on self-managed Couchbase Server',
+      'S3 source requires AWS credentials configured in Capella',
+      'Very large collections may take minutes to hours to process',
+      'Chunking strategy affects retrieval quality — fixed-size is fastest, semantic is most accurate',
+      'The auto-created vector index name must be noted for use in application queries',
+    ],
+    stack: ['Couchbase Capella AI Services', 'Ingestion Workflow UI', 'FastAPI /api/ingest (DIY demo)'],
+    questions: [
+      'Run the DIY pipeline — how many lines of code does it take to chunk, embed, and store?',
+      'What happens to retrieval quality when you change chunk size from 150 to 50 words?',
+      'Which data source would you use to keep a Couchbase collection in sync with a PDF library in S3?',
+      'What does the Capella workflow create automatically that you have to write SQL++ for in the DIY approach?',
+    ],
+    snippets: [
+      {
+        title: 'DIY ingestion pipeline — Python',
+        language: 'python',
+        code: `# 1. Chunk
+words = text.split()
+chunks = [" ".join(words[i:i+chunk_size])
+          for i in range(0, len(words), chunk_size - overlap)]
+
+# 2. Embed (one API call per chunk)
+vectors = await asyncio.gather(*[
+    openai.embeddings.create(
+        model="text-embedding-3-small", input=c
+    ) for c in chunks
+])
+
+# 3. Store
+for chunk, vec in zip(chunks, vectors):
+    collection.upsert(str(uuid4()), {
+        "content": chunk,
+        "vector":  vec.data[0].embedding,
+        "title":   title,
+    })
+
+# 4. Create vector index (run once)
+cluster.query("""
+    CREATE VECTOR INDEX doc_vector_idx
+    ON \`shared\`.\`public\`.\`documentation\`(\`vector\` VECTOR)
+    WITH {"dimension": 1536, "similarity": "L2"}
+""")`,
+      },
+      {
+        title: 'Capella workflow — what it replaces',
+        language: 'text',
+        code: `Step              DIY                          Capella Workflow
+────────────────────────────────────────────────────────────────
+Chunking          Custom split function          UI config (strategy + size)
+Embedding         Call embedding API per chunk   Managed, batched, retried
+Storage           SDK upsert loop                Automatic
+Vector index      CREATE VECTOR INDEX SQL++      Auto-created after run
+Scheduling        Cron job or manual trigger     Built-in scheduler
+Monitoring        Custom logging                 Progress UI + error reporting
+Re-ingestion      Re-run your script             Re-run or schedule workflow
+Multi-source      Separate code per source       S3 / Capella / URL / upload`,
+      },
+      {
+        title: 'After ingestion — query the vector index',
+        language: 'python',
+        code: `# The vector index created by the workflow is immediately queryable
+from couchbase.vector_search import VectorQuery, VectorSearch
+from couchbase.options import SearchOptions
+
+embedding = await get_embedding(user_question)
+
+results = scope.search(
+    "doc_vector_idx",   # index auto-created by Capella workflow
+    VectorSearch.from_vector_query(
+        VectorQuery("vector", embedding, num_candidates=10)
+    ),
+    SearchOptions(limit=5, fields=["content", "title"]),
+)
+
+docs = [row.fields for row in results.rows()]`,
+      },
     ],
   },
 
