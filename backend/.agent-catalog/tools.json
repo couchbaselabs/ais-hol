@@ -24,7 +24,8 @@
     {
       "identifier": "7cb7b72c14519ee790fc210ebbcdcd5d6a46c21f",
       "is_dirty": false,
-      "timestamp": "2026-06-10T14:22:31.741138Z"
+      "timestamp": "2026-06-10T14:22:31.741138Z",
+      "version_system": "git"
     }
   },
   {
@@ -47,7 +48,8 @@
     {
       "identifier": "7cb7b72c14519ee790fc210ebbcdcd5d6a46c21f",
       "is_dirty": false,
-      "timestamp": "2026-06-10T14:22:24.923280Z"
+      "timestamp": "2026-06-10T14:22:24.923280Z",
+      "version_system": "git"
     }
   },
   {
@@ -70,7 +72,8 @@
     {
       "identifier": "7cb7b72c14519ee790fc210ebbcdcd5d6a46c21f",
       "is_dirty": false,
-      "timestamp": "2026-06-10T14:22:24.923280Z"
+      "timestamp": "2026-06-10T14:22:24.923280Z",
+      "version_system": "git"
     }
   },
   {
@@ -93,7 +96,8 @@
     {
       "identifier": "7cb7b72c14519ee790fc210ebbcdcd5d6a46c21f",
       "is_dirty": false,
-      "timestamp": "2026-06-10T14:22:24.923280Z"
+      "timestamp": "2026-06-10T14:22:24.923280Z",
+      "version_system": "git"
     }
   },
   {
@@ -116,7 +120,8 @@
     {
       "identifier": "7cb7b72c14519ee790fc210ebbcdcd5d6a46c21f",
       "is_dirty": false,
-      "timestamp": "2026-06-10T14:22:24.923280Z"
+      "timestamp": "2026-06-10T14:22:24.923280Z",
+      "version_system": "git"
     }
   },
   {
@@ -139,7 +144,8 @@
     {
       "identifier": "7cb7b72c14519ee790fc210ebbcdcd5d6a46c21f",
       "is_dirty": false,
-      "timestamp": "2026-06-10T14:22:24.923280Z"
+      "timestamp": "2026-06-10T14:22:24.923280Z",
+      "version_system": "git"
     }
   },
   {
@@ -162,7 +168,8 @@
     {
       "identifier": "f2f60410c11eb95f46ae514a018cd2164b0fec6d",
       "is_dirty": false,
-      "timestamp": "2026-06-10T14:22:31.727510Z"
+      "timestamp": "2026-06-10T14:22:31.727510Z",
+      "version_system": "git"
     }
   }],
   "kind": "tool",
@@ -171,8 +178,8 @@
   "source_dirs": ["agents"],
   "version":
   {
-    "identifier": "c75d14dd25aff332d8ab2c9838d1e4a6f03e2dec",
-    "is_dirty": true,
-    "timestamp": "2026-06-10T14:22:24.725826Z"
+    "identifier": "db3e42894717b5f967103ff99171c6ec4200b2e8",
+    "is_dirty": false,
+    "timestamp": "2026-06-10T14:24:07.808730Z"
   }
 }
