@@ -32,12 +32,6 @@ const TOKEN_COLORS = [
   '#fef08a', '#bae6fd',
 ]
 
-const EXAMPLES = [
-  { label: 'Short sentence', text: 'The quick brown fox jumps over the lazy dog.' },
-  { label: 'Code snippet',   text: 'async function fetchData(url) {\n  const res = await fetch(url);\n  return res.json();\n}' },
-  { label: 'Mixed languages', text: 'Hello! Bonjour! こんにちは! مرحبا! 你好!' },
-  { label: 'Numbers & symbols', text: 'Price: $1,234.56 — discount: 15% — total: $1,049.38' },
-]
 
 function useDebounce(value, delay) {
   const [debounced, setDebounced] = useState(value)
@@ -188,7 +182,6 @@ export default function AppTokens() {
     tokenise(debouncedText, debouncedModel)
   }, [debouncedText, debouncedModel, tokenise])
 
-  const loadExample = (ex) => setText(ex.text)
 
   return (
     <div className="app tokens-app">
@@ -202,13 +195,6 @@ export default function AppTokens() {
           >
             {MODELS.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
-          <div className="tokens-examples">
-            {EXAMPLES.map((ex, i) => (
-              <button key={i} className="example-btn" onClick={() => loadExample(ex)}>
-                {ex.label}
-              </button>
-            ))}
-          </div>
         </div>
         <textarea
           className="tokens-textarea"
@@ -253,7 +239,17 @@ export default function AppTokens() {
         <div className="tokens-layout">
           {/* Highlighted text */}
           <div className="tokens-col tokens-col--text">
-            <div className="tokens-col-heading">Tokenised text</div>
+            <div className="tokens-col-heading">
+              Tokenised text
+              <a
+                className="tokens-tiktoken-link"
+                href="https://github.com/openai/tiktoken"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                powered by tiktoken ↗
+              </a>
+            </div>
             <HighlightedText text={text} tokens={result.tokens} />
             <p className="tokens-note">
               Each colour block is one token. Hover a block to see its index and ID.

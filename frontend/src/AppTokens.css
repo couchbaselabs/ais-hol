@@ -36,23 +36,6 @@
 }
 .model-select:focus { outline: none; border-color: #6366f1; }
 
-.tokens-examples {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.example-btn {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 0.25rem 0.6rem;
-  font-size: 0.75rem;
-  color: #374151;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.example-btn:hover { background: #f3f4f6; }
 
 .tokens-textarea {
   width: 100%;
@@ -198,6 +181,22 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.tokens-tiktoken-link {
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #6366f1;
+  text-decoration: none;
+  opacity: 0.8;
+  transition: opacity 0.15s;
+}
+
+.tokens-tiktoken-link:hover {
+  opacity: 1;
+  text-decoration: underline;
 }
 
 .tokens-col-sub {
