@@ -4670,11 +4670,13 @@ async def agent_catalog_tools():
 
 @app.get("/api/agent-catalog/runs")
 async def agent_catalog_runs():
-    """Return recent agent run traces stored in Couchbase.
+    """Return recent agent run traces from the agentc activity log in Couchbase.
 
-    In mock mode returns a set of representative example runs covering
-    all four routing outcomes. In real mode queries the conversation
-    history and trace_steps from recent /api/agent invocations.
+    agentc writes every tool call, completion, and system message to
+    aisholshared.agent_activity.logs. This endpoint aggregates those log
+    entries by span.session to reconstruct per-run traces.
+
+    In mock mode returns representative example runs.
     """
     if _MOCK_MODE:
         from datetime import datetime, timezone, timedelta
@@ -4757,28 +4759,139 @@ async def agent_catalog_runs():
         ]
         return {"runs": runs, "total": len(runs), "source": "mock"}
 
-    # Real mode: query recent agent sessions from conversation history
+    # Real mode: aggregate agentc activity logs by span.session
     try:
         from services.conversation_service import _get_cluster
         import os as _os
         cluster = _get_cluster()
-        bucket = _os.environ.get("COUCHBASE_BUCKET_NAME", "shared")
-        scope = _os.environ.get("COUCHBASE_CONVERSATION_SCOPE", "_default")
-        collection_name = _os.environ.get("COUCHBASE_CONVERSATION_COLLECTION", "conversations")
+        bucket = _os.environ.get("AGENT_CATALOG_BUCKET", "aisholshared")
 
-        sql = f"""
-            SELECT META().id AS id,
-                   c.session_id,
-                   c.messages,
-                   c.updated_at
-            FROM `{bucket}`.`{scope}`.`{collection_name}` AS c
-            WHERE c.type = 'conversation'
-            ORDER BY c.updated_at DESC
+        # Step 1: find the most recent 20 distinct sessions
+        sessions_sql = f"""
+            SELECT l.span.session AS session,
+                   MIN(l.timestamp) AS first_ts
+            FROM `{bucket}`.`agent_activity`.`logs` l
+            GROUP BY l.span.session
+            ORDER BY first_ts DESC
             LIMIT 20
         """
-        rows = list(cluster.query(sql).rows())
-        return {"runs": rows, "total": len(rows), "source": "couchbase"}
+        sessions = [r["session"] for r in cluster.query(sessions_sql).rows()]
+
+        if not sessions:
+            return {"runs": [], "total": 0, "source": "couchbase"}
+
+        # Step 2: fetch all log entries for those sessions
+        sessions_param = ", ".join(f'"{s}"' for s in sessions)
+        logs_sql = f"""
+            SELECT l.span.session AS session,
+                   l.span.`name` AS span_name,
+                   l.content.`kind` AS kind,
+                   l.content.`value` AS content_value,
+                   l.content.extra AS extra,
+                   l.timestamp
+            FROM `{bucket}`.`agent_activity`.`logs` l
+            WHERE l.span.session IN [{sessions_param}]
+            ORDER BY l.timestamp ASC
+        """
+        log_rows = list(cluster.query(logs_sql).rows())
+
+        # Step 3: group by session and reconstruct run summaries
+        from collections import defaultdict
+        by_session = defaultdict(list)
+        for row in log_rows:
+            by_session[row["session"]].append(row)
+
+        runs = []
+        for session_id in sessions:
+            entries = by_session.get(session_id, [])
+            if not entries:
+                continue
+
+            # All log entries use kind="system"; extra.kind distinguishes:
+            #   "human"  — user message
+            #   "ai"     — LLM response (may have tool_calls in extra, or final text in content_value)
+            #   "tool"   — tool result (content_value is the result)
+
+            # Extract user message (first human entry)
+            message = next(
+                (e["content_value"] for e in entries
+                 if (e.get("extra") or {}).get("kind") == "human"
+                 and e.get("content_value")),
+                ""
+            )
+
+            # Extract final answer: last non-empty human-readable ai response.
+            # The final LLM text is in the last "system" entry with extra.kind=="ai"
+            # that has content_value set (no tool_calls). If that's empty, fall back
+            # to the last tool-result value (e.g. math agent returns the number).
+            answer = ""
+            for e in reversed(entries):
+                extra = e.get("extra") or {}
+                val = str(e.get("content_value") or "").strip()
+                if extra.get("kind") == "ai" and val and not extra.get("tool_calls"):
+                    answer = val
+                    break
+            if not answer:
+                for e in reversed(entries):
+                    extra = e.get("extra") or {}
+                    val = str(e.get("content_value") or "").strip()
+                    if extra.get("kind") == "tool" and val:
+                        answer = val
+                        break
+
+            # Determine which agent handled this (second element of span name list)
+            agent_names = set()
+            for e in entries:
+                name_list = e.get("span_name") or []
+                if len(name_list) >= 2:
+                    agent_names.add(name_list[1])
+            routed_to = next(iter(agent_names), "router") if agent_names else "router"
+
+            # Build trace steps from ai entries (tool calls) and tool result entries
+            trace_steps = []
+            for e in entries:
+                extra = e.get("extra") or {}
+                extra_kind = extra.get("kind")
+                if extra_kind == "ai" and extra.get("tool_calls"):
+                    for tc in extra["tool_calls"]:
+                        trace_steps.append({
+                            "type": "tool_call",
+                            "tool": tc.get("name"),
+                            "input": tc.get("args", {}),
+                        })
+                elif extra_kind == "tool" and e.get("content_value"):
+                    trace_steps.append({
+                        "type": "tool_result",
+                        "content": str(e["content_value"])[:200],
+                    })
+
+            ts = entries[0]["timestamp"] if entries else ""
+            ts_end = entries[-1]["timestamp"] if entries else ts
+            try:
+                from datetime import datetime as _dt
+                t0 = _dt.fromisoformat(ts.replace("Z", "+00:00"))
+                t1 = _dt.fromisoformat(ts_end.replace("Z", "+00:00"))
+                duration_ms = int((t1 - t0).total_seconds() * 1000)
+            except Exception:
+                duration_ms = None
+
+            runs.append({
+                "id": session_id,
+                "timestamp": ts,
+                "message": message,
+                "answer": answer,
+                "routed_to": routed_to,
+                "faq_collection": None,
+                "missing_topic": None,
+                "duration_ms": duration_ms,
+                "trace_steps": trace_steps,
+                "log_count": len(entries),
+            })
+
+        return {"runs": runs, "total": len(runs), "source": "couchbase"}
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return {"runs": [], "total": 0, "source": "error", "error": str(e)}
 
 
