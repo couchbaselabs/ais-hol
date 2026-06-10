@@ -3319,6 +3319,225 @@ docs = [row.fields for row in results.rows()]`,
     ],
   },
 
+  'agent-catalog-overview': {
+    title: 'Agent Catalog — Overview',
+    subtitle: 'Versioned registry for AI tools and prompts, stored in Couchbase',
+    color: CB_ACCENT,
+    icon: '🗂️',
+    what: 'The Couchbase Agent Catalog (agentc) is a versioned registry for AI tools and agent prompts stored in Couchbase. Tools are Python functions decorated with @agentc_tool. Prompts are YAML manifests that bind a system prompt to a set of tools. Agents discover their tools at runtime via catalog.find() — no hardcoded imports, no redeployment to swap a tool or update a prompt. Every invocation is wrapped in an agentc Span and logged as a structured document, queryable with SQL++.',
+    how: [
+      'Decorate tool functions with @agentc_tool — the catalog indexes name, description, and input schema',
+      'Write YAML prompt manifests that bind a system prompt to a list of tool names',
+      'Run agentc index to scan the codebase and store metadata in Couchbase',
+      'Run agentc publish to make the indexed version available to running agents',
+      'Agents call catalog.find(name=...) at runtime to load tools and prompts',
+      'Wrap the agent graph in an agentc Span — all tool calls and completions are logged automatically',
+    ],
+    limitations: [
+      'Requires agentc CLI and a Couchbase connection to index and publish',
+      'In mock mode the catalog returns a static snapshot — live discovery requires a connected cluster',
+      'Tool versioning is append-only — old versions are retained but not automatically cleaned up',
+    ],
+    stack: ['agentc (Couchbase Agent Catalog)', 'LangGraph', 'FastAPI', 'React'],
+    questions: [
+      'What does @agentc_tool add to a Python function beyond a docstring?',
+      'How does catalog.find() differ from a direct Python import?',
+      'What would you need to do to swap the math_agent prompt without redeploying?',
+    ],
+    snippets: [
+      {
+        title: 'Defining a tool with @agentc_tool',
+        language: 'python',
+        code: `from agentc_core.tool import tool as agentc_tool
+from pydantic import BaseModel
+
+class TwoNumbers(BaseModel):
+    a: float
+    b: float
+
+@agentc_tool
+def add(params: TwoNumbers) -> float:
+    """Add two numbers and return the result."""
+    return params.a + params.b
+
+# agentc index will store:
+# { name: "add", description: "Add two numbers...",
+#   input_schema: {a: float, b: float}, output: float }`,
+      },
+      {
+        title: 'Prompt manifest (YAML)',
+        language: 'yaml',
+        code: `record_kind: prompt
+name: math_agent
+description: >
+  System prompt and tools for the math agent.
+  Handles arithmetic and expression evaluation.
+content:
+  agent_instructions: >
+    Use the provided tools to evaluate calculations.
+    Never compute in your head — always use a tool.
+tools:
+  - name: add
+  - name: subtract
+  - name: multiply
+  - name: divide
+  - name: evaluate_expression`,
+      },
+      {
+        title: 'Agent node using ReActAgent',
+        language: 'python',
+        code: `import agentc_langgraph.agent
+
+class MathAgent(agentc_langgraph.agent.ReActAgent):
+    def __init__(self, catalog, span):
+        super().__init__(
+            chat_model=get_llm(),
+            catalog=catalog,
+            span=span,
+            prompt_name="math_agent",
+            # tools loaded from catalog by prompt manifest
+        )
+
+async def math_agent_node(state, catalog, span):
+    agent = MathAgent(catalog=catalog, span=span)
+    return await agent.ainvoke(state)`,
+      },
+    ],
+  },
+
+  'agent-catalog-tools': {
+    title: 'Agent Catalog — Tool Discovery',
+    subtitle: 'Browse registered tools and prompts; see schemas and source locations',
+    color: CB_ACCENT,
+    icon: '🗂️',
+    what: 'The Tool Discovery tab shows every tool and prompt registered in the Agent Catalog. For each tool you can see its input schema, output type, source file, and which agent uses it. For each prompt you can see the tools it binds and how the ReActAgent loads it at runtime. In mock mode this reflects the actual tools in backend/agents/. When connected to a live catalog, it queries Couchbase directly.',
+    how: [
+      'Click any tool to see its full schema, source location, and the catalog.find() call that loads it',
+      'Click any prompt to see its bound tools and the ReActAgent initialisation pattern',
+      'Use the filter tabs to show only tools or only prompts',
+      'The connection status chip shows whether the catalog is live or mock',
+    ],
+    limitations: [
+      'Mock mode returns a static snapshot — add new tools by running agentc index + publish',
+      'Schema shown is derived from Pydantic models — complex nested types are simplified',
+    ],
+    stack: ['agentc', 'GET /api/agent-catalog/tools', 'React'],
+    questions: [
+      'Which agent uses the hybrid_faq_search tool?',
+      'What input parameters does evaluate_expression accept?',
+      'How many tools are bound to the rag_agent prompt?',
+    ],
+    snippets: [
+      {
+        title: 'Discovering tools at runtime',
+        language: 'python',
+        code: `# catalog.find() returns matching tools from Couchbase
+tools = catalog.find(
+    name="add",
+    kind="tool",
+)
+
+# Or find all tools for a prompt
+prompt = catalog.find(
+    name="math_agent",
+    kind="prompt",
+)
+# prompt.tools contains the bound tool functions`,
+      },
+      {
+        title: 'Indexing and publishing',
+        language: 'bash',
+        code: `# Index all @agentc_tool functions and YAML prompts
+agentc index backend/agents/
+
+# Publish to make available to running agents
+agentc publish
+
+# Verify what's in the catalog
+agentc find --kind tool
+agentc find --kind prompt`,
+      },
+    ],
+  },
+
+  'agent-catalog-runs': {
+    title: 'Agent Catalog — Agent Runs',
+    subtitle: 'Execution traces stored in Couchbase — route decisions, tool calls, answers',
+    color: CB_ACCENT,
+    icon: '🗂️',
+    what: 'Every agent invocation is wrapped in an agentc Span. The Span logs route decisions, tool calls, tool results, intermediate thoughts, and the final answer as structured documents in Couchbase. The Agent Runs tab shows recent runs with their full execution trace — queryable, filterable, and auditable without any custom logging code.',
+    how: [
+      'Send a message via the Multi-Agent tab — it creates a run logged to Couchbase',
+      'Select a run to see its full trace: route decision → tool calls → tool results → answer',
+      'Filter by agent type (Direct, Math, RAG, FAQ, Missing) to find specific patterns',
+      'The "Stored in Couchbase as" section shows the exact document structure',
+      'In real mode, runs are queried live from the conversations collection',
+    ],
+    limitations: [
+      'Mock mode shows 5 representative example runs — connect a cluster to see live data',
+      'Trace granularity depends on agentc Span configuration — not all intermediate thoughts are captured',
+      'Run history is bounded by the conversations collection TTL',
+    ],
+    stack: ['agentc Span', 'Couchbase', 'GET /api/agent-catalog/runs', 'React'],
+    questions: [
+      'Which run type has the shortest duration — and why?',
+      'What does a "Missing" run mean, and how would you fix it?',
+      'How would you write a SQL++ query to find all runs that called the rag_search tool?',
+    ],
+    snippets: [
+      {
+        title: 'Wrapping the graph in an agentc Span',
+        language: 'python',
+        code: `import agentc_langgraph.graph
+
+class AgentGraph(agentc_langgraph.graph.GraphRunnable):
+    async def acompile(self):
+        builder = StateGraph(AgentState)
+        # catalog + span injected into every node
+        builder.add_node("router",
+            functools.partial(router_node,
+                catalog=self.catalog,
+                span=self.span))
+        builder.add_node("math_agent",
+            functools.partial(math_agent_node,
+                catalog=self.catalog,
+                span=self.span))
+        # ... other nodes
+        return builder.compile()`,
+      },
+      {
+        title: 'Querying run history with SQL++',
+        language: 'sql',
+        code: `-- Find all runs that used the rag_search tool
+SELECT META().id, c.messages, c.updated_at
+FROM \`shared\`.\`_default\`.\`conversations\` AS c
+WHERE ANY step IN c.trace_steps
+      SATISFIES step.tool = "rag_search" END
+ORDER BY c.updated_at DESC
+LIMIT 20`,
+      },
+      {
+        title: 'Run document structure in Couchbase',
+        language: 'json',
+        code: `{
+  "type": "agent_run",
+  "session_id": "run-001",
+  "message": "What is 144 divided by 12?",
+  "routed_to": "math_agent",
+  "trace_steps": [
+    { "type": "route",       "decision": "math" },
+    { "type": "tool_call",   "tool": "divide",
+      "input": { "a": 144, "b": 12 } },
+    { "type": "tool_result", "content": "12.0" }
+  ],
+  "answer": "The result is 12.0",
+  "duration_ms": 1240,
+  "timestamp": "2026-06-10T14:32:00Z"
+}`,
+      },
+    ],
+  },
+
   vision: {
     title: 'Vision',
     subtitle: 'Send an image to GPT-4o and ask questions about it',

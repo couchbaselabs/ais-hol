@@ -17,6 +17,9 @@ import AppChatHyde from './AppChatHyde'
 import AppChatEvaluate from './AppChatEvaluate'
 import AppSummarise from './AppSummarise'
 import AppTokens from './AppTokens'
+import AppAgentCatalogOverview from './AppAgentCatalogOverview'
+import AppAgentCatalogTools from './AppAgentCatalogTools'
+import AppAgentCatalogRuns from './AppAgentCatalogRuns'
 import AppCapellaIntro from './AppCapellaIntro'
 import AppCapellaModelService from './AppCapellaModelService'
 import AppCapellaIngestion from './AppCapellaIngestion'
@@ -89,6 +92,9 @@ function Shell() {
         {activeTab === 'evaluate'   && <AppChatEvaluate   key="evaluate"   />}
         {activeTab === 'summarise'  && <AppSummarise      key="summarise"  />}
         {activeTab === 'tokens'            && <AppTokens          key="tokens"            />}
+        {activeTab === 'agent-catalog-overview' && <AppAgentCatalogOverview  key="agent-catalog-overview" />}
+        {activeTab === 'agent-catalog-tools'    && <AppAgentCatalogTools     key="agent-catalog-tools" />}
+        {activeTab === 'agent-catalog-runs'     && <AppAgentCatalogRuns      key="agent-catalog-runs" />}
         {activeTab === 'capella-intro'          && <AppCapellaIntro          key="capella-intro" />}
         {activeTab === 'capella-service'        && <AppCapellaService        key="capella-service" />}
         {activeTab === 'capella-summarise'     && <AppCapellaSummarise     key="capella-summarise" />}

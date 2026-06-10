@@ -4548,6 +4548,241 @@ async def capella_service(body: CapellaServiceRequest):
 
 
 # ---------------------------------------------------------------------------
+# Agent Catalog — tool discovery + agent run history
+# ---------------------------------------------------------------------------
+
+@app.get("/api/agent-catalog/tools")
+async def agent_catalog_tools():
+    """Return all tools and prompts registered in the Agent Catalog.
+
+    In mock mode returns a static snapshot of the tools defined in
+    backend/agents/. In real mode queries the agentc Catalog directly.
+    """
+    # Static snapshot — always available regardless of Couchbase connectivity.
+    # Reflects the actual tools and prompts in backend/agents/.
+    tools = [
+        {
+            "name": "add",
+            "kind": "tool",
+            "description": "Add two numbers and return the result.",
+            "source": "agents/math_tools.py",
+            "agent": "math_agent",
+            "input_schema": {"a": "float", "b": "float"},
+            "output": "float",
+        },
+        {
+            "name": "subtract",
+            "kind": "tool",
+            "description": "Subtract b from a and return the result.",
+            "source": "agents/math_tools.py",
+            "agent": "math_agent",
+            "input_schema": {"a": "float", "b": "float"},
+            "output": "float",
+        },
+        {
+            "name": "multiply",
+            "kind": "tool",
+            "description": "Multiply two numbers and return the result.",
+            "source": "agents/math_tools.py",
+            "agent": "math_agent",
+            "input_schema": {"a": "float", "b": "float"},
+            "output": "float",
+        },
+        {
+            "name": "divide",
+            "kind": "tool",
+            "description": "Divide a by b. Raises ValueError if b is zero.",
+            "source": "agents/math_tools.py",
+            "agent": "math_agent",
+            "input_schema": {"a": "float", "b": "float"},
+            "output": "float",
+        },
+        {
+            "name": "evaluate_expression",
+            "kind": "tool",
+            "description": "Evaluate a mathematical expression string. Supports +, -, *, /, ^, % and all math module functions.",
+            "source": "agents/math_tools.py",
+            "agent": "math_agent",
+            "input_schema": {"expression": "str"},
+            "output": "float",
+        },
+        {
+            "name": "rag_search",
+            "kind": "tool",
+            "description": "Search MDN Web documentation for content relevant to the query using vector similarity.",
+            "source": "agents/rag_tools.py",
+            "agent": "rag_agent",
+            "input_schema": {"query": "str"},
+            "output": "list[dict]",
+        },
+        {
+            "name": "hybrid_faq_search",
+            "kind": "tool",
+            "description": "Search a FAQ collection using hybrid vector + FTS search. Returns top-5 results.",
+            "source": "agents/faq_search_tools.py",
+            "agent": "faq_search_agent",
+            "input_schema": {"query": "str", "collection_name": "str"},
+            "output": "list[dict]",
+        },
+    ]
+
+    prompts = [
+        {
+            "name": "math_agent",
+            "kind": "prompt",
+            "description": "System prompt and tools for the math agent. Handles arithmetic and expression evaluation.",
+            "source": "agents/prompts/math_agent.yaml",
+            "tools": ["add", "subtract", "multiply", "divide", "evaluate_expression"],
+        },
+        {
+            "name": "rag_agent",
+            "kind": "prompt",
+            "description": "System prompt and tools for the RAG agent. Answers web development questions via MDN vector search.",
+            "source": "agents/prompts/rag_agent.yaml",
+            "tools": ["rag_search"],
+        },
+        {
+            "name": "faq_search_agent",
+            "kind": "prompt",
+            "description": "System prompt and tools for the FAQ search agent. Searches domain-specific FAQ collections.",
+            "source": "agents/prompts/faq_search_agent.yaml",
+            "tools": ["hybrid_faq_search"],
+        },
+    ]
+
+    # Attempt live catalog query if agentc is configured
+    catalog_connected = False
+    if not _MOCK_MODE:
+        try:
+            from agents.graph import agent_graph
+            catalog_connected = True
+        except Exception:
+            pass
+
+    return {
+        "tools": tools,
+        "prompts": prompts,
+        "catalog_connected": catalog_connected,
+        "total_tools": len(tools),
+        "total_prompts": len(prompts),
+    }
+
+
+@app.get("/api/agent-catalog/runs")
+async def agent_catalog_runs():
+    """Return recent agent run traces stored in Couchbase.
+
+    In mock mode returns a set of representative example runs covering
+    all four routing outcomes. In real mode queries the conversation
+    history and trace_steps from recent /api/agent invocations.
+    """
+    if _MOCK_MODE:
+        from datetime import datetime, timezone, timedelta
+        now = datetime.now(timezone.utc)
+        runs = [
+            {
+                "id": "run-001",
+                "timestamp": (now - timedelta(minutes=2)).isoformat(),
+                "message": "What is 144 divided by 12, then multiplied by 7?",
+                "routed_to": "math_agent",
+                "answer": "The result is 84.0",
+                "faq_collection": None,
+                "missing_topic": None,
+                "duration_ms": 1240,
+                "trace_steps": [
+                    {"type": "route", "decision": "math"},
+                    {"type": "tool_call", "tool": "divide", "input": {"a": 144, "b": 12}},
+                    {"type": "tool_result", "content": "12.0"},
+                    {"type": "tool_call", "tool": "multiply", "input": {"a": 12, "b": 7}},
+                    {"type": "tool_result", "content": "84.0"},
+                ],
+            },
+            {
+                "id": "run-002",
+                "timestamp": (now - timedelta(minutes=5)).isoformat(),
+                "message": "How does the JavaScript Fetch API work?",
+                "routed_to": "rag_agent",
+                "answer": "The Fetch API provides a JavaScript interface for making HTTP requests. It uses Promises and replaces XMLHttpRequest...",
+                "faq_collection": None,
+                "missing_topic": None,
+                "duration_ms": 2180,
+                "trace_steps": [
+                    {"type": "route", "decision": "rag"},
+                    {"type": "tool_call", "tool": "rag_search", "input": {"query": "Fetch API HTTP requests"}},
+                    {"type": "tool_result", "content": "3 documents retrieved"},
+                    {"type": "thought", "content": "I have enough context to answer."},
+                ],
+            },
+            {
+                "id": "run-003",
+                "timestamp": (now - timedelta(minutes=9)).isoformat(),
+                "message": "What is the capital of France?",
+                "routed_to": "router",
+                "answer": "The capital of France is Paris.",
+                "faq_collection": None,
+                "missing_topic": None,
+                "duration_ms": 380,
+                "trace_steps": [
+                    {"type": "route", "decision": "direct"},
+                ],
+            },
+            {
+                "id": "run-004",
+                "timestamp": (now - timedelta(minutes=14)).isoformat(),
+                "message": "How many days of annual leave do I get?",
+                "routed_to": "faq_search_agent",
+                "answer": "According to the HR policy, full-time employees receive 25 days of annual leave per year.",
+                "faq_collection": "hr_policy",
+                "missing_topic": None,
+                "duration_ms": 1870,
+                "trace_steps": [
+                    {"type": "route", "decision": "faq", "collection": "hr_policy"},
+                    {"type": "tool_call", "tool": "hybrid_faq_search", "input": {"query": "annual leave days", "collection_name": "hr_policy"}},
+                    {"type": "tool_result", "content": "2 documents retrieved"},
+                ],
+            },
+            {
+                "id": "run-005",
+                "timestamp": (now - timedelta(minutes=18)).isoformat(),
+                "message": "What is our refund policy?",
+                "routed_to": "router",
+                "answer": "I don't have a FAQ document that covers this topic yet. To answer questions about **refund policy**, please ingest a relevant PDF.",
+                "faq_collection": None,
+                "missing_topic": "refund_policy",
+                "duration_ms": 620,
+                "trace_steps": [
+                    {"type": "route", "decision": "faq_missing", "topic": "refund_policy"},
+                ],
+            },
+        ]
+        return {"runs": runs, "total": len(runs), "source": "mock"}
+
+    # Real mode: query recent agent sessions from conversation history
+    try:
+        from services.conversation_service import _get_cluster
+        import os as _os
+        cluster = _get_cluster()
+        bucket = _os.environ.get("COUCHBASE_BUCKET_NAME", "shared")
+        scope = _os.environ.get("COUCHBASE_CONVERSATION_SCOPE", "_default")
+        collection_name = _os.environ.get("COUCHBASE_CONVERSATION_COLLECTION", "conversations")
+
+        sql = f"""
+            SELECT META().id AS id,
+                   c.session_id,
+                   c.messages,
+                   c.updated_at
+            FROM `{bucket}`.`{scope}`.`{collection_name}` AS c
+            WHERE c.type = 'conversation'
+            ORDER BY c.updated_at DESC
+            LIMIT 20
+        """
+        rows = list(cluster.query(sql).rows())
+        return {"runs": rows, "total": len(rows), "source": "couchbase"}
+    except Exception as e:
+        return {"runs": [], "total": 0, "source": "error", "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 

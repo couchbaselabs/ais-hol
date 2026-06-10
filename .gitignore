@@ -44,6 +44,9 @@ jspm_packages/
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
+# Agent Catalog model cache (downloaded at index time)
+backend/.model-cache/
+
 # TypeScript cache
 *.tsbuildinfo
 
