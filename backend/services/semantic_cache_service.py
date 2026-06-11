@@ -84,7 +84,7 @@ async def cache_get(
         )
         result = scope.search(
             CACHE_INDEX, search_req,
-            SearchOptions(limit=k, fields=["llm_signature", "response"])
+            SearchOptions(limit=k)
         )
         rows = list(result.rows())
         if not rows:
@@ -92,13 +92,18 @@ async def cache_get(
 
         # The index uses dot_product similarity. OpenAI embeddings are unit
         # vectors, so dot_product == cosine similarity and scores are in [0,1].
+        # Fields are not stored in the index — fetch full docs by key via KV.
+        collection = scope.collection(CACHE_COLLECTION)
         for row in rows:
-            fields = row.fields or {}
             if row.score < similarity_threshold:
                 continue
-            if fields.get("llm_signature") == llm_signature:
+            try:
+                doc = collection.get(row.id).content_as[dict]
+            except Exception:
+                continue
+            if doc.get("llm_signature") == llm_signature:
                 print(f"Cache HIT (score={row.score:.3f})")
-                return fields.get("response")
+                return doc.get("response")
     except Exception as e:
         print(f"Cache lookup error: {e}")
     return None
