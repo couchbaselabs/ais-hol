@@ -44,7 +44,14 @@ function EvalCard({ evaluation }) {
   }
 
   const dims = ['faithfulness', 'relevance', 'completeness']
-  const overall = dims.reduce((s, k) => s + (evaluation[k] || 0), 0)
+
+  // Normalise: LLMs sometimes return {score: N, reasoning: "..."} per dimension
+  const score = (v) => {
+    if (typeof v === 'object' && v !== null) return Number(v.score ?? v.value ?? v.rating ?? 0)
+    return Number(v) || 0
+  }
+
+  const overall = dims.reduce((s, k) => s + score(evaluation[k]), 0)
   const overallPct = Math.round((overall / 15) * 100)
 
   return (
@@ -66,7 +73,7 @@ function EvalCard({ evaluation }) {
               <span className="eval-dim-label" style={{ color: meta.color }}>{meta.label}</span>
               <span className="eval-dim-desc">{meta.desc}</span>
             </div>
-            <ScoreGauge value={evaluation[dim] || 0} color={meta.color} />
+            <ScoreGauge value={score(evaluation[dim])} color={meta.color} />
           </div>
         )
       })}

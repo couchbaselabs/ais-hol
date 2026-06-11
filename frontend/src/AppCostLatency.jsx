@@ -28,6 +28,7 @@ export default function AppCostLatency() {
   const [message, setMessage] = useState('')
   useInfoPanelQuestion(setMessage)
   const [selectedModels, setSelectedModels] = useState(DEFAULT_MODELS)
+  const [availableModels, setAvailableModels] = useState(null)
   const [results, setResults] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -36,6 +37,13 @@ export default function AppCostLatency() {
     const h = (e) => setMessage(e.detail)
     window.addEventListener('infopanel:question', h)
     return () => window.removeEventListener('infopanel:question', h)
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/available-models')
+      .then(r => r.json())
+      .then(setAvailableModels)
+      .catch(() => {})
   }, [])
 
   const toggleModel = (m) => {
@@ -92,15 +100,18 @@ export default function AppCostLatency() {
           <span className="toggles-label">Models (max 4):</span>
           {ALL_MODELS.map(m => {
             const active = selectedModels.has(m)
-            const disabled = !active && selectedModels.size >= 4
+            const unavailable = availableModels !== null && availableModels[m] === false
+            const disabled = unavailable || (!active && selectedModels.size >= 4)
             return (
               <button
                 key={m}
-                className={`cl-model-toggle ${active ? 'cl-model-toggle--active' : ''}`}
-                onClick={() => toggleModel(m)}
+                className={`cl-model-toggle ${active ? 'cl-model-toggle--active' : ''} ${unavailable ? 'cl-model-toggle--unavailable' : ''}`}
+                onClick={() => !unavailable && toggleModel(m)}
                 disabled={disabled}
+                title={unavailable ? 'No API key configured for this model' : undefined}
               >
                 {m}
+                {unavailable && <span className="cl-model-toggle-lock"> 🔒</span>}
               </button>
             )
           })}

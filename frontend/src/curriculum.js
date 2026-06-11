@@ -136,7 +136,7 @@ export const MODULES = [
     level: 'advanced',
     tabs: [
       { id: 'capella-intro',          label: '🗄️ Introduction' },
-      { id: 'capella-service',        label: '🗄️ Capella as a Service' },
+      { id: 'capella-service',        label: '🗄️ Capella AI Services' },
       { id: 'capella-summarise',      label: '🗄️ AI Summarisation' },
       { id: 'capella-sentiment',      label: '🗄️ AI Sentiment' },
       { id: 'capella-classification', label: '🗄️ AI Classification' },
@@ -154,7 +154,10 @@ export const MODULES = [
     icon: '🤖',
     level: 'advanced',
     tabs: [
-      { id: 'capella-model-service',  label: '🤖 Model Service' },
+      { id: 'capella-model-guardrails',  label: '🛡️ Guardrails' },
+      { id: 'capella-model-cache',       label: '⚡ Semantic Cache' },
+      { id: 'capella-model-providers',   label: '🔀 Model Providers' },
+      { id: 'capella-model-ratelimit',   label: '🚦 Rate Limiting' },
     ],
   },
   {

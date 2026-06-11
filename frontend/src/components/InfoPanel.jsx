@@ -1927,7 +1927,7 @@ results.forEach(({ temperature, response, tokens }) => {
       'Parallel tool calls require extra handling',
       'Tool descriptions must be clear — vague descriptions cause wrong selections',
     ],
-    stack: ['LLM tool_choice API', 'FastAPI', 'Simulated tool execution'],
+    stack: ['LLM tool_choice API', 'FastAPI', 'Open-Meteo weather API', 'Couchbase vector search'],
     questions: [
       { label: "Ask 'What is 15% of 847?' — watch the calculator tool fire", text: 'What is 15% of 847?' },
       { label: "Ask 'What time is it in Tokyo?' — does it use the time tool?", text: 'What time is it in Tokyo?' },
@@ -2536,7 +2536,7 @@ default:ai_corrected_grammar()   Fix spelling, grammar, punctuation`,
     ],
   },
   'capella-service': {
-    title: 'Capella as a Service',
+    title: 'Capella AI Services',
     subtitle: 'DIY Python vs Capella SQL++ — three AI scenarios side by side',
     color: CB_ACCENT,
     icon: '🗄️',

@@ -211,17 +211,19 @@ function ArchDiagram() {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export default function AppCapellaModelService() {
-  const [activeId, setActiveId] = useState('guardrails')
+export default function AppCapellaModelService({ featureId } = {}) {
+  const [activeId, setActiveId] = useState(featureId || 'guardrails')
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
   const [requestCount, setRequestCount] = useState(0)
 
+  const locked = Boolean(featureId)
   const feature = FEATURES.find(f => f.id === activeId)
 
   function selectFeature(id) {
+    if (locked) return
     setActiveId(id)
     setResult(null)
     setError(null)
@@ -261,21 +263,23 @@ export default function AppCapellaModelService() {
       />
 
       <div className="cms-body">
-        {/* Left: feature nav + arch diagram */}
-        <div className="cms-sidebar">
-          <div className="cms-sidebar-title">Model Service capabilities</div>
-          {FEATURES.map(f => (
-            <button
-              key={f.id}
-              className={`cms-nav-btn ${activeId === f.id ? 'cms-nav-btn--active' : ''}`}
-              onClick={() => selectFeature(f.id)}
-            >
-              <span className="cms-nav-icon">{f.icon}</span>
-              <span className="cms-nav-label">{f.label}</span>
-            </button>
-          ))}
-          <ArchDiagram />
-        </div>
+        {/* Left: feature nav + arch diagram — hidden when rendered as a dedicated tab */}
+        {!locked && (
+          <div className="cms-sidebar">
+            <div className="cms-sidebar-title">Model Service capabilities</div>
+            {FEATURES.map(f => (
+              <button
+                key={f.id}
+                className={`cms-nav-btn ${activeId === f.id ? 'cms-nav-btn--active' : ''}`}
+                onClick={() => selectFeature(f.id)}
+              >
+                <span className="cms-nav-icon">{f.icon}</span>
+                <span className="cms-nav-label">{f.label}</span>
+              </button>
+            ))}
+            <ArchDiagram />
+          </div>
+        )}
 
         {/* Right: active feature */}
         <div className="cms-main">
@@ -320,11 +324,11 @@ export default function AppCapellaModelService() {
             <div className="cms-compare-cols">
               <div className="cms-compare-col cms-compare-col--diy">
                 <div className="cms-compare-col-header">🐍 DIY</div>
-                <CompareContent featureId={activeId} side="diy" />
+                <CompareContent featureId={featureId || activeId} side="diy" />
               </div>
               <div className="cms-compare-col cms-compare-col--capella">
                 <div className="cms-compare-col-header">🗄️ Capella Model Service</div>
-                <CompareContent featureId={activeId} side="capella" />
+                <CompareContent featureId={featureId || activeId} side="capella" />
               </div>
             </div>
           </div>

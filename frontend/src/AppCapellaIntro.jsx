@@ -309,12 +309,12 @@ export default function AppCapellaIntro() {
         <p className="ci-section-sub">
           Each tab in this module lets you run a Capella AI Function live and compare
           it to the DIY equivalent you built earlier. Start with{' '}
-          <strong>Capella as a Service</strong> for a side-by-side timing comparison,
+          <strong>Capella AI Services</strong> for a side-by-side timing comparison,
           then explore individual functions.
         </p>
         <div className="ci-next-grid">
           {[
-            { label: 'Capella as a Service', desc: 'Side-by-side DIY vs SQL++ with live timing' },
+            { label: 'Capella AI Services', desc: 'Side-by-side DIY vs SQL++ with live timing' },
             { label: 'AI Summarisation', desc: 'ai_summary() — replaces the Summarisation tab' },
             { label: 'AI Sentiment', desc: 'ai_sentiment() — label + confidence score' },
             { label: 'AI Classification', desc: 'ai_classification() — custom label sets' },

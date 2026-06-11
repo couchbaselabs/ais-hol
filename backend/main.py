@@ -577,6 +577,14 @@ async def chat_evaluate(body: EvaluateRequest):
     raw = eval_completion.choices[0].message.content.strip()
     try:
         evaluation = _json.loads(raw)
+        # Normalise: LLMs sometimes return {dim: {score: N, reasoning: "..."}}
+        # instead of {dim: N}. Flatten to always have integer scores.
+        for dim in ("faithfulness", "relevance", "completeness"):
+            val = evaluation.get(dim)
+            if isinstance(val, dict):
+                evaluation[dim] = val.get("score") or val.get("value") or val.get("rating") or 0
+            elif val is not None:
+                evaluation[dim] = int(val)
     except Exception:
         evaluation = {"parse_error": True, "raw": raw}
 
@@ -1546,7 +1554,7 @@ async def tool_calling_demo(body: ToolCallRequest):
 
     Defines a small set of tools (get_weather, calculate, search_docs),
     sends the user message, and returns the full round-trip: tool chosen,
-    arguments, simulated result, and final LLM answer.
+    arguments, tool result, and final LLM answer.
     """
     if not body.message.strip():
         raise HTTPException(status_code=400, detail="message is required.")
@@ -1625,12 +1633,56 @@ async def tool_calling_demo(body: ToolCallRequest):
     import json as _json
     tool_args = _json.loads(tc.function.arguments)
 
-    # Step 2: Simulate tool execution
+    # Step 2: Execute tool
     if tool_name == "get_weather":
         city = tool_args.get("city", "Unknown")
         unit = tool_args.get("unit", "celsius")
-        temp_val = 22 if unit == "celsius" else 72
-        tool_result = f"{city}: {temp_val}°{'C' if unit == 'celsius' else 'F'}, partly cloudy. [simulated]"
+        try:
+            import httpx as _httpx
+            async with _httpx.AsyncClient(timeout=8) as _hc:
+                # Step 1: geocode city → lat/lon via Open-Meteo geocoding API (no key needed)
+                geo = await _hc.get(
+                    "https://geocoding-api.open-meteo.com/v1/search",
+                    params={"name": city, "count": 1, "language": "en", "format": "json"},
+                )
+                geo.raise_for_status()
+                results = geo.json().get("results")
+                if not results:
+                    tool_result = f"Could not find city: {city}"
+                else:
+                    loc = results[0]
+                    lat, lon = loc["latitude"], loc["longitude"]
+                    temp_unit = "celsius" if unit == "celsius" else "fahrenheit"
+                    # Step 2: fetch current weather from Open-Meteo (no key needed)
+                    wx = await _hc.get(
+                        "https://api.open-meteo.com/v1/forecast",
+                        params={
+                            "latitude": lat, "longitude": lon,
+                            "current": "temperature_2m,weathercode,windspeed_10m",
+                            "temperature_unit": temp_unit,
+                            "windspeed_unit": "kmh",
+                            "forecast_days": 1,
+                        },
+                    )
+                    wx.raise_for_status()
+                    cur = wx.json()["current"]
+                    temp = cur["temperature_2m"]
+                    wind = cur["windspeed_10m"]
+                    wcode = cur["weathercode"]
+                    # WMO weather code → description
+                    _WX = {0:"clear sky",1:"mainly clear",2:"partly cloudy",3:"overcast",
+                           45:"fog",48:"icy fog",51:"light drizzle",53:"drizzle",55:"heavy drizzle",
+                           61:"light rain",63:"rain",65:"heavy rain",71:"light snow",73:"snow",
+                           75:"heavy snow",80:"rain showers",81:"heavy showers",82:"violent showers",
+                           95:"thunderstorm",96:"thunderstorm with hail",99:"heavy thunderstorm"}
+                    desc = _WX.get(wcode, f"weather code {wcode}")
+                    sym = "°C" if unit == "celsius" else "°F"
+                    tool_result = (
+                        f"{loc['name']}, {loc.get('country','')}: "
+                        f"{temp}{sym}, {desc}, wind {wind} km/h"
+                    )
+        except Exception as _e:
+            tool_result = f"Weather lookup failed: {_e}"
     elif tool_name == "calculate":
         import re as _re, ast as _ast, operator as _op
         expr = tool_args.get("expression", "0")
@@ -1659,7 +1711,20 @@ async def tool_calling_demo(body: ToolCallRequest):
                 tool_result = "Could not evaluate expression."
     elif tool_name == "search_docs":
         query = tool_args.get("query", "")
-        tool_result = f"Found 3 docs matching '{query}': [Doc A], [Doc B], [Doc C]. [simulated]"
+        try:
+            embedding = await get_embedding(query)
+            docs = await get_relevant_documents(embedding)
+            if docs:
+                snippets = []
+                for d in docs[:3]:
+                    title = d.get("filepath", d.get("id", "doc")).split("/")[-1]
+                    excerpt = d.get("content", "")[:200].replace("\n", " ")
+                    snippets.append(f"• {title}: {excerpt}")
+                tool_result = f"Top results for '{query}':\n" + "\n".join(snippets)
+            else:
+                tool_result = f"No documents found for '{query}'."
+        except Exception as _e:
+            tool_result = f"Search failed: {_e}"
     else:
         tool_result = "Tool result: [simulated]"
 
@@ -1831,6 +1896,26 @@ class CostRequest(BaseModel):
 
 
 # Approximate pricing per 1M tokens (input / output), USD, mid-2025
+# Maps each model to the env var that must be set (non-empty, non-placeholder)
+# for it to be callable. OpenAI models share INFERENCE_MODEL_API_KEY.
+_MODEL_KEY_ENV = {
+    "gpt-4o-mini":       "INFERENCE_MODEL_API_KEY",
+    "gpt-4o":            "INFERENCE_MODEL_API_KEY",
+    "gpt-4":             "INFERENCE_MODEL_API_KEY",
+    "gpt-3.5-turbo":     "INFERENCE_MODEL_API_KEY",
+    "claude-3-5-sonnet": "ANTHROPIC_API_KEY",
+    "claude-3-haiku":    "ANTHROPIC_API_KEY",
+    "llama-3.1-70b":     "TOGETHER_API_KEY",
+    "llama-3.1-8b":      "TOGETHER_API_KEY",
+}
+
+def _model_available(model: str) -> bool:
+    env_var = _MODEL_KEY_ENV.get(model)
+    if not env_var:
+        return False
+    val = os.environ.get(env_var, "")
+    return bool(val) and val not in ("no-key", "mock-key", "your-key-here")
+
 MODEL_PRICING = {
     "gpt-4o-mini":        {"input": 0.15,  "output": 0.60,  "context": 128_000},
     "gpt-4o":             {"input": 2.50,  "output": 10.00, "context": 128_000},
@@ -1841,6 +1926,15 @@ MODEL_PRICING = {
     "llama-3.1-70b":      {"input": 0.88,  "output": 0.88,  "context": 128_000},
     "llama-3.1-8b":       {"input": 0.18,  "output": 0.18,  "context": 128_000},
 }
+
+
+@app.get("/api/available-models")
+async def available_models():
+    """Return which models are callable based on configured API keys."""
+    return {
+        model: _model_available(model)
+        for model in _MODEL_KEY_ENV
+    }
 
 
 @app.post("/api/cost-latency")

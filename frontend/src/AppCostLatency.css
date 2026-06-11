@@ -27,6 +27,8 @@
 }
 .cl-model-toggle--active { background: #e0f5ff; border-color: #00A3E0; color: #0c4a6e; font-weight: 600; }
 .cl-model-toggle:disabled { opacity: 0.4; cursor: not-allowed; }
+.cl-model-toggle--unavailable { opacity: 0.45; cursor: not-allowed; color: #9ca3af; border-color: #e5e7eb; background: #f9fafb; }
+.cl-model-toggle-lock { font-size: 0.65rem; }
 .cl-examples { display: flex; gap: 0.35rem; flex-wrap: wrap; }
 
 .cl-error { margin: 1rem 1.25rem; padding: 0.6rem 0.75rem; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 6px; font-size: 0.875rem; }

@@ -106,7 +106,10 @@ function Shell() {
         {activeTab === 'capella-similarity'     && <AppCapellaSimilarity     key="capella-similarity" />}
         {activeTab === 'capella-completion'     && <AppCapellaCompletion     key="capella-completion" />}
         {activeTab === 'capella-grammar'        && <AppCapellaGrammar        key="capella-grammar" />}
-        {activeTab === 'capella-model-service'  && <AppCapellaModelService   key="capella-model-service" />}
+        {activeTab === 'capella-model-guardrails' && <AppCapellaModelService key="capella-model-guardrails" featureId="guardrails" />}
+        {activeTab === 'capella-model-cache'      && <AppCapellaModelService key="capella-model-cache"      featureId="cache" />}
+        {activeTab === 'capella-model-providers'  && <AppCapellaModelService key="capella-model-providers"  featureId="providers" />}
+        {activeTab === 'capella-model-ratelimit'  && <AppCapellaModelService key="capella-model-ratelimit"  featureId="ratelimit" />}
         {activeTab === 'capella-ingestion'      && <AppCapellaIngestion      key="capella-ingestion" />}
         {activeTab === 'temperature'       && <AppTemperature      key="temperature"       />}
         {activeTab === 'tool-calling'      && <AppToolCalling      key="tool-calling"      />}
