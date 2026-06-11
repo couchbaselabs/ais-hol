@@ -1439,18 +1439,20 @@ async def generate_response(prompt: str, system: str = "") -> str:
     icon: '⚡',
     what: 'Before calling the LLM, the query is embedded and compared against previously cached responses using ANN vector search. If a semantically similar question was already answered with the same LLM configuration, the cached response is returned instantly — no LLM call needed. The ⚡ cache hit / 🔄 generated badge on each response shows which path was taken.',
     how: [
-      'User message → embedding model',
-      'ANN vector search on semantic_cache collection (Couchbase SQL++ GSI)',
-      'Cache hit: return stored response immediately (no LLM call)',
-      'Cache miss: call LLM → store response + embedding in cache',
-      'Cache keyed on: embedding similarity + LLM signature (model, temp, max_tokens, system prompt)',
+      'User message → embedding model → 1536-dim vector',
+      'FTS vector search (ANN) on the cache collection — returns top-k doc IDs by dot-product similarity',
+      'For each candidate: fetch full document by key (KV get) to read llm_signature and response',
+      'Cache hit: similarity ≥ 0.85 AND llm_signature matches → return stored response (no LLM call)',
+      'Cache miss: call LLM → upsert {prompt, response, embedding, llm_signature} into cache collection',
+      'LLM signature = MD5(model + temperature + max_tokens + system_prompt) — isolates cache per config',
     ],
     limitations: [
       'Still no memory — each conversation turn is independent',
       'Cache can return stale answers if the underlying data changes',
       'Similarity threshold is a trade-off: too tight = few hits, too loose = wrong answers',
+      'The FTS index must exist on the cache bucket — missing index silently falls back to cache miss',
     ],
-    stack: ['LLM + Embedding model', 'Couchbase SQL++ ANN vector search', 'Semantic cache (MD5 LLM signature)'],
+    stack: ['LLM + Embedding model', 'Couchbase FTS vector index (dot_product)', 'Couchbase KV get', 'MD5 LLM signature'],
     questions: [
       { label: 'What is JavaScript? (ask twice to see a cache hit)', text: 'What is JavaScript?' },
       'Explain closures in JavaScript',
@@ -1463,7 +1465,7 @@ async def generate_response(prompt: str, system: str = "") -> str:
         code: `embedding = await get_embedding(message)
 llm_sig   = create_llm_signature(model, temperature, max_tokens, system_prompt)
 
-# Check cache first — returns stored response if similarity > threshold
+# Check cache first — returns stored response if similarity ≥ threshold
 cached = await cache_get(message, embedding, llm_sig)
 if cached:
     return {"response": cached, "cache_hit": True}
@@ -1474,35 +1476,32 @@ await cache_put(message, embedding, llm_sig, response)
 return {"response": response, "cache_hit": False}`,
       },
       {
-        title: 'backend/services/semantic_cache_service.py — signature + ANN lookup',
+        title: 'backend/services/semantic_cache_service.py — ANN search + KV fetch',
         language: 'python',
-        code: `import hashlib
+        code: `async def cache_get(prompt, embedding, llm_signature,
+                    similarity_threshold=0.85, k=3):
+    scope = cluster.bucket(CACHE_BUCKET).scope(CACHE_SCOPE)
 
-def create_llm_signature(model: str, temperature: float,
-                         max_tokens: int, system_prompt: str) -> str:
-    """Hash the LLM config so cache entries are never shared across
-    different models, temperatures, or system prompts."""
-    raw = f"{model}:{temperature}:{max_tokens}:{system_prompt}"
-    return hashlib.md5(raw.encode()).hexdigest()
+    # Step 1: ANN vector search — returns doc IDs ranked by dot-product score.
+    # The FTS index does not store fields, so we only get IDs and scores here.
+    search_req = SearchRequest.create(
+        VectorSearch.from_vector_query(
+            VectorQuery("vector", embedding, num_candidates=k)
+        )
+    )
+    rows = list(scope.search(CACHE_INDEX, search_req, SearchOptions(limit=k)))
 
-async def cache_get(prompt: str, embedding: list[float],
-                    llm_signature: str,
-                    similarity_threshold: float = 0.85,
-                    k: int = 3) -> str | None:
-    sql = f"""
-        SELECT c.llm_signature, c.response,
-               ANN_DISTANCE(c.vector, $embedding, "L2") AS score
-        FROM \`{CACHE_BUCKET}\`.\`{CACHE_SCOPE}\`.\`{CACHE_COLLECTION}\` AS c
-        USE INDEX ({CACHE_INDEX} USING GSI)
-        ORDER BY ANN_DISTANCE(c.vector, $embedding, "L2")
-        LIMIT {k}
-    """
-    for row in cluster.query(sql, QueryOptions(named_parameters={"embedding": embedding})).rows():
-        if row["score"] > similarity_threshold:
-            continue                          # too dissimilar — skip
-        if row["llm_signature"] == llm_signature:
-            return row["response"]            # cache HIT
-    return None                               # cache MISS`,
+    # Step 2: for each candidate above the similarity threshold,
+    # fetch the full document by key (KV get) to read llm_signature + response.
+    # OpenAI embeddings are unit vectors → dot_product == cosine similarity → [0,1].
+    collection = scope.collection(CACHE_COLLECTION)
+    for row in rows:
+        if row.score < similarity_threshold:
+            continue
+        doc = collection.get(row.id).content_as[dict]
+        if doc.get("llm_signature") == llm_signature:
+            return doc.get("response")   # cache HIT
+    return None                          # cache MISS`,
       },
     ],
   },
