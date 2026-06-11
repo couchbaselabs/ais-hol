@@ -197,7 +197,7 @@ export default function AppTokens() {
           </select>
         </div>
         <textarea
-          className="tokens-textarea"
+          className={`tokens-textarea${isLoading ? ' tokens-textarea--loading' : ''}`}
           value={text}
           onChange={e => setText(e.target.value)}
           placeholder="Type or paste any text — tokens update live…"
@@ -265,6 +265,13 @@ export default function AppTokens() {
             </div>
             <TokenTable tokens={result.tokens} />
           </div>
+        </div>
+      )}
+
+      {isLoading && !result && (
+        <div className="tokens-placeholder tokens-placeholder--loading">
+          <span className="tokens-spinner" />
+          Tokenising…
         </div>
       )}
 

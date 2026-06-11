@@ -4213,6 +4213,7 @@ class InjectionRequest(BaseModel):
     system_prompt: str
     user_message: str
     defense: str = "none"   # none | remind | sandwich | xml
+    model: str = INFERENCE_MODEL
 
 
 @app.post("/api/prompt-injection")
@@ -4251,8 +4252,9 @@ async def prompt_injection(body: InjectionRequest):
     else:
         user_msg = body.user_message
 
+    model = body.model if body.model in MODEL_PRICING else INFERENCE_MODEL
     completion = await client.chat.completions.create(
-        model=INFERENCE_MODEL,
+        model=model,
         messages=[
             {"role": "system", "content": system},
             {"role": "user",   "content": user_msg},
@@ -4283,6 +4285,7 @@ async def prompt_injection(body: InjectionRequest):
         "user_message": user_msg,
         "response": response,
         "defense": body.defense,
+        "model": model,
         "injection_likely_succeeded": leaked,
         "tokens": completion.usage.completion_tokens,
     }

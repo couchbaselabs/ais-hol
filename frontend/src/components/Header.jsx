@@ -6,7 +6,7 @@ const Header = () => {
     <header className="header">
       <div className="header-top">
         <div className="header-title">
-          <h1>AI Services Demo</h1>
+          <h1>How to Build a Production-Ready Chatbot</h1>
           <p>Couchbase · OpenAI · LangGraph</p>
         </div>
       </div>

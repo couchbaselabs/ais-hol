@@ -248,6 +248,23 @@
   color: #0369a1;
 }
 
+.info-section__question--meta {
+  cursor: default;
+  color: #374151;
+  background: #f9fafb;
+  border-color: #e5e7eb;
+}
+
+.info-section__question--meta::before {
+  content: '→ ';
+}
+
+.info-section__question--meta:hover {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+  color: #374151;
+}
+
 /* Code snippets */
 .info-section__snippets {
   display: flex;

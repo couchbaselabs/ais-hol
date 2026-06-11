@@ -52,12 +52,20 @@ const DEFENSES = [
   { id: 'xml',      label: 'XML tags',       desc: 'Wrap system prompt in <system> tags' },
 ]
 
+const MODELS = [
+  'gpt-4o-mini',
+  'gpt-4o',
+  'gpt-4',
+  'gpt-3.5-turbo',
+]
+
 export default function AppPromptInjection() {
   const [systemPrompt, setSystemPrompt] = useState(SYSTEM_PRESETS[0].prompt)
   const [selectedSystem, setSelectedSystem] = useState(SYSTEM_PRESETS[0])
   const [userMessage, setUserMessage] = useState('')
   useInfoPanelQuestion(setUserMessage)
   const [defense, setDefense] = useState('none')
+  const [model, setModel] = useState('gpt-4o-mini')
   const [result, setResult] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -79,7 +87,7 @@ export default function AppPromptInjection() {
       const res = await fetch('/api/prompt-injection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system_prompt: systemPrompt, user_message: msg, defense }),
+        body: JSON.stringify({ system_prompt: systemPrompt, user_message: msg, defense, model }),
       })
       if (!res.ok) throw new Error('Request failed')
       setResult(await res.json())
@@ -114,6 +122,13 @@ export default function AppPromptInjection() {
               onChange={e => { setSystemPrompt(e.target.value); setSelectedSystem(null) }}
               rows={5}
             />
+          </div>
+
+          <div className="pi-section">
+            <div className="pi-section-label">Model</div>
+            <select className="model-select" value={model} onChange={e => setModel(e.target.value)}>
+              {MODELS.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
           </div>
 
           <div className="pi-section">
@@ -185,7 +200,7 @@ export default function AppPromptInjection() {
               <div className="pi-response-card">
                 <div className="pi-response-label">Model response</div>
                 <p className="pi-response-text">{result.response}</p>
-                <div className="pi-response-meta">{result.tokens} tokens</div>
+                <div className="pi-response-meta">{result.model} · {result.tokens} tokens</div>
               </div>
 
               {result.defense !== 'none' && (

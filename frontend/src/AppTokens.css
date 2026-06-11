@@ -318,3 +318,36 @@
   text-align: center;
   padding: 3rem 0;
 }
+
+.tokens-placeholder--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  color: #6366f1;
+}
+
+.tokens-spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #e0e7ff;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: tokens-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes tokens-spin {
+  to { transform: rotate(360deg); }
+}
+
+.tokens-textarea--loading {
+  border-color: #a5b4fc;
+  animation: tokens-pulse-border 1s ease-in-out infinite;
+}
+
+@keyframes tokens-pulse-border {
+  0%, 100% { border-color: #a5b4fc; }
+  50%       { border-color: #6366f1; }
+}
