@@ -62,14 +62,6 @@ def create_llm_signature(
     return hashlib.md5(raw.encode()).hexdigest()
 
 
-def _cosine_similarity(a: list[float], b: list[float]) -> float:
-    dot = sum(x * y for x, y in zip(a, b))
-    norm_a = sum(x * x for x in a) ** 0.5
-    norm_b = sum(x * x for x in b) ** 0.5
-    if norm_a == 0 or norm_b == 0:
-        return 0.0
-    return dot / (norm_a * norm_b)
-
 
 async def cache_get(
     prompt: str,
@@ -92,27 +84,20 @@ async def cache_get(
         )
         result = scope.search(
             CACHE_INDEX, search_req,
-            SearchOptions(limit=k, fields=["llm_signature", "response", "vector"])
+            SearchOptions(limit=k, fields=["llm_signature", "response"])
         )
         rows = list(result.rows())
         if not rows:
             return None
 
-        # Couchbase FTS vector scores are not normalised — compute cosine
-        # similarity directly from the stored vector to get a reliable [0,1] value.
+        # The index uses dot_product similarity. OpenAI embeddings are unit
+        # vectors, so dot_product == cosine similarity and scores are in [0,1].
         for row in rows:
             fields = row.fields or {}
-            stored_vec = fields.get("vector")
-            if stored_vec:
-                sim = _cosine_similarity(embedding, stored_vec)
-            else:
-                # No stored vector — fall back to relative FTS score ranking
-                top_score = rows[0].score if rows[0].score > 0 else 1.0
-                sim = row.score / top_score
-            if sim < similarity_threshold:
+            if row.score < similarity_threshold:
                 continue
             if fields.get("llm_signature") == llm_signature:
-                print(f"Cache HIT (cosine={sim:.3f})")
+                print(f"Cache HIT (score={row.score:.3f})")
                 return fields.get("response")
     except Exception as e:
         print(f"Cache lookup error: {e}")

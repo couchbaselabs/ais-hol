@@ -19,7 +19,7 @@ services:
       - key: COUCHBASE_CONVERSATION_COLLECTION
         value: conversations
       - key: CACHE_BUCKET
-        value: cache
+        value: aisholcache
       - key: CACHE_SCOPE
         value: _default
       - key: CACHE_COLLECTION
