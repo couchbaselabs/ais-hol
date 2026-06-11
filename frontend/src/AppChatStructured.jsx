@@ -115,6 +115,7 @@ function AppChatStructured() {
     return () => window.removeEventListener('infopanel:question', h)
   }, [])
   const [result, setResult] = useState(null)
+  const [rawJson, setRawJson] = useState(null)
   const [inputTokens, setInputTokens] = useState(null)
   const [outputTokens, setOutputTokens] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -127,6 +128,7 @@ function AppChatStructured() {
     setIsLoading(true)
     setError(null)
     setResult(null)
+    setRawJson(null)
 
     try {
       const response = await fetch('/api/chat-structured', {
@@ -137,6 +139,7 @@ function AppChatStructured() {
       if (!response.ok) throw new Error('Request failed')
       const data = await response.json()
       setResult(data.result)
+      setRawJson(data.raw)
       setInputTokens(data.input_tokens)
       setOutputTokens(data.output_tokens)
     } catch (e) {
@@ -183,7 +186,15 @@ function AppChatStructured() {
           {isLoading && <div className="structured-loading">Extracting structure…</div>}
           {error && <div className="structured-error">{error}</div>}
           {!isLoading && !error && result && (
-            <ResultCard result={result} inputTokens={inputTokens} outputTokens={outputTokens} />
+            <>
+              <ResultCard result={result} inputTokens={inputTokens} outputTokens={outputTokens} />
+              {rawJson && (
+                <details className="structured-raw-details">
+                  <summary className="structured-raw-summary">Raw JSON response</summary>
+                  <pre className="structured-raw-pre">{rawJson}</pre>
+                </details>
+              )}
+            </>
           )}
           {!isLoading && !error && !result && (
             <div className="structured-placeholder">

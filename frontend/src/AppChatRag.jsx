@@ -129,9 +129,9 @@ function AppChatRag() {
         onSendMessage={sendMessage}
         isLoading={isLoading}
         examples={[
-          'How does the CSS box model work?',
-          'What is the difference between let, const, and var?',
-          'Explain the Fetch API and how to handle errors',
+          'What is Couchbase Vector Search?',
+          'How do I create a vector index in Couchbase?',
+          'What distance metrics does Couchbase vector search support?',
         ]}
       />
     </div>

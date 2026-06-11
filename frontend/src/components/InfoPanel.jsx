@@ -174,10 +174,10 @@ similarity = await cosine(emb_a, emb_b)
     ],
     stack: ['Couchbase Python SDK — VectorSearch / VectorQuery (FTS)', 'SQL++ ANN_DISTANCE() (GSI)', 'FastAPI', 'React'],
     questions: [
-      'What is an API?',
-      'How does DNS work?',
-      'What is a closure in JavaScript?',
-      'Explain HTTP caching headers',
+      'What is Couchbase Vector Search?',
+      'How do vector embeddings capture semantic meaning?',
+      'What is approximate nearest neighbour search?',
+      'How does Couchbase Capella AI Services work?',
     ],
     snippets: [
       {
@@ -580,10 +580,10 @@ def find_duplicate_prompts(traces: list[dict]) -> list[str]:
     ],
     stack: ['Couchbase FTS vector search', 'SQL++ ANN_DISTANCE() pre-filter pattern', 'FastAPI', 'React'],
     questions: [
-      'Search "HTTP requests" with no filter, then filter by Web API — what changes?',
-      'Try "variables" filtered to JavaScript — does it exclude CSS results?',
-      'How many candidates are excluded when you filter by CSS?',
-      'What happens if you filter by a category with no matching documents?',
+      { label: 'Search "fetch data from API" with no filter, then filter by Web API — what changes?', text: 'How do I fetch data from an API?' },
+      { label: 'Try "asynchronous programming" filtered to JavaScript — does it exclude CSS results?', text: 'What is asynchronous programming?' },
+      { label: 'Try "style a layout" filtered to CSS — how many candidates are excluded?', text: 'How do I style a layout?' },
+      { label: 'What happens if you filter by a category with no matching documents?', text: null },
     ],
     snippets: [
       {
@@ -676,10 +676,10 @@ Rule of thumb:
     ],
     stack: ['OpenAI Embeddings API', 'Couchbase KV (parent_id reference)', 'asyncio.gather', 'React'],
     questions: [
-      'Try "fetch() error handling" — which child matches? What does its parent contain?',
-      'Set parent=100, child=25 — how many parents and children are created?',
-      'Set parent=300, child=100 — does the retrieved context change?',
-      'What happens when two children from the same parent both match the query?',
+      { label: 'Try "vector search query time" — which child matches? What does its parent contain?', text: 'How does vector search work at query time?' },
+      { label: 'Set parent=100, child=25 — how many parents and children are created?', text: null },
+      { label: 'Set parent=300, child=100 — does the retrieved context change?', text: null },
+      { label: 'What happens when two children from the same parent both match the query?', text: null },
     ],
     snippets: [
       {
@@ -776,10 +776,10 @@ Typical sizes:
     ],
     stack: ['LLM (hypothetical generation)', 'Embedding model', 'Couchbase ANN vector search'],
     questions: [
-      'How does the CSS box model work?',
-      'What is the difference between let and const?',
-      'Explain the Fetch API',
-      'How do Promises work in JavaScript?',
+      'What is Couchbase Vector Search?',
+      'How do I create a vector index in Couchbase?',
+      'How does ANN search work?',
+      'What embedding model should I use with Couchbase?',
     ],
     snippets: [
       {
@@ -869,10 +869,10 @@ context   = "\\n\\n".join(d["content"] for d in final_docs)`,
     ],
     stack: ['LLM (generator + judge)', 'Couchbase ANN vector search', 'response_format: json_object'],
     questions: [
-      'How does the CSS box model work?',
-      'What is the difference between let and const?',
-      'Explain the Fetch API',
-      'What are Web Workers?',
+      'What is Couchbase Vector Search?',
+      'How do I store embeddings in Couchbase?',
+      'What is the difference between L2 and cosine distance?',
+      'How does Capella AI Services extend vector search?',
     ],
     snippets: [
       {
@@ -1209,10 +1209,10 @@ result = AnalysisResult.model_validate(
     ],
     stack: ['LLM (reranker)', 'Couchbase SQL++ ANN vector search', 'FastAPI'],
     questions: [
-      'How does the CSS box model work?',
-      'What is the difference between let and const?',
-      'Explain the Fetch API',
-      'What are Web Workers?',
+      'How do I store and query vector embeddings in Couchbase?',
+      'What SQL++ syntax do I use for vector search?',
+      'How does ANN search work in Couchbase?',
+      'What is the difference between L2 and cosine distance for vectors?',
     ],
     snippets: [
       {
@@ -1598,10 +1598,10 @@ async def get_conversation_history(session_id: str, limit: int = 20):
     ],
     stack: ['LLM + Embedding model', 'Couchbase SQL++ ANN vector search (MDN docs)', 'Couchbase KV (conversation history)', 'Capella AI ai_summary() SQL++ function', 'Semantic cache', 'Streaming (SSE)'],
     questions: [
-      'How does the CSS box model work?',
-      'What is the difference between let, const, and var?',
-      'Explain the Fetch API and how to handle errors',
-      'What are Web Workers used for?',
+      'What is Couchbase Vector Search?',
+      'How do I create a vector index in Couchbase?',
+      'What distance metrics does Couchbase vector search support?',
+      'How does Capella AI Services extend vector search?',
     ],
     snippets: [
       {
@@ -4357,10 +4357,10 @@ Rule of thumb:
     ],
     stack: ['OpenAI Chat API', 'Couchbase Vector Search', 'response_format: json_object', 'FastAPI', 'React'],
     questions: [
-      'Ask a broad question — how many retrieval iterations does it take?',
-      'Ask a very specific question — does it answer in one iteration?',
-      'Compare the agentic answer to the standard RAG tab answer',
-      'Set max iterations to 1 — does quality drop?',
+      { label: 'Ask a broad question — how many retrieval iterations does it take?', text: 'How do I build a RAG pipeline with Couchbase?' },
+      { label: 'Ask a multi-step question — does it retrieve more than once?', text: 'What are the steps to set up vector search and generate an answer?' },
+      { label: 'Compare the agentic answer to the standard RAG tab answer', text: null },
+      { label: 'Set max iterations to 1 — does quality drop?', text: null },
     ],
     snippets: [
       {

@@ -4,10 +4,10 @@ import './AppAgenticRag.css'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const EXAMPLES = [
-  'What are the main features of Couchbase Capella?',
-  'How does vector search work in a database?',
-  'What is the difference between RAG and fine-tuning?',
-  'Explain how Couchbase handles high availability.',
+  'How do I build a RAG pipeline with Couchbase?',
+  'What are the steps to set up vector search and generate an answer?',
+  'How does Couchbase Capella AI Services simplify embedding generation?',
+  'What is the difference between ANN and exact nearest neighbour search?',
 ]
 
 const STEP_ICONS = { decide: '🤔', retrieve: '🔍', answer: '💬' }

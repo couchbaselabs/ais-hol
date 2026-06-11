@@ -4,10 +4,10 @@ import './AppVectorSearch.css'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const EXAMPLES = [
-  'What is an API?',
-  'How does DNS work?',
-  'What is a closure in JavaScript?',
-  'Explain HTTP caching headers',
+  'What is Couchbase Vector Search?',
+  'How do vector embeddings capture semantic meaning?',
+  'What is approximate nearest neighbour search?',
+  'How does Couchbase Capella AI Services work?',
 ]
 
 const FTS_COLOR  = '#00A3E0'

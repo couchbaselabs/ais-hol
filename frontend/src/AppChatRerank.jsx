@@ -27,9 +27,12 @@ function DocCard({ doc, stage }) {
 
   return (
     <div className={`doc-card ${isDropped ? 'doc-card--dropped' : ''} ${doc.selected && stage === 'pre' ? 'doc-card--selected' : ''}`}>
-      <div className="doc-card-header" onClick={() => setExpanded(v => !v)}>
+      <div className="doc-card-header doc-card-header--hoverable" onClick={() => setExpanded(v => !v)}>
         <span className="doc-filepath">{doc.filepath?.split('/').pop() || doc.id}</span>
         <span className="doc-expand">{expanded ? '▲' : '▼'}</span>
+        {doc.content && !expanded && (
+          <span className="doc-hover-tooltip">{doc.content}</span>
+        )}
       </div>
 
       <div className="doc-scores">
@@ -58,10 +61,10 @@ function DocCard({ doc, stage }) {
 }
 
 const EXAMPLES = [
-  'How does the CSS box model work?',
-  'What is the difference between let and const?',
-  'Explain the Fetch API',
-  'What are Web Workers?',
+  'How do I store and query vector embeddings in Couchbase?',
+  'What SQL++ syntax do I use for vector search?',
+  'How does ANN search work in Couchbase?',
+  'What is the difference between L2 and cosine distance for vectors?',
 ]
 
 function AppChatRerank() {
@@ -108,7 +111,7 @@ function AppChatRerank() {
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && search()}
-          placeholder="Ask a web development question…"
+          placeholder="Ask about Couchbase vector search…"
         />
         <button className="rerank-btn" onClick={() => search()} disabled={isLoading || !query.trim()}>
           {isLoading ? 'Searching…' : 'Search →'}

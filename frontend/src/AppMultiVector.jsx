@@ -4,10 +4,10 @@ import './AppMultiVector.css'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const EXAMPLES = [
-  'How do I make HTTP requests?',
-  'What is a Promise?',
-  'How does fetch() handle errors?',
-  'What are the response methods?',
+  'How do I query vectors in Couchbase?',
+  'What is approximate nearest neighbour search?',
+  'How does Couchbase store vector embeddings?',
+  'What is semantic search?',
 ]
 
 const PARENT_COLOR  = '#7c3aed'

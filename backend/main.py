@@ -783,6 +783,7 @@ async def chat_structured(body: StructuredRequest):
 
     return {
         "result": parsed,
+        "raw": raw,
         "input_tokens": completion.usage.prompt_tokens,
         "output_tokens": completion.usage.completion_tokens,
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -1146,7 +1147,7 @@ async def chat_rag(body: RagChatRequest):
 
     import json as _json
     citations = [
-        {"id": doc["id"], "filepath": doc.get("filepath", ""), "score": round(doc.get("score", 0.0), 3)}
+        {"id": doc["id"], "filepath": doc.get("filepath", ""), "score": round(doc.get("score", 0.0), 3), "content": doc.get("content", "")}
         for doc in documents
     ]
     # Grounding context for faithfulness check (first 2000 chars to keep it cheap)
@@ -1260,7 +1261,7 @@ async def query(body: QueryRequest):
 
     import json as _json_q
     _citations_q = [
-        {"id": doc["id"], "filepath": doc.get("filepath", ""), "score": round(doc.get("score", 0.0), 3)}
+        {"id": doc["id"], "filepath": doc.get("filepath", ""), "score": round(doc.get("score", 0.0), 3), "content": doc.get("content", "")}
         for doc in documents
     ]
 

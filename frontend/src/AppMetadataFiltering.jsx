@@ -4,10 +4,10 @@ import './AppMetadataFiltering.css'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 
 const EXAMPLES = [
-  'How do I make HTTP requests?',
-  'What is a Promise?',
-  'How does the box model work?',
-  'Explain event listeners',
+  'How do I fetch data from an API?',
+  'What is asynchronous programming?',
+  'How do I style a layout?',
+  'How do I handle user events?',
 ]
 
 const CATEGORIES = [

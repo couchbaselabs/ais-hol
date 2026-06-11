@@ -26,8 +26,12 @@ const MessageBubble = ({ message }) => {
           <div className="message-citations">
             <span className="citations-label">Sources:</span>
             {citations.map((c, i) => (
-              <span key={i} className="citation-chip" title={`Score: ${c.score}`}>
+              <span key={i} className="citation-chip citation-chip--hoverable">
                 {c.filepath ? c.filepath.split('/').pop() : c.id}
+                <span className="citation-score">score: {c.score}</span>
+                {c.content && (
+                  <span className="citation-tooltip">{c.content}</span>
+                )}
               </span>
             ))}
           </div>

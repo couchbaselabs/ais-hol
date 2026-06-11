@@ -12,10 +12,10 @@ import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
  */
 
 const EXAMPLES = [
-  'How does the CSS box model work?',
-  'What is the difference between let and const?',
-  'Explain the Fetch API',
-  'How do Promises work in JavaScript?',
+  'What is Couchbase Vector Search?',
+  'How do I create a vector index in Couchbase?',
+  'How does ANN search work?',
+  'What embedding model should I use with Couchbase?',
 ]
 
 function DocList({ docs, label, color }) {
@@ -90,7 +90,7 @@ function AppChatHyde() {
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && search()}
-          placeholder="Ask a web development question…"
+          placeholder="Ask about Couchbase vector search…"
         />
         <button className="hyde-btn" onClick={() => search()} disabled={isLoading || !query.trim()}>
           {isLoading ? 'Running…' : 'Compare →'}

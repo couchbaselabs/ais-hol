@@ -17,10 +17,10 @@ const SCORE_META = {
 }
 
 const EXAMPLES = [
-  'How does the CSS box model work?',
-  'What is the difference between let and const?',
-  'Explain the Fetch API',
-  'What are Web Workers?',
+  'What is Couchbase Vector Search?',
+  'How do I store embeddings in Couchbase?',
+  'What is the difference between L2 and cosine distance?',
+  'How does Capella AI Services extend vector search?',
 ]
 
 function ScoreGauge({ value, color }) {
@@ -138,7 +138,7 @@ function AppChatEvaluate() {
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && run()}
-          placeholder="Ask a web development question…"
+          placeholder="Ask about Couchbase vector search…"
         />
         <button className="evaluate-btn" onClick={() => run()} disabled={isLoading || !query.trim()}>
           {isLoading ? 'Evaluating…' : 'Generate & Evaluate →'}
