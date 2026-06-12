@@ -4750,7 +4750,7 @@ if os.path.isdir(_STATIC_DIR):
 
 
 # ---------------------------------------------------------------------------
-# Capella AI Service — "DIY vs Capella" comparison tab
+# AI Data Plane — "DIY vs Capella" comparison tab
 #
 # Three scenarios, each running the hand-rolled Python approach and the
 # Capella SQL++ approach side-by-side and returning both results + timings.

@@ -7,7 +7,7 @@ const EXAMPLES = [
   'What is Couchbase Vector Search?',
   'How do vector embeddings capture semantic meaning?',
   'What is approximate nearest neighbour search?',
-  'How does Couchbase Capella AI Services work?',
+  'How does Couchbase AI Data Plane work?',
 ]
 
 const FTS_COLOR  = '#00A3E0'

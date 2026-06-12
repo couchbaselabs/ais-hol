@@ -13,7 +13,7 @@ To use vector search, you first generate embeddings using a model like OpenAI's 
 
 At query time, you embed the user's query using the same model, then use ANN_DISTANCE() in a SQL++ ORDER BY clause to retrieve the most semantically similar documents. This is the retrieval step in a RAG (Retrieval-Augmented Generation) pipeline.
 
-Couchbase Capella AI Services extends this with managed embedding generation, so you can store and query vectors without calling an external embedding API from your application code.`,
+Couchbase AI Data Plane extends this with managed embedding generation, so you can store and query vectors without calling an external embedding API from your application code.`,
 }
 
 const PIPELINE_STEPS = [

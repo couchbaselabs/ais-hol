@@ -20,7 +20,7 @@ const EXAMPLES = [
   'What is Couchbase Vector Search?',
   'How do I store embeddings in Couchbase?',
   'What is the difference between L2 and cosine distance?',
-  'How does Capella AI Services extend vector search?',
+  'How does AI Data Plane extend vector search?',
 ]
 
 function ScoreGauge({ value, color }) {

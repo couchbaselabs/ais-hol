@@ -16,7 +16,7 @@ It supports key-value, document, columnar, full-text search, analytics, eventing
 
 The Couchbase Data Platform includes Couchbase Server for the cloud and on-premises, Couchbase Capella as a fully managed DBaaS, and Couchbase Lite for mobile and edge devices. Sync Gateway bridges the gap between mobile and cloud, enabling offline-first applications.
 
-Couchbase Capella AI Services brings vector search, AI Functions, and LLM integrations directly into the database layer. This allows developers to build AI-powered applications without managing separate vector databases or orchestration layers.`
+Couchbase AI Data Plane brings vector search, AI Functions, and LLM integrations directly into the database layer. This allows developers to build AI-powered applications without managing separate vector databases or orchestration layers.`
 
 const CHUNK_COLORS = [
   '#dbeafe', '#dcfce7', '#fef9c3', '#fce7f3', '#ede9fe',

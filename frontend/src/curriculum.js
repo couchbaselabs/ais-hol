@@ -136,7 +136,7 @@ export const MODULES = [
     level: 'advanced',
     tabs: [
       { id: 'capella-intro',          label: '🗄️ Introduction' },
-      { id: 'capella-service',        label: '🗄️ Capella AI Services' },
+      { id: 'capella-service',        label: '🗄️ AI Data Plane' },
       { id: 'capella-summarise',      label: '🗄️ AI Summarisation' },
       { id: 'capella-sentiment',      label: '🗄️ AI Sentiment' },
       { id: 'capella-classification', label: '🗄️ AI Classification' },

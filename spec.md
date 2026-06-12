@@ -107,14 +107,14 @@ The workshop currently covers RAG, conversation history, and semantic caching, b
 
 Exercise 6 introduces a router that delegates math questions to a math agent. Exercise 7 extends the same multi-agent graph with a second handoff target: a **FAQ search agent** that performs hybrid search (vector + FTS) over FAQ collections stored in Couchbase.
 
-The core use case: multiple FAQ PDFs (e.g. HR policy, product manual, onboarding guide) are each ingested into their own Couchbase collection via a Capella AI Services S3 workflow. When a user asks a question, the **router**:
+The core use case: multiple FAQ PDFs (e.g. HR policy, product manual, onboarding guide) are each ingested into their own Couchbase collection via a AI Data Plane S3 workflow. When a user asks a question, the **router**:
 
 1. Queries Couchbase for a list of available FAQ collections and their metadata.
 2. Embeds the user question and compares it against stored FAQ metadata embeddings to find the best-matching FAQ.
 3. If a sufficiently similar FAQ exists → hands off to the FAQ search agent with the matched collection name.
 4. If no FAQ is close enough → returns an informative message telling the user which topic is missing and that a new FAQ PDF needs to be ingested.
 
-This teaches: dynamic data-aware routing, FAQ metadata management in Couchbase, vector similarity matching at the routing layer, hybrid search (vector + FTS), and PDF ingestion from S3 via Capella AI Services.
+This teaches: dynamic data-aware routing, FAQ metadata management in Couchbase, vector similarity matching at the routing layer, hybrid search (vector + FTS), and PDF ingestion from S3 via AI Data Plane.
 
 ---
 
@@ -181,7 +181,7 @@ Each ingested FAQ is represented by:
 
 8. **S3 bucket**: participant uploads one or more FAQ PDFs to an S3 bucket, each representing a distinct topic. The collection name is chosen by the participant at ingestion time (e.g. `hr_policy`, `product_manual`).
 
-9. **Capella AI Services PDF ingestion workflow** (full walkthrough):
+9. **AI Data Plane PDF ingestion workflow** (full walkthrough):
    - Source: **Data from S3**.
    - Configure: S3 bucket URL, AWS credentials, target bucket (`shared`), scope (`public`), collection (user-defined name).
    - Embedding model: `text-embedding-3-small` (OpenAI).
@@ -207,7 +207,7 @@ Each ingested FAQ is represented by:
 13. **Add Exercise 7 — FAQ Search Agent** section to `README.md`, following the existing format. Steps:
     - **Concept overview**: multiple FAQ collections, metadata-driven routing, hybrid search, PDF ingestion from S3.
     - **Step 1**: Upload FAQ PDFs to S3.
-    - **Step 2**: Configure and run the Capella AI Services S3 ingestion workflow (full walkthrough, one run per FAQ).
+    - **Step 2**: Configure and run the AI Data Plane S3 ingestion workflow (full walkthrough, one run per FAQ).
     - **Step 3**: Create the FTS index on the FAQ collection with `cbsh`.
     - **Step 4**: Create the vector index on `faq_catalog` with `cbsh`.
     - **Step 5**: Register the FAQ metadata (`register_faq()`).

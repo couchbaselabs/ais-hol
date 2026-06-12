@@ -6,7 +6,7 @@ import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
 const EXAMPLES = [
   'How do I build a RAG pipeline with Couchbase?',
   'What are the steps to set up vector search and generate an answer?',
-  'How does Couchbase Capella AI Services simplify embedding generation?',
+  'How does Couchbase AI Data Plane simplify embedding generation?',
   'What is the difference between ANN and exact nearest neighbour search?',
 ]
 

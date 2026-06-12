@@ -104,7 +104,7 @@ async def register_faq(
 ) -> None:
     """Register a new FAQ in the catalog with an embedding of its description.
 
-    Call this after running the Capella AI Services S3 ingestion workflow
+    Call this after running the AI Data Plane S3 ingestion workflow
     for a new FAQ PDF collection.
     """
     from services.openai_service import get_embedding

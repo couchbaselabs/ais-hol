@@ -9,7 +9,7 @@ This guide covers deploying the AI Services HOL on a Linux server with Nginx as 
 - Node.js 18+
 - Nginx
 - A running Couchbase Capella cluster (or self-managed Couchbase 7.6+)
-- An OpenAI-compatible API key (OpenAI, Azure OpenAI, or Capella AI Services)
+- An OpenAI-compatible API key (OpenAI, Azure OpenAI, or AI Data Plane)
 
 ---
 

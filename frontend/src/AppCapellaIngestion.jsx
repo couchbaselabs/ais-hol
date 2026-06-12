@@ -11,7 +11,7 @@ const EXAMPLE_DOCS = [
   {
     label: 'Couchbase Vector Search',
     title: 'Couchbase Vector Search',
-    content: `Couchbase supports vector search through its Full-Text Search (FTS) service. Vector indexes store high-dimensional embeddings alongside document data. The ANN_DISTANCE function computes approximate nearest-neighbour distance in SQL++ queries. Vector indexes are created with CREATE VECTOR INDEX specifying the field name, dimension count, and similarity metric (L2, dot product, or cosine). The VectorQuery class in the Python SDK wraps a query vector and num_candidates parameter. Vector search results include a score field representing similarity. Hybrid search combines vector similarity with keyword matching using SearchRequest.create() with multiple query types. Metadata filtering narrows vector search results using WHERE clauses or filter parameters. The ENCODE_VECTOR function converts a JSON array to the internal vector format. Capella AI Services can automatically generate and store embeddings via the vectorization workflow, eliminating the need to call an embedding API from application code.`,
+    content: `Couchbase supports vector search through its Full-Text Search (FTS) service. Vector indexes store high-dimensional embeddings alongside document data. The ANN_DISTANCE function computes approximate nearest-neighbour distance in SQL++ queries. Vector indexes are created with CREATE VECTOR INDEX specifying the field name, dimension count, and similarity metric (L2, dot product, or cosine). The VectorQuery class in the Python SDK wraps a query vector and num_candidates parameter. Vector search results include a score field representing similarity. Hybrid search combines vector similarity with keyword matching using SearchRequest.create() with multiple query types. Metadata filtering narrows vector search results using WHERE clauses or filter parameters. The ENCODE_VECTOR function converts a JSON array to the internal vector format. AI Data Plane can automatically generate and store embeddings via the vectorization workflow, eliminating the need to call an embedding API from application code.`,
   },
   {
     label: 'RAG Architecture',
@@ -276,7 +276,7 @@ export default function AppCapellaIngestion() {
         /* ── Capella Workflow view ── */
         <div className="ci2-capella-body">
           <div className="ci2-capella-intro">
-            <h2 className="ci2-capella-title">Capella AI Services — Ingestion Workflow</h2>
+            <h2 className="ci2-capella-title">AI Data Plane — Ingestion Workflow</h2>
             <p className="ci2-capella-desc">
               The Capella ingestion workflow replaces the entire DIY pipeline — chunking,
               embedding, storing, and index creation — with a UI-driven configuration.

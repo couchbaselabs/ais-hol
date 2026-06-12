@@ -371,7 +371,7 @@ return response if output_check["safe"] else "[blocked]"`,
     },
     capella: {
       steps: [
-        'Enable Guardrails in Capella AI Services UI',
+        'Enable Guardrails in AI Data Plane UI',
         'Configure input/output policies (categories, thresholds)',
         'Call the Model Service endpoint — same as a normal LLM call',
         'Blocked requests return a structured error automatically',
@@ -416,7 +416,7 @@ return response`,
     },
     capella: {
       steps: [
-        'Enable Semantic Cache in Capella AI Services UI',
+        'Enable Semantic Cache in AI Data Plane UI',
         'Set similarity threshold and TTL',
         'Call the Model Service endpoint — same as a normal LLM call',
         'Cache hits are returned automatically, cache misses stored automatically',

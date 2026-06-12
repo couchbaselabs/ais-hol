@@ -177,7 +177,7 @@ similarity = await cosine(emb_a, emb_b)
       'What is Couchbase Vector Search?',
       'How do vector embeddings capture semantic meaning?',
       'What is approximate nearest neighbour search?',
-      'How does Couchbase Capella AI Services work?',
+      'How does Couchbase AI Data Plane work?',
     ],
     snippets: [
       {
@@ -872,7 +872,7 @@ context   = "\\n\\n".join(d["content"] for d in final_docs)`,
       'What is Couchbase Vector Search?',
       'How do I store embeddings in Couchbase?',
       'What is the difference between L2 and cosine distance?',
-      'How does Capella AI Services extend vector search?',
+      'How does AI Data Plane extend vector search?',
     ],
     snippets: [
       {
@@ -1601,7 +1601,7 @@ async def get_conversation_history(session_id: str, limit: int = 20):
       'What is Couchbase Vector Search?',
       'How do I create a vector index in Couchbase?',
       'What distance metrics does Couchbase vector search support?',
-      'How does Capella AI Services extend vector search?',
+      'How does AI Data Plane extend vector search?',
     ],
     snippets: [
       {
@@ -2536,7 +2536,7 @@ default:ai_corrected_grammar()   Fix spelling, grammar, punctuation`,
     ],
   },
   'capella-service': {
-    title: 'Capella AI Services',
+    title: 'AI Data Plane',
     subtitle: 'DIY Python vs Capella SQL++ — three AI scenarios side by side',
     color: CB_ACCENT,
     icon: '🗄️',
@@ -3240,7 +3240,7 @@ Your App`,
     subtitle: 'UI-driven chunk → embed → store → index workflow — no application code required',
     color: CB_ACCENT,
     icon: '🗄️',
-    what: 'The Capella AI Services ingestion workflow replaces the entire DIY pipeline — chunking, embedding, storing, and vector index creation — with a UI-driven configuration. Connect a data source (Capella collection, S3, web URL, or file upload), choose a chunking strategy and embedding model, select a target collection, and run. Capella handles the rest, including creating the vector search index automatically.',
+    what: 'The AI Data Plane ingestion workflow replaces the entire DIY pipeline — chunking, embedding, storing, and vector index creation — with a UI-driven configuration. Connect a data source (Capella collection, S3, web URL, or file upload), choose a chunking strategy and embedding model, select a target collection, and run. Capella handles the rest, including creating the vector search index automatically.',
     how: [
       'Choose a data source: existing Capella collection, S3 bucket, web URL, or file upload',
       'Configure chunking: strategy (fixed, sentence, paragraph, semantic), size, and overlap',
@@ -3256,7 +3256,7 @@ Your App`,
       'Chunking strategy affects retrieval quality — fixed-size is fastest, semantic is most accurate',
       'The auto-created vector index name must be noted for use in application queries',
     ],
-    stack: ['Couchbase Capella AI Services', 'Ingestion Workflow UI', 'FastAPI /api/ingest (DIY demo)'],
+    stack: ['Couchbase AI Data Plane', 'Ingestion Workflow UI', 'FastAPI /api/ingest (DIY demo)'],
     questions: [
       'Run the DIY pipeline — how many lines of code does it take to chunk, embed, and store?',
       'What happens to retrieval quality when you change chunk size from 150 to 50 words?',

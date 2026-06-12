@@ -129,7 +129,7 @@ export default function AppCapellaService() {
         replaces="multi-step embed → search → LLM pipeline"
       />
       <div className="cs-header">
-        <h2 className="cs-title">Capella AI Services — DIY vs SQL++</h2>
+        <h2 className="cs-title">AI Data Plane — DIY vs SQL++</h2>
         <p className="cs-subtitle">
           The same task, two approaches. See how Capella AI Functions collapse
           multi-step application code into a single database query.
