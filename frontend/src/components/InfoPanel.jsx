@@ -3330,6 +3330,135 @@ docs = [row.fields for row in results.rows()]`,
     ],
   },
 
+  'slack-overview': {
+    title: 'Slack Chatbot — Architecture',
+    subtitle: 'How Slack delivers events to your bot and how to respond',
+    color: '#4A154B',
+    icon: '🏗️',
+    what: 'A Slack bot is a FastAPI app that receives HTTP POST events from Slack, verifies the request signature, and replies via the Slack Web API. The 3-second response deadline means slow operations (RAG, LLM calls) must be offloaded to background tasks.',
+    how: [
+      'User types a slash command or @mentions the bot',
+      'Slack POSTs a signed JSON payload to your Request URL',
+      'Bot verifies HMAC-SHA256 signature and responds 200 OK immediately',
+      'Background task runs the RAG pipeline and posts the answer via chat.postMessage',
+    ],
+    limitations: [
+      'Slack requires a public HTTPS URL — use ngrok for local dev or Socket Mode',
+      'Free Render tier cold-starts can exceed the 3-second deadline',
+      'Bot tokens are workspace-scoped — multi-workspace bots need OAuth per installation',
+    ],
+    stack: ['Slack Events API', 'Slack Web API', 'FastAPI', 'HMAC-SHA256 signature verification'],
+    questions: [
+      { label: 'What is the 3-second rule in Slack bots?', text: null },
+      { label: 'How does Slack signature verification work?', text: null },
+      { label: 'What is the difference between slash commands and event subscriptions?', text: null },
+    ],
+  },
+
+  'slack-slash': {
+    title: 'Slash Command: /ask',
+    subtitle: 'Register /ask to query your RAG pipeline from any Slack channel',
+    color: '#4A154B',
+    icon: '/',
+    what: 'Slash commands send a form-encoded POST to your bot. You must acknowledge within 3 seconds, then post the RAG answer asynchronously via response_url. The response is formatted as Slack Block Kit — section blocks for the answer, context blocks for sources.',
+    how: [
+      'User types /ask [question] in any channel',
+      'Slack POSTs text, user_id, channel_id, response_url to /slack/commands',
+      'Bot acknowledges immediately: {"response_type": "in_channel", "text": "Searching…"}',
+      'Background task: embed query → vector search → LLM → POST to response_url',
+      'Block Kit response: answer in section block, sources in context block',
+    ],
+    limitations: [
+      'response_url expires after 30 minutes and can only be used 5 times',
+      'Slash command responses are ephemeral by default — set response_type: in_channel to share',
+      'Block Kit has a 50-block limit per message',
+    ],
+    stack: ['Slack Slash Commands API', 'FastAPI BackgroundTasks', 'Couchbase vector search', 'Slack Block Kit'],
+    questions: [
+      'What is Couchbase Vector Search?',
+      'How do I create a vector index in Couchbase?',
+      'What distance metrics does Couchbase vector search support?',
+    ],
+    snippets: [
+      {
+        title: 'backend/main.py — slash command handler',
+        language: 'python',
+        code: `@app.post("/slack/commands")
+async def slack_command(
+    background_tasks: BackgroundTasks,
+    text: str = Form(...),
+    response_url: str = Form(...),
+    user_id: str = Form(...),
+    request: Request = None,
+):
+    verify_slack_signature(request, await request.body())
+    background_tasks.add_task(
+        handle_rag_and_reply, text, response_url, user_id)
+    return {"response_type": "in_channel", "text": "Searching…"}
+
+async def handle_rag_and_reply(question, response_url, user_id):
+    embedding = await get_embedding(question)
+    docs = await get_relevant_documents(embedding)
+    answer = await generate_response(question, docs)
+    await httpx.AsyncClient().post(response_url,
+        json=build_blocks(answer, docs))`,
+      },
+    ],
+  },
+
+  'slack-events': {
+    title: 'Event Subscriptions',
+    subtitle: 'Respond to @mentions, DMs, and reactions',
+    color: '#4A154B',
+    icon: '📡',
+    what: 'Event subscriptions let your bot react to anything that happens in Slack — @mentions, direct messages, reactions, file uploads. Subscribe only to the events you need; each adds latency and processing cost.',
+    how: [
+      'Subscribe to events in your app manifest (app_mention, message.im, reaction_added)',
+      'Slack POSTs each event to /slack/events within seconds of it occurring',
+      'Bot verifies signature, returns 200 OK, offloads processing to background task',
+      '@mention: reply in thread to avoid cluttering the channel',
+      'DM: maintain per-user conversation history in Couchbase for context',
+      'reaction_added (⭐): save the reacted message to the user\'s knowledge base',
+    ],
+    limitations: [
+      'Events can be delivered more than once — use event_id for deduplication',
+      'message.channels requires channels:history scope — users may be privacy-sensitive',
+      'Bots cannot read messages they didn\'t receive an event for',
+    ],
+    stack: ['Slack Events API', 'FastAPI BackgroundTasks', 'Couchbase (conversation history)', 'Couchbase vector search'],
+    questions: [
+      'What is Couchbase Vector Search?',
+      'How do I store embeddings in Couchbase?',
+      'How does Capella AI Data Plane work?',
+    ],
+  },
+
+  'slack-deploy': {
+    title: 'Deploy to Render',
+    subtitle: 'End-to-end: Slack app manifest, signature verification, Render deployment',
+    color: '#4A154B',
+    icon: '🚀',
+    what: 'Deploying a Slack bot requires a public HTTPS URL, a Slack app with the right scopes and event subscriptions, and proper signature verification on every request. This tab walks through the full setup from app manifest to production deployment.',
+    how: [
+      'Create Slack app from manifest — configures scopes, events, and slash commands in one step',
+      'Set SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET as Render environment variables',
+      'Verify every request: HMAC-SHA256(signing_secret, "v0:{ts}:{body}") must match X-Slack-Signature',
+      'Update Request URL in Slack manifest to your Render domain after first deploy',
+      'Test with /ask and @mention in your workspace',
+    ],
+    limitations: [
+      'Render free tier spins down after inactivity — cold starts exceed Slack\'s 3-second deadline',
+      'Socket Mode avoids the public URL requirement but adds WebSocket complexity',
+      'Slack app review required for public distribution (not needed for internal workspace bots)',
+    ],
+    stack: ['Slack App Manifest', 'Render (Docker)', 'HMAC-SHA256 signature verification', 'FastAPI'],
+    questions: [
+      { label: 'What is Socket Mode and when should I use it?', text: null },
+      { label: 'How do I handle Slack\'s URL verification challenge?', text: null },
+      { label: 'What scopes does a RAG bot need?', text: null },
+    ],
+  },
+
   'agent-catalog-overview': {
     title: 'Agent Catalog — Overview',
     subtitle: 'Versioned registry for AI tools and prompts, stored in Couchbase',
@@ -4944,6 +5073,497 @@ async def voice_chat(audio: UploadFile = File(...)):
         headers={"X-Transcript": user_text},   # expose transcript to UI
     )`,
       },
+    ],
+  },
+
+  // ── WhatsApp ──────────────────────────────────────────────────────────────
+  'whatsapp-overview': {
+    title: 'WhatsApp Bot — Architecture',
+    subtitle: 'Meta Cloud API: webhook verification, message routing, RAG replies',
+    color: '#25D366',
+    icon: '💬',
+    what: 'The Meta WhatsApp Cloud API lets you send and receive WhatsApp messages without Twilio or a BSP. Your server receives webhook POSTs from Meta, verifies the X-Hub-Signature-256 header, extracts the message, runs RAG, and replies via the Messages API using the phone_number_id.',
+    how: [
+      'Meta delivers messages as JSON webhooks — parse entry[0].changes[0].value.messages[0]',
+      'Verify every POST with HMAC-SHA256(app_secret, body) against X-Hub-Signature-256',
+      'Reply via POST /v19.0/{phone_number_id}/messages with the recipient wa_id',
+      'Store conversation history in Couchbase keyed by wa_id for session memory',
+      'Use interactive message types (buttons, lists) for guided follow-up questions',
+    ],
+    limitations: [
+      'Production requires Meta Business Verification and a permanent phone number',
+      'Test mode limited to 5 recipient numbers',
+      'WhatsApp has no built-in session concept — you must manage history yourself',
+    ],
+    stack: ['Meta WhatsApp Cloud API', 'FastAPI', 'Couchbase (session memory)', 'Render'],
+    questions: [
+      { label: 'How does X-Hub-Signature-256 verification work?', text: null },
+      { label: 'What is the difference between phone_number_id and wa_id?', text: null },
+      { label: 'How do I send interactive button messages on WhatsApp?', text: null },
+    ],
+  },
+  'whatsapp-webhook': {
+    title: 'WhatsApp Webhook Handler',
+    subtitle: 'Receive, verify, and process incoming WhatsApp messages',
+    color: '#25D366',
+    icon: '🪝',
+    what: 'Meta sends two types of requests to your webhook: a GET for initial verification (echo hub.challenge) and POSTs for each message event. Every POST must be verified with HMAC-SHA256 before processing.',
+    how: [
+      'GET /webhook: check hub.verify_token matches your secret, return hub.challenge as plain text',
+      'POST /webhook: compute HMAC-SHA256(app_secret, raw_body), compare to X-Hub-Signature-256',
+      'Extract message: body["entry"][0]["changes"][0]["value"]["messages"][0]',
+      'Acknowledge immediately with 200 OK, process in a background task to avoid Meta retries',
+      'Filter out status updates (delivered, read) by checking messages key exists',
+    ],
+    limitations: [
+      'Meta retries webhooks if your server does not respond with 200 within 20 seconds',
+      'Raw body must be read before JSON parsing for signature verification',
+    ],
+    stack: ['FastAPI', 'HMAC-SHA256', 'Meta Webhooks'],
+    questions: [
+      { label: 'Why must I read the raw body before JSON parsing?', text: null },
+      { label: 'How do I handle Meta webhook retries?', text: null },
+    ],
+  },
+  'whatsapp-memory': {
+    title: 'WhatsApp Session Memory',
+    subtitle: 'Per-user conversation history stored in Couchbase',
+    color: '#25D366',
+    icon: '🧠',
+    what: 'WhatsApp has no built-in session concept. Each message arrives independently with only the sender\'s wa_id (phone number). Store conversation history in Couchbase keyed by wa_id and include it in the LLM prompt for multi-turn conversations.',
+    how: [
+      'Key: "whatsapp::{wa_id}" — load history before running RAG',
+      'Append user message and assistant reply after each turn',
+      'Trim history to last N turns to stay within context window',
+      'Set a TTL on the Couchbase document to expire inactive sessions',
+      'Include history as alternating user/assistant messages in the LLM prompt',
+    ],
+    limitations: [
+      'History grows unbounded without trimming — set a max turn count',
+      'No cross-device sync — history is tied to the phone number, not a user account',
+    ],
+    stack: ['Couchbase KV', 'FastAPI', 'LLM context window management'],
+    questions: [
+      { label: 'How do I set a TTL on a Couchbase document?', text: null },
+      { label: 'How many turns of history should I include?', text: null },
+    ],
+  },
+  'whatsapp-deploy': {
+    title: 'Deploy WhatsApp Bot',
+    subtitle: 'Meta app setup, webhook registration, and Render deployment',
+    color: '#25D366',
+    icon: '🚀',
+    what: 'Deploying a WhatsApp bot requires a Meta Business app with the WhatsApp product, a registered phone number, and a public HTTPS webhook URL. Render provides the public URL and handles TLS automatically.',
+    how: [
+      'Create Meta app at developers.facebook.com → Business → add WhatsApp product',
+      'Note Phone Number ID and Temporary Access Token from Getting Started',
+      'Deploy to Render, then set webhook URL in Meta dashboard → WhatsApp → Configuration',
+      'Set WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WEBHOOK_VERIFY_TOKEN as Render env vars',
+      'Subscribe to the messages webhook field and test with a registered recipient number',
+    ],
+    limitations: [
+      'Production requires Meta Business Verification (can take days)',
+      'Temporary access token expires — use a System User token for production',
+      'Test mode limited to 5 recipient phone numbers',
+    ],
+    stack: ['Meta WhatsApp Cloud API', 'Render (Docker)', 'FastAPI'],
+    questions: [
+      { label: 'How do I get a permanent WhatsApp access token?', text: null },
+      { label: 'What is Meta Business Verification?', text: null },
+    ],
+  },
+
+  // ── Telegram ──────────────────────────────────────────────────────────────
+  'telegram-overview': {
+    title: 'Telegram Bot — Architecture',
+    subtitle: 'BotFather, webhooks vs polling, Update routing',
+    color: '#229ED9',
+    icon: '✈️',
+    what: 'Telegram bots are the simplest bot platform: create a bot with @BotFather, get a token, and start receiving updates. No app review, no business verification. Updates arrive via webhook (production) or polling (local dev). Every event is an Update object with a unique update_id.',
+    how: [
+      'Create bot with @BotFather /newbot — get a token immediately, no review',
+      'Register commands with /setcommands so they appear in the Telegram UI',
+      'Webhook: Telegram POSTs Update objects to your URL — register with setWebhook',
+      'Polling: call getUpdates in a loop — no public URL needed for local dev',
+      'Verify requests with a secret_token set during webhook registration',
+    ],
+    limitations: [
+      'Webhook requires a public HTTPS URL — use polling for local development',
+      'Telegram bots cannot initiate conversations — users must message first',
+      'Rate limits: 30 messages/second globally, 1 message/second per chat',
+    ],
+    stack: ['Telegram Bot API', 'FastAPI', 'Couchbase', 'Render'],
+    questions: [
+      { label: 'What is the difference between webhook and polling?', text: null },
+      { label: 'How do I test a Telegram bot locally without a public URL?', text: null },
+      { label: 'What are Telegram bot rate limits?', text: null },
+    ],
+  },
+  'telegram-commands': {
+    title: 'Telegram Commands',
+    subtitle: 'Register and handle /commands with typed routing',
+    color: '#229ED9',
+    icon: '⌨️',
+    what: 'Telegram commands start with / and appear in the bot\'s command menu. Register them with @BotFather /setcommands. In your webhook handler, route by checking if message.text starts with the command prefix.',
+    how: [
+      'Register commands: /setcommands → paste "ask - Ask a question\\nhelp - Show help"',
+      'Route: if text.startswith("/ask "): question = text[5:].strip()',
+      'Handle unknown commands with a fallback message',
+      'For plain text (no /), route to the free-text RAG handler',
+      'Always return 200 OK — Telegram retries if it gets an error',
+    ],
+    limitations: [
+      'Command arguments are just text after the command — no typed options like Discord',
+      'Commands must be lowercase letters and underscores only',
+    ],
+    stack: ['Telegram Bot API', 'FastAPI'],
+    questions: [
+      { label: 'How do I handle commands with multiple arguments?', text: null },
+      { label: 'Can I have different commands for different chats?', text: null },
+    ],
+  },
+  'telegram-inline': {
+    title: 'Telegram Inline Keyboards',
+    subtitle: 'Inline buttons and callback_query handling for follow-up actions',
+    color: '#229ED9',
+    icon: '🔘',
+    what: 'Inline keyboards attach buttons directly to messages. When a user taps a button, Telegram sends a callback_query Update. Use them to offer follow-up question suggestions after each RAG answer.',
+    how: [
+      'Add reply_markup with InlineKeyboardMarkup to sendMessage',
+      'Each button has callback_data — a short string sent back in callback_query.data',
+      'Handle callback_query Updates: answer with answerCallbackQuery, then send a new message',
+      'Keep callback_data short (max 64 bytes) — use IDs, not full question text',
+      'Edit the original message to remove buttons after they are used',
+    ],
+    limitations: [
+      'callback_data max 64 bytes — store full context in Couchbase, pass only an ID',
+      'Inline keyboards expire if the bot restarts and loses the callback context',
+    ],
+    stack: ['Telegram Bot API', 'InlineKeyboardMarkup', 'FastAPI'],
+    questions: [
+      { label: 'How do I edit a message after a button is pressed?', text: null },
+      { label: 'What is the difference between inline keyboard and reply keyboard?', text: null },
+    ],
+  },
+  'telegram-deploy': {
+    title: 'Deploy Telegram Bot',
+    subtitle: 'BotFather setup, webhook registration, and Render deployment',
+    color: '#229ED9',
+    icon: '🚀',
+    what: 'Deploying a Telegram bot is the simplest of all platforms: create a bot with @BotFather, deploy to Render, and register the webhook URL with a single curl command.',
+    how: [
+      'Create bot: @BotFather /newbot → copy token',
+      'Deploy to Render, then register webhook: curl "https://api.telegram.org/bot{TOKEN}/setWebhook" -d url=... -d secret_token=...',
+      'Verify with getWebhookInfo — check pending_update_count is 0',
+      'Set TELEGRAM_BOT_TOKEN and TELEGRAM_SECRET_TOKEN as Render env vars',
+      'For local dev, switch to polling — no public URL needed',
+    ],
+    limitations: [
+      'Render free tier cold starts may cause missed updates — use paid tier or keep-alive pings',
+      'Telegram retries failed webhook deliveries for 24 hours',
+    ],
+    stack: ['Telegram Bot API', 'Render', 'FastAPI'],
+    questions: [
+      { label: 'How do I switch between webhook and polling?', text: null },
+      { label: 'How do I verify my webhook is registered correctly?', text: null },
+    ],
+  },
+
+  // ── Discord ───────────────────────────────────────────────────────────────
+  'discord-overview': {
+    title: 'Discord Bot — Architecture',
+    subtitle: 'Slash commands, Ed25519 verification, deferred responses',
+    color: '#5865F2',
+    icon: '🎮',
+    what: 'Discord\'s interaction model is purpose-built for bots. Slash commands appear in the / menu with typed options. Every interaction POST is signed with Ed25519 — Discord will reject your endpoint if verification fails. For slow operations like RAG, defer immediately (type 5) and edit the followup when ready.',
+    how: [
+      'Register application commands via the Discord API — they appear in the / menu',
+      'Verify Ed25519 signature: X-Signature-Ed25519 + X-Signature-Timestamp against public key',
+      'Respond to PING (type 1) with {"type": 1} — Discord verifies your endpoint on setup',
+      'For /ask: return type 5 (deferred) immediately, run RAG in background, edit original',
+      'Use embeds for rich answers with title, description, fields, color, and source citations',
+    ],
+    limitations: [
+      'Must respond within 3 seconds or Discord shows an error — always defer for RAG',
+      'Ed25519 verification is mandatory — Discord will not deliver interactions without it',
+      'Slash commands take up to 1 hour to propagate globally after registration',
+    ],
+    stack: ['Discord API', 'Ed25519', 'FastAPI', 'Couchbase', 'Render'],
+    questions: [
+      { label: 'How does Ed25519 signature verification work?', text: null },
+      { label: 'What is the difference between global and guild commands?', text: null },
+      { label: 'How do I update a deferred response?', text: null },
+    ],
+  },
+  'discord-slash': {
+    title: 'Discord Slash Commands',
+    subtitle: 'Register and handle application commands with typed options',
+    color: '#5865F2',
+    icon: '⚡',
+    what: 'Discord slash commands are registered via the API and appear in the / menu with descriptions and typed options. Unlike Telegram commands, options are typed (string, integer, boolean) and Discord validates them before sending the interaction.',
+    how: [
+      'Register: POST /applications/{app_id}/commands with name, description, and options array',
+      'Each option has a type (3=string, 4=integer, 5=boolean) and required flag',
+      'Access option value: body["data"]["options"][0]["value"]',
+      'For guild-specific commands (faster propagation): POST /applications/{app_id}/guilds/{guild_id}/commands',
+      'Delete stale commands to keep the / menu clean',
+    ],
+    limitations: [
+      'Global commands take up to 1 hour to propagate — use guild commands during development',
+      'Max 100 global commands per application',
+      'Option names must be lowercase with no spaces',
+    ],
+    stack: ['Discord API', 'FastAPI'],
+    questions: [
+      { label: 'How do I register commands only for my test server?', text: null },
+      { label: 'Can I have subcommands and subcommand groups?', text: null },
+    ],
+  },
+  'discord-context': {
+    title: 'Discord Context Menus',
+    subtitle: 'Right-click message commands for contextual RAG',
+    color: '#5865F2',
+    icon: '🖱️',
+    what: 'Message context menu commands appear when a user right-clicks a message → Apps. They let users run RAG on any message in the channel without typing. Register them as application commands with type 3 (MESSAGE).',
+    how: [
+      'Register: POST /applications/{app_id}/commands with type: 3 (MESSAGE)',
+      'The interaction includes the target message in body["data"]["resolved"]["messages"]',
+      'Extract message content: body["data"]["resolved"]["messages"][target_id]["content"]',
+      'Defer and run RAG on the message content, reply with an embed',
+      'Context menu commands also appear in the user right-click menu (type 2 = USER)',
+    ],
+    limitations: [
+      'Context menu commands count toward the 100 global command limit',
+      'Cannot have options — the target message is the only input',
+    ],
+    stack: ['Discord API', 'FastAPI'],
+    questions: [
+      { label: 'How do I access the content of the right-clicked message?', text: null },
+      { label: 'What is a USER context menu command?', text: null },
+    ],
+  },
+  'discord-deploy': {
+    title: 'Deploy Discord Bot',
+    subtitle: 'Developer portal setup, command registration, and Render deployment',
+    color: '#5865F2',
+    icon: '🚀',
+    what: 'Deploying a Discord bot requires creating an application in the Developer Portal, setting the interactions endpoint URL (Discord verifies it with a PING), and inviting the bot to your server with the right OAuth2 scopes.',
+    how: [
+      'Create app at discord.com/developers/applications → Bot → copy token and public key',
+      'Deploy to Render first — Discord verifies the interactions endpoint on save',
+      'Set Interactions Endpoint URL in General Information to your Render URL',
+      'Register slash commands via the API (run once after deploy)',
+      'Invite bot: OAuth2 URL with bot and applications.commands scopes',
+    ],
+    limitations: [
+      'Interactions endpoint must pass Discord\'s PING verification before you can save it',
+      'Bot token and public key are separate — both are needed',
+      'Render free tier cold starts will fail Discord\'s 3-second deadline',
+    ],
+    stack: ['Discord Developer Portal', 'Render', 'FastAPI', 'Ed25519'],
+    questions: [
+      { label: 'Why does Discord verify my endpoint with a PING?', text: null },
+      { label: 'What OAuth2 scopes does my bot need?', text: null },
+    ],
+  },
+
+  // ── Web Chat Widget ───────────────────────────────────────────────────────
+  'webchat-overview': {
+    title: 'Web Chat Widget — Architecture',
+    subtitle: 'Self-hosted streaming chat widget embeddable on any website',
+    color: '#0ea5e9',
+    icon: '💬',
+    what: 'A self-hosted chat widget gives you full control over the UI, data, and deployment. The widget is a JS bundle embedded via a script tag. It communicates with your FastAPI backend over Server-Sent Events (SSE) for streaming responses. Session memory is stored in Couchbase keyed by a UUID in localStorage.',
+    how: [
+      'Widget: single JS bundle injected via <script> tag — no iframe, no third-party platform',
+      'Communication: POST /api/chat with {message, session_id}, stream response via SSE',
+      'Streaming: FastAPI yields SSE events (data: {token}\\n\\n) as LLM tokens arrive',
+      'Session memory: UUID in localStorage → conversation history in Couchbase',
+      'Theming: data-color, data-title, data-position attributes on the script tag',
+    ],
+    limitations: [
+      'Requires a public HTTPS backend — configure CORS for your domain',
+      'SSE is one-directional — use WebSockets if you need bidirectional streaming',
+      'Widget bundle size matters for page load — keep it under 50KB gzipped',
+    ],
+    stack: ['FastAPI SSE', 'Couchbase (session memory)', 'Vite (widget build)', 'Render'],
+    questions: [
+      { label: 'When should I use SSE vs WebSockets?', text: null },
+      { label: 'How do I handle CORS for the widget?', text: null },
+      { label: 'How do I add authentication to the widget?', text: null },
+    ],
+  },
+  'webchat-widget': {
+    title: 'Web Chat Widget — Embed',
+    subtitle: 'Self-contained JS widget with floating button and chat panel',
+    color: '#0ea5e9',
+    icon: '🪟',
+    what: 'The widget is a self-contained IIFE bundle built with Vite. It injects a floating chat button and panel into any page. Configuration is passed via data attributes on the script tag — no code changes needed to customize colors, title, or position.',
+    how: [
+      'Build as IIFE with Vite lib mode — single file, no external dependencies',
+      'Inject floating button and panel into document.body on load',
+      'Read config from script tag data attributes: data-color, data-title, data-position',
+      'Generate UUID session_id on first load, persist in localStorage',
+      'Render tokens as they arrive from the SSE stream — scroll to bottom on each token',
+    ],
+    limitations: [
+      'IIFE format means no tree-shaking — keep the widget lean',
+      'localStorage is per-origin — session history is lost if the user clears storage',
+    ],
+    stack: ['Vite (IIFE build)', 'Vanilla JS', 'localStorage'],
+    questions: [
+      { label: 'How do I build the widget as a single JS file?', text: null },
+      { label: 'How do I pass configuration without modifying the widget source?', text: null },
+    ],
+  },
+  'webchat-streaming': {
+    title: 'Web Chat Widget — Streaming',
+    subtitle: 'Server-Sent Events for real-time token streaming',
+    color: '#0ea5e9',
+    icon: '📡',
+    what: 'Server-Sent Events (SSE) stream LLM tokens from FastAPI to the browser over a single HTTP connection. The widget reads the stream with EventSource or fetch + ReadableStream and renders tokens as they arrive for a real-time feel.',
+    how: [
+      'FastAPI: return StreamingResponse with media_type="text/event-stream"',
+      'Yield: f"data: {json.dumps({\'token\': token})}\\n\\n" for each LLM token',
+      'Signal completion: yield "data: [DONE]\\n\\n"',
+      'Widget: use fetch + response.body.getReader() for POST requests (EventSource only supports GET)',
+      'Save full response to Couchbase history after [DONE] is received',
+    ],
+    limitations: [
+      'SSE requires HTTP/1.1 keep-alive or HTTP/2 — most CDNs support this',
+      'Proxies and load balancers may buffer SSE — set X-Accel-Buffering: no',
+      'EventSource only supports GET — use fetch + ReadableStream for POST',
+    ],
+    stack: ['FastAPI StreamingResponse', 'Server-Sent Events', 'ReadableStream API'],
+    questions: [
+      { label: 'Why use fetch instead of EventSource for streaming?', text: null },
+      { label: 'How do I handle SSE buffering in nginx or Render?', text: null },
+      { label: 'How do I stream from OpenAI through FastAPI to the browser?', text: null },
+    ],
+  },
+  'webchat-deploy': {
+    title: 'Deploy Web Chat Widget',
+    subtitle: 'Build the widget bundle, configure CORS, and embed on your site',
+    color: '#0ea5e9',
+    icon: '🚀',
+    what: 'Deploying the web chat widget involves building the JS bundle, deploying the FastAPI backend to Render, configuring CORS, and embedding the widget on your site with a single script tag.',
+    how: [
+      'Build widget: vite build --config vite.widget.config.js → dist/widget.iife.js',
+      'Serve widget.js from your FastAPI backend as a static file',
+      'Configure CORS: allow your website\'s origin for POST /api/chat',
+      'Set X-Accel-Buffering: no header to prevent SSE buffering on Render',
+      'Embed: <script src="https://your-api.onrender.com/widget.js" data-color="#0ea5e9"></script>',
+    ],
+    limitations: [
+      'Render free tier may buffer SSE — upgrade to paid or add keep-alive pings',
+      'CORS must be configured before the widget can communicate with the backend',
+    ],
+    stack: ['Vite', 'Render', 'FastAPI', 'CORS middleware'],
+    questions: [
+      { label: 'How do I serve the widget JS from FastAPI?', text: null },
+      { label: 'How do I prevent SSE buffering on Render?', text: null },
+    ],
+  },
+
+  // ── Shopify ───────────────────────────────────────────────────────────────
+  'shopify-overview': {
+    title: 'Shopify Storefront Bot — Architecture',
+    subtitle: 'Storefront API + Couchbase vector search for product Q&A',
+    color: '#96BF48',
+    icon: '🛍️',
+    what: 'A Shopify storefront bot answers product questions by combining Couchbase vector search over your catalog with live data from the Storefront API. The bot retrieves semantically relevant products, enriches them with real-time price and inventory, and generates a grounded natural-language answer with add-to-cart links.',
+    how: [
+      'Ingest product catalog: fetch via Admin API, embed descriptions, store vectors in Couchbase',
+      'At query time: embed the question, run vector search with optional price/tag filters',
+      'Enrich top-k results with live Storefront API data (price, availability, variants)',
+      'LLM generates a grounded answer — never hallucinates stock status',
+      'Return product cards with direct Shopify checkout URLs (/cart/{variant_id}:{qty})',
+    ],
+    limitations: [
+      'Storefront API is read-only — cannot place orders or access customer data',
+      'Catalog index goes stale without webhook-driven re-ingestion on product updates',
+      'Large catalogs (10k+ products) require bulk export and incremental indexing',
+    ],
+    stack: ['Shopify Storefront API (GraphQL)', 'Couchbase vector search', 'OpenAI embeddings', 'FastAPI'],
+    questions: [
+      { label: 'What is the difference between the Storefront API and Admin API?', text: null },
+      { label: 'How do I keep the product index fresh when products change?', text: null },
+      { label: 'How do I generate an add-to-cart link for a specific variant?', text: null },
+    ],
+  },
+  'shopify-catalog': {
+    title: 'Shopify Catalog Ingestion',
+    subtitle: 'Fetch, embed, and index your product catalog in Couchbase',
+    color: '#96BF48',
+    icon: '📦',
+    what: 'Catalog ingestion fetches all products from the Shopify Admin API, builds a rich text representation of each product (title + description + tags), embeds it with OpenAI, and upserts the vector document into Couchbase. A Shopify webhook keeps the index fresh on product changes.',
+    how: [
+      'Fetch products: GET /admin/api/2024-01/products.json?limit=250 (paginate with page_info)',
+      'Build text: "{title}. {description}. Tags: {tags}. Type: {product_type}"',
+      'Embed with text-embedding-3-small (1536 dims) — batch up to 100 products per API call',
+      'Upsert into Couchbase: key = "product::{handle}", include price, tags, variants as metadata',
+      'Register products/create and products/update webhooks to trigger re-ingestion',
+    ],
+    limitations: [
+      'Admin API rate limit: 2 requests/second (leaky bucket) — add delays for large catalogs',
+      'Embedding API costs scale with catalog size — cache embeddings and only re-embed on change',
+      'Product descriptions vary in quality — poor descriptions lead to poor search results',
+    ],
+    stack: ['Shopify Admin API', 'OpenAI text-embedding-3-small', 'Couchbase KV + vector index'],
+    questions: [
+      { label: 'How do I paginate through all products with the Admin API?', text: null },
+      { label: 'How do I handle product variants in the vector index?', text: null },
+      { label: 'How do I verify a Shopify webhook signature?', text: null },
+    ],
+  },
+  'shopify-search': {
+    title: 'Shopify Product Search',
+    subtitle: 'Hybrid vector + metadata search with live inventory enrichment',
+    color: '#96BF48',
+    icon: '🔍',
+    what: 'Product search combines Couchbase vector search (semantic similarity) with SQL++ metadata filters (price range, product type, tags) to find the most relevant products. The top-k results are then enriched with live Storefront API data before being passed to the LLM.',
+    how: [
+      'Parse intent: extract price constraints and product type from the question (LLM or regex)',
+      'Build Couchbase query: vector search + WHERE price <= {max} AND ANY tag IN tags SATISFIES tag = {type} END',
+      'Fetch live data: Storefront API GraphQL query for each product handle — price, availability, variants',
+      'Pass enriched products as context to the LLM with a grounding prompt',
+      'Generate checkout links: https://{store}.myshopify.com/cart/{variant_id}:{qty}',
+    ],
+    limitations: [
+      'Storefront API adds latency — batch product lookups in a single GraphQL query',
+      'LLM may still hallucinate if product context is ambiguous — use structured output',
+      'Price filters require metadata to be stored at index time — keep it in sync',
+    ],
+    stack: ['Couchbase vector search', 'Shopify Storefront API (GraphQL)', 'FastAPI', 'OpenAI'],
+    questions: [
+      { label: 'How do I combine vector search with a price filter in Couchbase?', text: null },
+      { label: 'How do I batch multiple product lookups in a single GraphQL query?', text: null },
+      { label: 'How do I generate a Shopify checkout URL with a pre-filled cart?', text: null },
+    ],
+  },
+  'shopify-deploy': {
+    title: 'Deploy Shopify Bot',
+    subtitle: 'Storefront token, catalog ingestion, webhook registration, Render deployment',
+    color: '#96BF48',
+    icon: '🚀',
+    what: 'Deploying the Shopify bot involves creating a Storefront Access Token, running the initial catalog ingestion, deploying to Render, and registering Shopify webhooks to keep the index fresh.',
+    how: [
+      'Create Storefront Access Token: Shopify Admin → Settings → Apps → Develop apps',
+      'Run initial ingestion: python ingest_shopify.py — fetches all products and indexes into Couchbase',
+      'Deploy to Render with SHOPIFY_STORE_DOMAIN, SHOPIFY_STOREFRONT_TOKEN, SHOPIFY_ADMIN_TOKEN env vars',
+      'Register products/create and products/update webhooks pointing to /webhooks/shopify',
+      'Verify webhook signatures with HMAC-SHA256(webhook_secret, raw_body) vs X-Shopify-Hmac-Sha256',
+    ],
+    limitations: [
+      'Initial ingestion can take minutes for large catalogs — run as a one-off task, not on startup',
+      'Storefront Access Token is public — do not confuse with Admin API token (keep that secret)',
+      'Render free tier cold starts add latency — consider a paid plan for production storefronts',
+    ],
+    stack: ['Shopify Admin API', 'Shopify Storefront API', 'Render', 'FastAPI', 'Couchbase'],
+    questions: [
+      { label: 'What scopes does my Shopify app need?', text: null },
+      { label: 'How do I run the initial catalog ingestion?', text: null },
+      { label: 'How do I verify Shopify webhook signatures?', text: null },
     ],
   },
 }

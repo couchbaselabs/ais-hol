@@ -17,6 +17,10 @@ import AppChatHyde from './AppChatHyde'
 import AppChatEvaluate from './AppChatEvaluate'
 import AppSummarise from './AppSummarise'
 import AppTokens from './AppTokens'
+import AppSlackOverview      from './AppSlackOverview'
+import AppSlackSlashCommand  from './AppSlackSlashCommand'
+import AppSlackEvents        from './AppSlackEvents'
+import AppSlackDeploy        from './AppSlackDeploy'
 import AppAgentCatalogOverview from './AppAgentCatalogOverview'
 import AppAgentCatalogTools from './AppAgentCatalogTools'
 import AppAgentCatalogRuns from './AppAgentCatalogRuns'
@@ -62,6 +66,11 @@ import AppMultiVector         from './AppMultiVector'
 import AppRetry              from './AppRetry'
 import AppTokenBudget        from './AppTokenBudget'
 import AppObservability      from './AppObservability'
+import { AppWhatsAppOverview, AppWhatsAppDemo, AppWhatsAppDeploy } from './AppWhatsApp'
+import { AppTelegramOverview, AppTelegramDemo, AppTelegramDeploy } from './AppTelegram'
+import { AppDiscordOverview, AppDiscordDemo, AppDiscordDeploy }   from './AppDiscord'
+import { AppWebChatOverview, AppWebChatDemo, AppWebChatDeploy }   from './AppWebChat'
+import { AppShopifyOverview, AppShopifyDemo, AppShopifyDeploy }   from './AppShopify'
 
 function Shell() {
   const [activeTab, setActiveTab] = useState('chat')
@@ -92,6 +101,10 @@ function Shell() {
         {activeTab === 'evaluate'   && <AppChatEvaluate   key="evaluate"   />}
         {activeTab === 'summarise'  && <AppSummarise      key="summarise"  />}
         {activeTab === 'tokens'            && <AppTokens          key="tokens"            />}
+        {activeTab === 'slack-overview' && <AppSlackOverview     key="slack-overview" />}
+        {activeTab === 'slack-slash'    && <AppSlackSlashCommand key="slack-slash" />}
+        {activeTab === 'slack-events'   && <AppSlackEvents       key="slack-events" />}
+        {activeTab === 'slack-deploy'   && <AppSlackDeploy       key="slack-deploy" />}
         {activeTab === 'agent-catalog-overview' && <AppAgentCatalogOverview  key="agent-catalog-overview" />}
         {activeTab === 'agent-catalog-tools'    && <AppAgentCatalogTools     key="agent-catalog-tools" />}
         {activeTab === 'agent-catalog-runs'     && <AppAgentCatalogRuns      key="agent-catalog-runs" />}
@@ -140,6 +153,26 @@ function Shell() {
         {activeTab === 'vector-search'      && <AppVectorSearch       key="vector-search"      />}
         {activeTab === 'metadata-filtering' && <AppMetadataFiltering  key="metadata-filtering" />}
         {activeTab === 'multi-vector'       && <AppMultiVector         key="multi-vector"       />}
+        {activeTab === 'whatsapp-overview'  && <AppWhatsAppOverview    key="whatsapp-overview"  />}
+        {activeTab === 'whatsapp-webhook'   && <AppWhatsAppDemo        key="whatsapp-webhook"   tabId="whatsapp-webhook"  />}
+        {activeTab === 'whatsapp-memory'    && <AppWhatsAppDemo        key="whatsapp-memory"    tabId="whatsapp-memory"   />}
+        {activeTab === 'whatsapp-deploy'    && <AppWhatsAppDeploy      key="whatsapp-deploy"    />}
+        {activeTab === 'telegram-overview'  && <AppTelegramOverview    key="telegram-overview"  />}
+        {activeTab === 'telegram-commands'  && <AppTelegramDemo        key="telegram-commands"  tabId="telegram-commands" />}
+        {activeTab === 'telegram-inline'    && <AppTelegramDemo        key="telegram-inline"    tabId="telegram-inline"   />}
+        {activeTab === 'telegram-deploy'    && <AppTelegramDeploy      key="telegram-deploy"    />}
+        {activeTab === 'discord-overview'   && <AppDiscordOverview     key="discord-overview"   />}
+        {activeTab === 'discord-slash'      && <AppDiscordDemo         key="discord-slash"      tabId="discord-slash"     />}
+        {activeTab === 'discord-context'    && <AppDiscordDemo         key="discord-context"    tabId="discord-context"   />}
+        {activeTab === 'discord-deploy'     && <AppDiscordDeploy       key="discord-deploy"     />}
+        {activeTab === 'webchat-overview'   && <AppWebChatOverview     key="webchat-overview"   />}
+        {activeTab === 'webchat-widget'     && <AppWebChatDemo         key="webchat-widget"     tabId="webchat-widget"    />}
+        {activeTab === 'webchat-streaming'  && <AppWebChatDemo         key="webchat-streaming"  tabId="webchat-streaming" />}
+        {activeTab === 'webchat-deploy'     && <AppWebChatDeploy       key="webchat-deploy"     />}
+        {activeTab === 'shopify-overview'   && <AppShopifyOverview     key="shopify-overview"   />}
+        {activeTab === 'shopify-catalog'    && <AppShopifyDemo         key="shopify-catalog"    tabId="shopify-catalog"   />}
+        {activeTab === 'shopify-search'     && <AppShopifyDemo         key="shopify-search"     tabId="shopify-search"    />}
+        {activeTab === 'shopify-deploy'     && <AppShopifyDeploy       key="shopify-deploy"     />}
         </ErrorBoundary>
         <InfoPanel tab={activeTab} onTabChange={setActiveTab} />
       </div>

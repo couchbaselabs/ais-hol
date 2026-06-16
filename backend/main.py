@@ -1937,6 +1937,82 @@ async def available_models():
     }
 
 
+class SlackDemoRequest(BaseModel):
+    question: str
+    mode: str = "slash"   # slash | event | whatsapp | telegram | discord | webchat | shopify
+
+
+# Per-platform system prompt fragments
+_BOT_PERSONAS = {
+    "slash":     "You are a helpful Slack bot.",
+    "event":     "You are a helpful Slack bot responding to a mention.",
+    "whatsapp":  "You are a helpful WhatsApp assistant. Keep replies concise — WhatsApp messages should be short and conversational.",
+    "telegram":  "You are a helpful Telegram bot. You can use Markdown formatting (*bold*, _italic_, `code`).",
+    "discord":   "You are a helpful Discord bot. You can use Discord Markdown (**bold**, *italic*, `code`, ```code blocks```).",
+    "webchat":   "You are a helpful website assistant. Be friendly and thorough — the user is reading in a chat widget.",
+    "shopify":   "You are a helpful shopping assistant for an online store. Recommend specific products when relevant, mention prices, and guide the user toward a purchase.",
+}
+
+
+@app.post("/api/slack-demo")
+async def slack_demo(body: SlackDemoRequest):
+    """Shared bot demo endpoint: embed → RAG retrieve → generate.
+
+    Branches on `mode` to use a platform-appropriate system prompt and
+    response shape. Shopify mode additionally returns a `products` list.
+    """
+    if not body.question.strip():
+        raise HTTPException(status_code=400, detail="question is required")
+
+    embedding = await get_embedding(body.question)
+    documents = await get_relevant_documents(embedding)
+
+    context = "\n\n".join(
+        f"[{doc.get('filepath', doc.get('id', 'doc'))}]\n{doc.get('content', '')}"
+        for doc in documents[:3]
+    )
+
+    persona = _BOT_PERSONAS.get(body.mode, _BOT_PERSONAS["slash"])
+    prompt = (
+        f"{persona} Answer the question concisely (2-4 sentences) "
+        f"using only the provided context. If the context doesn't contain the answer, "
+        f"say so briefly.\n\n"
+        f"Context:\n{context}\n\n"
+        f"Question: {body.question}"
+    )
+
+    completion = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=300,
+        temperature=0.3,
+    )
+    answer = completion.choices[0].message.content.strip()
+
+    sources = [
+        {"id": doc.get("id", ""), "filepath": doc.get("filepath", ""), "score": round(doc.get("score", 0.0), 3)}
+        for doc in documents[:3]
+    ]
+
+    response: dict = {"answer": answer, "sources": sources}
+
+    # Shopify mode: synthesise product cards from the retrieved documents
+    # so the frontend product card UI has data to render.
+    if body.mode == "shopify":
+        products = []
+        for doc in documents[:3]:
+            filepath = doc.get("filepath", "")
+            handle = filepath.split("/")[-1].replace(".md", "").replace(".txt", "") if filepath else doc.get("id", "product")
+            products.append({
+                "handle": handle,
+                "title":  handle.replace("-", " ").title(),
+                "price":  None,   # live price would come from Storefront API in production
+            })
+        response["products"] = products
+
+    return response
+
+
 @app.post("/api/cost-latency")
 async def cost_latency(body: CostRequest):
     """Run the same prompt on multiple models and return timing + cost estimates."""
