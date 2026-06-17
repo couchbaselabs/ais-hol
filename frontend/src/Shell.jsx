@@ -71,6 +71,12 @@ import { AppTelegramOverview, AppTelegramDemo, AppTelegramDeploy } from './AppTe
 import { AppDiscordOverview, AppDiscordDemo, AppDiscordDeploy }   from './AppDiscord'
 import { AppWebChatOverview, AppWebChatDemo, AppWebChatDeploy }   from './AppWebChat'
 import { AppShopifyOverview, AppShopifyDemo, AppShopifyDeploy }   from './AppShopify'
+import {
+  AppAgentMemoryOverview,
+  AppAgentMemorySessions,
+  AppAgentMemorySearch,
+  AppAgentMemoryIntegration,
+} from './AppAgentMemory'
 
 function Shell() {
   const [activeTab, setActiveTab] = useState('chat')
@@ -172,7 +178,11 @@ function Shell() {
         {activeTab === 'shopify-overview'   && <AppShopifyOverview     key="shopify-overview"   />}
         {activeTab === 'shopify-catalog'    && <AppShopifyDemo         key="shopify-catalog"    tabId="shopify-catalog"   />}
         {activeTab === 'shopify-search'     && <AppShopifyDemo         key="shopify-search"     tabId="shopify-search"    />}
-        {activeTab === 'shopify-deploy'     && <AppShopifyDeploy       key="shopify-deploy"     />}
+        {activeTab === 'shopify-deploy'          && <AppShopifyDeploy          key="shopify-deploy"          />}
+        {activeTab === 'agent-memory-overview'    && <AppAgentMemoryOverview    key="agent-memory-overview"    />}
+        {activeTab === 'agent-memory-sessions'    && <AppAgentMemorySessions    key="agent-memory-sessions"    />}
+        {activeTab === 'agent-memory-search'      && <AppAgentMemorySearch      key="agent-memory-search"      />}
+        {activeTab === 'agent-memory-integration' && <AppAgentMemoryIntegration key="agent-memory-integration" />}
         </ErrorBoundary>
         <InfoPanel tab={activeTab} onTabChange={setActiveTab} />
       </div>

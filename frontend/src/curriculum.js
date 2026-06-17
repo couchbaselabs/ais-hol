@@ -252,6 +252,18 @@ export const MODULES = [
       { id: 'shopify-deploy',    label: '🚀 Deploy' },
     ],
   },
+  {
+    id: 'agent-memory',
+    title: 'Agent Memory SDK',
+    icon: '🧠',
+    level: 'advanced',
+    tabs: [
+      { id: 'agent-memory-overview',     label: '🧠 Overview' },
+      { id: 'agent-memory-sessions',     label: '💾 Sessions & Memory' },
+      { id: 'agent-memory-search',       label: '🔍 Semantic Search' },
+      { id: 'agent-memory-integration',  label: '🔧 Integration' },
+    ],
+  },
 ]
 
 export const LEVEL_META = {

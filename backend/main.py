@@ -5071,6 +5071,152 @@ async def capella_service(body: CapellaServiceRequest):
 
 
 # ---------------------------------------------------------------------------
+# Agent Memory SDK demo
+# ---------------------------------------------------------------------------
+
+class AgentMemoryDemoRequest(BaseModel):
+    question: str
+    user_id: str = "demo_user"
+    session_id: str = "demo_session"
+
+
+@app.post("/api/agent-memory-demo")
+async def agent_memory_demo(body: AgentMemoryDemoRequest):
+    """Simulate an agent memory round-trip: search memory → RAG → answer → store.
+
+    Uses the real AgentMemoryClient if AGENTMEMORY_BASE_URL is set.
+    Falls back to a mock response when the server is not available.
+    """
+    if not body.question.strip():
+        raise HTTPException(status_code=400, detail="question is required")
+
+    agentmemory_url = os.environ.get("AGENTMEMORY_BASE_URL", "")
+
+    # ── Live path: real Agent Memory server ──────────────────────────────────
+    if agentmemory_url:
+        try:
+            import sys
+            import importlib
+            sdk_path = os.path.join(
+                os.path.dirname(__file__), "..", "agentmemory", "agentmemory-sdk-main"
+            )
+            if sdk_path not in sys.path:
+                sys.path.insert(0, sdk_path)
+
+            from agentmemory import AgentMemoryClient, ChatMessage as AMChatMessage
+            from agentmemory.exceptions import ConflictError as AMConflictError
+
+            with AgentMemoryClient(base_url=agentmemory_url, verify=False) as mem_client:
+                # Idempotent user + session
+                try:
+                    user = mem_client.create_user(body.user_id, body.user_id)
+                except AMConflictError:
+                    user = mem_client.get_user(body.user_id)
+                try:
+                    session = user.create_session(body.session_id)
+                except AMConflictError:
+                    session = user.get_session(body.session_id)
+
+                # Retrieve relevant past memory
+                mem_results = session.search_memory(
+                    query=body.question,
+                    filters={"session_ids": "all", "relevant_k": 5},
+                )
+                memory_blocks = [
+                    {
+                        "block_id": b.block_id,
+                        "type": "fact" if b.fact else "message",
+                        "content": b.fact or (b.message.user_content if b.message else ""),
+                        "rel_score": round(b.rel_score, 3) if b.rel_score else None,
+                        "session_id": b.session_id,
+                    }
+                    for b in mem_results.memory_blocks
+                ]
+
+                # RAG + LLM
+                embedding = await get_embedding(body.question)
+                documents = await get_relevant_documents(embedding)
+                context = "\n\n".join(
+                    f"[{d.get('filepath', d.get('id', 'doc'))}]\n{d.get('content', '')}"
+                    for d in documents[:3]
+                )
+                memory_ctx = "\n".join(
+                    b["content"] for b in memory_blocks if b["content"]
+                )
+                prompt = (
+                    "You are a helpful assistant with persistent memory.\n\n"
+                    + (f"Relevant memory about this user:\n{memory_ctx}\n\n" if memory_ctx else "")
+                    + f"Context:\n{context}\n\nQuestion: {body.question}"
+                )
+                completion = await client.chat.completions.create(
+                    model=INFERENCE_MODEL,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=300,
+                    temperature=0.3,
+                )
+                answer = completion.choices[0].message.content.strip()
+
+                # Persist the new turn
+                session.add_memory(
+                    messages=[AMChatMessage(
+                        user_content=body.question,
+                        assistant_content=answer,
+                    )],
+                    async_processing=True,
+                )
+
+                sources = [
+                    {"id": d.get("id", ""), "filepath": d.get("filepath", ""), "score": round(d.get("score", 0.0), 3)}
+                    for d in documents[:3]
+                ]
+                return {
+                    "answer": answer,
+                    "sources": sources,
+                    "memory_blocks": memory_blocks,
+                    "memory_count": len(memory_blocks),
+                    "live": True,
+                }
+        except Exception as e:
+            # Fall through to mock if server is unreachable
+            pass
+
+    # ── Mock path: no Agent Memory server configured ─────────────────────────
+    embedding = await get_embedding(body.question)
+    documents = await get_relevant_documents(embedding)
+    context = "\n\n".join(
+        f"[{d.get('filepath', d.get('id', 'doc'))}]\n{d.get('content', '')}"
+        for d in documents[:3]
+    )
+    prompt = (
+        "You are a helpful assistant. Answer the question concisely (2-4 sentences) "
+        "using only the provided context.\n\n"
+        f"Context:\n{context}\n\nQuestion: {body.question}"
+    )
+    completion = await client.chat.completions.create(
+        model=INFERENCE_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=300,
+        temperature=0.3,
+    )
+    answer = completion.choices[0].message.content.strip()
+    sources = [
+        {"id": d.get("id", ""), "filepath": d.get("filepath", ""), "score": round(d.get("score", 0.0), 3)}
+        for d in documents[:3]
+    ]
+    # Simulated memory blocks to show the UI
+    mock_blocks = [
+        {"block_id": "mock-1", "type": "fact", "content": "Agent Memory server not configured — set AGENTMEMORY_BASE_URL to enable live memory", "rel_score": None, "session_id": body.session_id},
+    ]
+    return {
+        "answer": answer,
+        "sources": sources,
+        "memory_blocks": mock_blocks,
+        "memory_count": 0,
+        "live": False,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
