@@ -258,10 +258,11 @@ export const MODULES = [
     icon: '🧠',
     level: 'advanced',
     tabs: [
-      { id: 'agent-memory-overview',     label: '🧠 Overview' },
-      { id: 'agent-memory-sessions',     label: '💾 Sessions & Memory' },
-      { id: 'agent-memory-search',       label: '🔍 Semantic Search' },
-      { id: 'agent-memory-integration',  label: '🔧 Integration' },
+      { id: 'agent-memory-overview',    label: '🧠 Overview' },
+      { id: 'agent-memory-sessions',    label: '💾 Sessions & Memory' },
+      { id: 'agent-memory-search',      label: '🔍 Semantic Search' },
+      { id: 'agent-memory-integration', label: '🔧 Integration' },
+      { id: 'agent-memory-comparison',  label: '⚖️ SDK vs Scratch' },
     ],
   },
 ]

@@ -584,9 +584,323 @@ disable_logging()`}</CodePane>
   )
 }
 
+// ── Tab: Comparison ──────────────────────────────────────────────────────────
+
+const SCRATCH_STORE = `# conversation_service.py  (already in this repo)
+import threading, time
+from datetime import datetime, timezone, timedelta
+from couchbase.cluster import Cluster
+from couchbase.options import ClusterOptions, QueryOptions
+from couchbase.auth import PasswordAuthenticator
+
+_cluster = None
+_cluster_lock = threading.Lock()
+_last_connect_attempt = 0.0
+_RECONNECT_COOLDOWN = 30.0
+
+def _get_cluster():
+    global _cluster, _last_connect_attempt
+    with _cluster_lock:
+        if _cluster is not None:
+            try: _cluster.ping(); return _cluster
+            except Exception: _cluster = None
+        now = time.monotonic()
+        if now - _last_connect_attempt < _RECONNECT_COOLDOWN:
+            raise RuntimeError("Couchbase unavailable.")
+        _last_connect_attempt = now
+        conn_str = os.environ["COUCHBASE_CONNECTION_STRING"]
+        auth = PasswordAuthenticator(
+            os.environ["COUCHBASE_USERNAME"],
+            os.environ["COUCHBASE_PASSWORD"])
+        cluster = Cluster(conn_str, ClusterOptions(auth))
+        cluster.wait_until_ready(timeout=timedelta(seconds=15))
+        _cluster = cluster
+        return _cluster
+
+async def add_message(session_id, content, role):
+    cluster = _get_cluster()
+    collection = (cluster.bucket(BUCKET)
+                         .scope(SCOPE)
+                         .collection(COLLECTION))
+    doc = {
+        "session_id": session_id,
+        "role": role,
+        "content": content,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "type": "chat_message",
+    }
+    key = f"{session_id}_{int(datetime.now().timestamp()*1000)}_{role}"
+    collection.insert(key, doc)
+
+async def get_conversation_history(session_id, limit=10):
+    cluster = _get_cluster()
+    sql = f"""
+        SELECT role, content, timestamp
+        FROM \`{BUCKET}\`.\`{SCOPE}\`.\`{COLLECTION}\`
+        WHERE session_id = $session_id
+          AND type = "chat_message"
+        ORDER BY timestamp DESC LIMIT 20
+    """
+    rows = list(cluster.query(
+        sql, QueryOptions(named_parameters={"session_id": session_id})
+    ).rows())
+    rows.reverse()
+    return rows
+
+# Usage in endpoint:
+history = await get_conversation_history(session_id)
+formatted = "\\n".join(
+    f"{'User' if m['role']=='user' else 'Assistant'}: {m['content']}"
+    for m in history
+)
+# ... build prompt with formatted history ...
+await add_message(session_id, question, "user")
+await add_message(session_id, answer, "assistant")`
+
+const SDK_STORE = `from agentmemory import AsyncAgentMemoryClient, ChatMessage
+
+client = AsyncAgentMemoryClient(base_url=AGENTMEMORY_URL)
+
+# Usage in endpoint:
+user    = await client.create_user(user_id, user_id)
+session = await user.create_session(session_id)
+
+# Retrieve relevant memory (semantic, not just last N turns)
+mem = await session.search_memory(
+    query=question,
+    filters={"session_ids": "all", "relevant_k": 5},
+)
+memory_ctx = "\\n".join(
+    b.fact or b.message.user_content
+    for b in mem.memory_blocks
+)
+# ... build prompt with memory_ctx ...
+
+# Persist the new turn
+await session.add_memory(messages=[ChatMessage(
+    user_content=question,
+    assistant_content=answer,
+)])`
+
+const SCRATCH_SEARCH = `# No semantic search — only chronological retrieval.
+# To find relevant past turns you must:
+# 1. Fetch ALL history (expensive for long sessions)
+# 2. Embed each turn yourself
+# 3. Run your own vector search query
+# 4. Manage the vector index schema manually
+
+# What this codebase actually does:
+history = await get_conversation_history(session_id, limit=10)
+# → last 10 turns, regardless of relevance
+# → no cross-session recall
+# → no fact extraction`
+
+const SDK_SEARCH = `# Semantic search built-in — server handles embedding + indexing
+results = await session.search_memory(
+    query="What does the user prefer?",
+    filters={
+        "session_ids": "all",   # cross-session recall
+        "relevant_k": 5,
+        "annotations": {"source": "preferences"},
+    },
+)
+# → ranked by cosine similarity (rel_score)
+# → spans all sessions for the user
+# → facts and messages searchable together
+# → no index management needed`
+
+const ROWS = [
+  {
+    aspect: 'Connection setup',
+    scratch: '~40 lines: cluster connect, ping, reconnect cooldown, lock, env vars',
+    sdk: '1 line: AsyncAgentMemoryClient(base_url=…)',
+    winner: 'sdk',
+  },
+  {
+    aspect: 'Store a turn',
+    scratch: 'Manual key generation, doc schema, collection.insert()',
+    sdk: 'session.add_memory(messages=[ChatMessage(…)])',
+    winner: 'sdk',
+  },
+  {
+    aspect: 'Retrieve history',
+    scratch: 'SQL++ query, ORDER BY timestamp, reverse rows, format manually',
+    sdk: 'session.search_memory(query=…) — semantic, ranked, cross-session',
+    winner: 'sdk',
+  },
+  {
+    aspect: 'Semantic relevance',
+    scratch: 'Not supported — last N turns only, no embedding or ranking',
+    sdk: 'Built-in: server embeds query, returns blocks by cosine similarity',
+    winner: 'sdk',
+  },
+  {
+    aspect: 'Cross-session recall',
+    scratch: 'Not supported — session_id is a hard filter in the SQL++ query',
+    sdk: 'filters={"session_ids": "all"} — one argument',
+    winner: 'sdk',
+  },
+  {
+    aspect: 'Fact extraction',
+    scratch: 'Not supported — raw messages only',
+    sdk: 'session.add_memory(facts=[…]) — compact, token-efficient long-term memory',
+    winner: 'sdk',
+  },
+  {
+    aspect: 'TTL / expiry',
+    scratch: 'Not implemented — documents accumulate indefinitely',
+    sdk: 'blocks_ttl on session creation — auto-expiry built in',
+    winner: 'sdk',
+  },
+  {
+    aspect: 'Error handling',
+    scratch: 'Manual try/except around every Couchbase call, reconnect logic',
+    sdk: 'SDK raises typed exceptions (NotFoundError, ConflictError)',
+    winner: 'sdk',
+  },
+  {
+    aspect: 'Lines of code (store + retrieve)',
+    scratch: '~80 lines across conversation_service.py',
+    sdk: '~10 lines',
+    winner: 'sdk',
+  },
+  {
+    aspect: 'Control / customisation',
+    scratch: 'Full — own schema, own index, own query logic',
+    sdk: 'Limited to SDK API surface; server config controls embedding model',
+    winner: 'scratch',
+  },
+  {
+    aspect: 'Dependency',
+    scratch: 'Only couchbase-python-client — already a project dependency',
+    sdk: 'Requires a running agentmem server (separate process)',
+    winner: 'scratch',
+  },
+]
+
+function ComparisonTab() {
+  const [view, setView] = useState('table') // 'table' | 'code-store' | 'code-search'
+
+  return (
+    <div className="am-root">
+      <div className="am-hero" style={{ background: AM_BG, borderColor: AM_BORDER }}>
+        <div className="am-hero-icon">⚖️</div>
+        <div>
+          <h1 className="am-hero-title" style={{ color: AM_COLOR }}>From Scratch vs Agent Memory SDK</h1>
+          <p className="am-hero-sub">Both approaches use Couchbase. The SDK trades flexibility for dramatically less boilerplate — and adds semantic search that the manual approach doesn't have at all.</p>
+        </div>
+      </div>
+
+      {/* View toggle */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
+        {[
+          { id: 'table',       label: '📊 Feature comparison' },
+          { id: 'code-store',  label: '💾 Store a turn' },
+          { id: 'code-search', label: '🔍 Retrieve memory' },
+        ].map(v => (
+          <button key={v.id}
+            onClick={() => setView(v.id)}
+            style={{
+              padding: '0.35rem 0.85rem',
+              borderRadius: 6,
+              border: `1px solid ${view === v.id ? AM_COLOR : '#e2e8f0'}`,
+              background: view === v.id ? AM_BG : '#fff',
+              color: view === v.id ? AM_COLOR : '#475569',
+              fontWeight: view === v.id ? 700 : 400,
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+            }}
+          >{v.label}</button>
+        ))}
+      </div>
+
+      {/* Table view */}
+      {view === 'table' && (
+        <div style={{ overflowX: 'auto' }}>
+          <table className="am-compare-table">
+            <thead>
+              <tr>
+                <th>Aspect</th>
+                <th>From scratch (this repo)</th>
+                <th>Agent Memory SDK</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ROWS.map((r, i) => (
+                <tr key={i}>
+                  <td className="am-compare-aspect">{r.aspect}</td>
+                  <td className={r.winner === 'scratch' ? 'am-compare-win' : 'am-compare-lose'}>
+                    {r.winner === 'scratch' && <span className="am-compare-badge am-compare-badge--win">✓</span>}
+                    {r.scratch}
+                  </td>
+                  <td className={r.winner === 'sdk' ? 'am-compare-win' : 'am-compare-lose'}>
+                    {r.winner === 'sdk' && <span className="am-compare-badge am-compare-badge--win">✓</span>}
+                    {r.sdk}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.75rem' }}>
+            ✓ = better choice for that aspect. The SDK wins on speed and capability; scratch wins when you need full control or can't run a separate server.
+          </p>
+        </div>
+      )}
+
+      {/* Code: store a turn */}
+      {view === 'code-store' && (
+        <div className="am-compare-code-split">
+          <div>
+            <div className="am-compare-code-header am-compare-code-header--scratch">
+              🔧 From scratch — conversation_service.py
+              <span className="am-compare-loc">~80 lines</span>
+            </div>
+            <CodePane>{SCRATCH_STORE}</CodePane>
+          </div>
+          <div>
+            <div className="am-compare-code-header am-compare-code-header--sdk">
+              ⚡ Agent Memory SDK
+              <span className="am-compare-loc">~10 lines</span>
+            </div>
+            <CodePane>{SDK_STORE}</CodePane>
+            <div className="am-compare-callout">
+              The SDK handles connection pooling, reconnect logic, key generation, document schema, and collection routing internally.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Code: retrieve memory */}
+      {view === 'code-search' && (
+        <div className="am-compare-code-split">
+          <div>
+            <div className="am-compare-code-header am-compare-code-header--scratch">
+              🔧 From scratch — chronological only
+            </div>
+            <CodePane>{SCRATCH_SEARCH}</CodePane>
+            <div className="am-compare-callout am-compare-callout--warn">
+              The manual approach retrieves the last N turns by timestamp. There is no semantic ranking, no cross-session recall, and no fact extraction — adding those would require building a separate vector pipeline.
+            </div>
+          </div>
+          <div>
+            <div className="am-compare-code-header am-compare-code-header--sdk">
+              ⚡ Agent Memory SDK — semantic search
+            </div>
+            <CodePane>{SDK_SEARCH}</CodePane>
+            <div className="am-compare-callout">
+              The server embeds the query, runs vector search over all memory blocks, and returns results ranked by cosine similarity — across sessions, with annotation filters, in one call.
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Shell exports ────────────────────────────────────────────────────────────
 
 export function AppAgentMemoryOverview()    { return <OverviewTab /> }
 export function AppAgentMemorySessions()    { return <SessionsTab /> }
 export function AppAgentMemorySearch()      { return <SearchTab /> }
 export function AppAgentMemoryIntegration() { return <IntegrationTab /> }
+export function AppAgentMemoryComparison()  { return <ComparisonTab /> }

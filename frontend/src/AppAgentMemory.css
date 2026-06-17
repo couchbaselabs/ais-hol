@@ -290,3 +290,100 @@
   font-size: 0.82rem;
   font-weight: 600;
 }
+
+/* ── Comparison tab ──────────────────────────────────────────────────────── */
+
+.am-compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.am-compare-table th {
+  background: #f1f5f9;
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  font-weight: 700;
+  color: #334155;
+  border-bottom: 2px solid #e2e8f0;
+  white-space: nowrap;
+}
+.am-compare-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+  line-height: 1.5;
+  color: #334155;
+}
+.am-compare-aspect {
+  font-weight: 600;
+  color: #1e293b !important;
+  white-space: nowrap;
+  width: 180px;
+}
+.am-compare-win  { background: #f0fdf4; }
+.am-compare-lose { background: #fff; color: #64748b !important; }
+.am-compare-badge {
+  display: inline-block;
+  margin-right: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.am-compare-badge--win { color: #16a34a; }
+
+.am-compare-code-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .am-compare-code-split { grid-template-columns: 1fr; }
+}
+
+.am-compare-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px 6px 0 0;
+  margin-bottom: 0;
+}
+.am-compare-code-header--scratch {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  border-bottom: none;
+}
+.am-compare-code-header--sdk {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  border-bottom: none;
+}
+.am-compare-code-header + .am-code {
+  border-radius: 0 0 8px 8px;
+  margin-bottom: 0.5rem;
+}
+.am-compare-loc {
+  font-size: 0.68rem;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.am-compare-callout {
+  font-size: 0.78rem;
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  line-height: 1.55;
+  margin-top: 0.5rem;
+}
+.am-compare-callout--warn {
+  color: #92400e;
+  background: #fffbeb;
+  border-color: #fde68a;
+}

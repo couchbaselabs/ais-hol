@@ -76,6 +76,7 @@ import {
   AppAgentMemorySessions,
   AppAgentMemorySearch,
   AppAgentMemoryIntegration,
+  AppAgentMemoryComparison,
 } from './AppAgentMemory'
 
 function Shell() {
@@ -183,6 +184,7 @@ function Shell() {
         {activeTab === 'agent-memory-sessions'    && <AppAgentMemorySessions    key="agent-memory-sessions"    />}
         {activeTab === 'agent-memory-search'      && <AppAgentMemorySearch      key="agent-memory-search"      />}
         {activeTab === 'agent-memory-integration' && <AppAgentMemoryIntegration key="agent-memory-integration" />}
+        {activeTab === 'agent-memory-comparison'  && <AppAgentMemoryComparison  key="agent-memory-comparison"  />}
         </ErrorBoundary>
         <InfoPanel tab={activeTab} onTabChange={setActiveTab} />
       </div>

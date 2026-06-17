@@ -5642,6 +5642,31 @@ async def voice_chat(audio: UploadFile = File(...)):
       { label: 'How do I disable SDK logging in production?', text: null },
     ],
   },
+  'agent-memory-comparison': {
+    title: 'SDK vs From Scratch',
+    subtitle: 'When to use the Agent Memory SDK vs rolling your own Couchbase memory',
+    color: CB_ACCENT,
+    icon: '⚖️',
+    what: 'Both approaches store conversation memory in Couchbase. The difference is what you build yourself. From scratch (conversation_service.py in this repo) gives you full control but requires ~80 lines of connection management, key generation, SQL++ queries, and manual formatting — with no semantic search. The SDK reduces that to ~10 lines and adds semantic retrieval, cross-session recall, and fact extraction out of the box.',
+    how: [
+      'Use the SDK when you want semantic search, cross-session recall, or fact extraction without building a vector pipeline',
+      'Use from scratch when you need full schema control, cannot run a separate server, or only need simple chronological history',
+      'The SDK\'s search_memory() replaces a SQL++ ORDER BY timestamp query with cosine-similarity ranking',
+      'From scratch: ~80 lines across connection setup, add_message, get_conversation_history',
+      'SDK: ~10 lines — create_user, create_session, add_memory, search_memory',
+    ],
+    limitations: [
+      'SDK requires a running agentmem server — adds operational complexity vs a pure Couchbase approach',
+      'From scratch gives no semantic search without building a separate embedding + vector index pipeline',
+      'SDK embedding model is configured server-side — you cannot swap it per-request',
+    ],
+    stack: ['conversation_service.py (scratch)', 'AgentMemoryClient (SDK)', 'Couchbase KV + vector'],
+    questions: [
+      { label: 'When is the from-scratch approach better than the SDK?', text: null },
+      { label: 'Can I use both approaches in the same app?', text: null },
+      { label: 'What does the SDK do internally that I would have to build myself?', text: null },
+    ],
+  },
 
   'shopify-deploy': {
     title: 'Deploy Shopify Bot',
