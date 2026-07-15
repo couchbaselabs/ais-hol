@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import './App.css'
-import './CapellaTab.css'
-import CapellaTab from './CapellaTab'
+import './AiDataPlaneTab.css'
+import AiDataPlaneTab from './AiDataPlaneTab'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
-import CapellaDiyBanner from './components/CapellaDiyBanner'
+import AiDataPlaneDiyBanner from './components/AiDataPlaneDiyBanner'
 
 const EXAMPLES = [
   'Contact John Smith at john.smith@example.com or call 555-867-5309.',
@@ -14,7 +14,7 @@ const EXAMPLES = [
 const ALL_LABELS = ['person','email','phone','location','organization','date','website','ip_address']
 const DEFAULT_LABELS = ['person','email','phone','location']
 
-export default function AppCapellaMasking() {
+export default function AppAiDataPlaneMasking() {
   const [text, setText]     = useState('')
   const [labels, setLabels] = useState(DEFAULT_LABELS)
 
@@ -65,9 +65,9 @@ export default function AppCapellaMasking() {
 
   return (
     <div className="app">
-      <CapellaTab endpoint="/api/capella-masking" buildBody={() => ({ text, labels })}
+      <AiDataPlaneTab endpoint="/api/ai-data-plane-masking" buildBody={() => ({ text, labels })}
         renderControls={renderControls} renderResult={renderResult} examples={EXAMPLES}
-        banner={<CapellaDiyBanner diyTab={null} diyLabel={null} replaces="regex + NER model + manual redaction logic" />}
+        banner={<AiDataPlaneDiyBanner diyTab={null} diyLabel={null} replaces="regex + NER model + manual redaction logic" />}
         placeholder={<div className="cap-placeholder"><p><code>ai_masked()</code> replaces PII with placeholders before data leaves the database — useful for GDPR compliance and audit logging.</p></div>} />
     </div>
   )

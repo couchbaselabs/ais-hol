@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import './App.css'
-import './CapellaTab.css'
-import CapellaTab from './CapellaTab'
+import './AiDataPlaneTab.css'
+import AiDataPlaneTab from './AiDataPlaneTab'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
-import CapellaDiyBanner from './components/CapellaDiyBanner'
+import AiDataPlaneDiyBanner from './components/AiDataPlaneDiyBanner'
 
 const EXAMPLES = [
   'The new product launch exceeded all expectations.',
@@ -16,7 +16,7 @@ const ENTITY_COLORS = ['#00A3E0','#7c3aed','#16a34a','#d97706','#dc2626','#0891b
 
 const DEFAULT_LABELS = ['positive', 'negative', 'neutral']
 
-export default function AppCapellaClassification() {
+export default function AppAiDataPlaneClassification() {
   const [text, setText]     = useState('')
   const [labels, setLabels] = useState(DEFAULT_LABELS)
   const [newLabel, setNew]  = useState('')
@@ -81,9 +81,9 @@ export default function AppCapellaClassification() {
 
   return (
     <div className="app">
-      <CapellaTab
-        endpoint="/api/capella-classification"
-        banner={<CapellaDiyBanner diyTab="moderation" diyLabel="Moderation" replaces="LLM call + JSON parse + label validation" />}
+      <AiDataPlaneTab
+        endpoint="/api/ai-data-plane-classification"
+        banner={<AiDataPlaneDiyBanner diyTab="moderation" diyLabel="Moderation" replaces="LLM call + JSON parse + label validation" />}
         buildBody={() => ({ text, labels })}
         renderControls={renderControls}
         renderResult={renderResult}

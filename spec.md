@@ -133,7 +133,7 @@ Each ingested FAQ is represented by:
     "vector": [...]   // embedding of the description field
   }
   ```
-- A **content collection** (e.g. `hr_policy`) in the same scope, populated by the Capella S3 ingestion workflow, where each document has `content` and `vector` fields.
+- A **content collection** (e.g. `hr_policy`) in the same scope, populated by the Couchbase AI Data Plane S3 ingestion workflow, where each document has `content` and `vector` fields.
 
 ### Backend
 
@@ -231,7 +231,7 @@ Each ingested FAQ is represented by:
 - `find_best_faq()` returns `None` when the top vector score is below the configured threshold.
 - `hybrid_faq_search` returns merged, deduplicated results from both vector and FTS queries.
 - `agentc index backend/agents/` indexes `hybrid_faq_search` alongside math tools.
-- The Capella S3 workflow completes and documents appear in the target collection with `content` and `vector` fields.
+- The Couchbase AI Data Plane S3 workflow completes and documents appear in the target collection with `content` and `vector` fields.
 - Both `cbsh` index creation commands run without error.
 - Frontend shows the correct badge for each routing outcome.
 - All existing exercises (1–6) are unaffected.
@@ -248,4 +248,4 @@ Each ingested FAQ is represented by:
 6. **Update `backend/main.py`** — add `faq_collection` and `missing_topic` to `/api/agent` response.
 7. **Update `backend/.env.example`** — add `FAQ_CATALOG_COLLECTION` and `FAQ_SIMILARITY_THRESHOLD` under `# Exercise 7`.
 8. **Update `frontend/src/AppAgent.jsx`** — render FAQ search badge and no-FAQ warning badge.
-9. **Update `README.md`** — add Exercise 7 section with all steps, code blocks, and Capella S3 workflow walkthrough.
+9. **Update `README.md`** — add Exercise 7 section with all steps, code blocks, and Couchbase AI Data Plane S3 workflow walkthrough.

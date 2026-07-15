@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import './App.css'
-import './CapellaTab.css'
-import CapellaTab from './CapellaTab'
+import './AiDataPlaneTab.css'
+import AiDataPlaneTab from './AiDataPlaneTab'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
-import CapellaDiyBanner from './components/CapellaDiyBanner'
+import AiDataPlaneDiyBanner from './components/AiDataPlaneDiyBanner'
 
 const EXAMPLES = [
   'John Smith met with Apple CEO Tim Cook in San Francisco on March 15, 2024.',
@@ -14,7 +14,7 @@ const EXAMPLES = [
 const LABEL_COLORS = { person: '#7c3aed', location: '#16a34a', organization: '#d97706', date: '#00A3E0', email: '#dc2626', phone: '#0891b2' }
 const DEFAULT_LABELS = ['person', 'location', 'organization', 'date']
 
-export default function AppCapellaExtraction() {
+export default function AppAiDataPlaneExtraction() {
   const [text, setText]     = useState('')
   const [labels, setLabels] = useState(DEFAULT_LABELS)
   const [newLabel, setNew]  = useState('')
@@ -78,9 +78,9 @@ export default function AppCapellaExtraction() {
 
   return (
     <div className="app">
-      <CapellaTab endpoint="/api/capella-extraction" buildBody={() => ({ text, labels })}
+      <AiDataPlaneTab endpoint="/api/ai-data-plane-extraction" buildBody={() => ({ text, labels })}
         renderControls={renderControls} renderResult={renderResult} examples={EXAMPLES}
-        banner={<CapellaDiyBanner diyTab="structured" diyLabel="Structured Output" replaces="LLM call with JSON schema prompt + manual parse" />}
+        banner={<AiDataPlaneDiyBanner diyTab="structured" diyLabel="Structured Output" replaces="LLM call with JSON schema prompt + manual parse" />}
         placeholder={<div className="cap-placeholder"><p><code>ai_extraction()</code> finds named entities in text — persons, locations, organisations, dates, and any custom type you define.</p></div>} />
     </div>
   )

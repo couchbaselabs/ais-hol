@@ -124,7 +124,7 @@ async def clear_conversation_history(session_id: str) -> None:
 
 
 async def summarize_conversation(session_id: str, max_words: int = 150) -> str:
-    """Summarize the conversation history using Couchbase Capella AI Functions."""
+    """Summarize the conversation history using Couchbase AI Data Plane."""
     try:
         cluster = _get_cluster()
     except RuntimeError:

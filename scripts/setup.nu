@@ -4,7 +4,7 @@
 #
 # FTS vector index  — created via cbsh if the Search Service is running.
 # GSI vector index  — created via SQL++ if the Index Service is running (Server 8.0+).
-#                     Not available on Capella managed clusters.
+#                     Not available on Couchbase AI Data Plane managed clusters.
 #
 # Both are attempted; whichever services are present will be set up.
 #
@@ -105,7 +105,7 @@ def ensure-vector-index [
     }
 }
 
-# Create a GSI vector index via SQL++ CREATE VECTOR INDEX (Server 8.0+, not on Capella).
+# Create a GSI vector index via SQL++ CREATE VECTOR INDEX (Server 8.0+, not on Couchbase AI Data Plane).
 # Pre-checks server version and Index Service availability before attempting DDL.
 # cbsh panics on query errors so we gate on version rather than catching errors.
 def ensure-gsi-vector-index [
@@ -123,7 +123,7 @@ def ensure-gsi-vector-index [
         return
     }
 
-    # Require Server 8.0+ (VECTOR keyword not supported on earlier versions or Capella)
+    # Require Server 8.0+ (VECTOR keyword not supported on earlier versions or Couchbase AI Data Plane)
     let version = (nodes | get version | first | split row "-" | first)
     let major = ($version | split row "." | first | into int)
     if $major < 8 {

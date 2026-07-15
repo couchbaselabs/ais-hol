@@ -166,7 +166,7 @@ similarity = await cosine(emb_a, emb_b)
       'Results returned with scores, doc IDs, filepaths, and content previews',
     ],
     limitations: [
-      'GSI vector search (CREATE VECTOR INDEX) is not available on Capella managed clusters — the query service rejects VECTOR as a reserved word. Expected to be supported in Couchbase 8.0.',
+      'GSI vector search (CREATE VECTOR INDEX) is not available on Couchbase AI Data Plane managed clusters — the query service rejects VECTOR as a reserved word. Expected to be supported in Couchbase 8.0.',
       'FTS scores are similarity values (higher = better); GSI scores are L2 distances (lower = better) — they are not directly comparable',
       'FTS index is managed via the Search Service UI or REST API; GSI index via SQL++ DDL',
       'FTS supports hybrid search (vector + keyword in one query); GSI vector search is vector-only',
@@ -225,7 +225,7 @@ for row in rows.rows():
         language: 'text',
         code: `Feature              FTS                    GSI (Server 8.0+)
 ─────────────────────────────────────────────────────────────
-Capella support      ✓ all versions         ✗ not yet (8.0 planned)
+Couchbase AI Data Plane support      ✓ all versions         ✗ not yet (8.0 planned)
 Min server version   7.0                    8.0
 Index type           HNSW (Search Service)  IVF (Index Service)
 Query API            scope.search()         SQL++ ANN_DISTANCE()
@@ -1410,7 +1410,7 @@ async def chat(body: ChatRequest):
         code: `from openai import AsyncOpenAI
 
 # Base URL and key are read from env — swap to any OpenAI-compatible
-# endpoint (Ollama, Azure, Capella AI, etc.) without code changes.
+# endpoint (Ollama, Azure, Couchbase AI Data Plane, etc.) without code changes.
 client = AsyncOpenAI(
     base_url=os.environ["INFERENCE_MODEL_BASE_URL"],
     api_key=os.environ["INFERENCE_MODEL_API_KEY"],
@@ -1577,14 +1577,14 @@ async def get_conversation_history(session_id: str, limit: int = 20):
   },
   rag: {
     title: 'Simple Chat + Cache + Memory + RAG',
-    subtitle: 'Adds vector retrieval over MDN docs and Capella AI summarization',
+    subtitle: 'Adds vector retrieval over MDN docs and Couchbase AI Data Plane summarization',
     color: CB_ACCENT,
     icon: '🔍',
-    what: 'The full pipeline assembled: the query is embedded, relevant MDN documentation chunks are retrieved via ANN vector search, and the conversation history is summarized using Capella\'s built-in ai_summary() SQL++ function (summarization runs inside the database). All of this is injected into the prompt before streaming the LLM response token-by-token. To understand each component individually, explore the RAG row — Embeddings, Chunking, Ingestion, Reranking, HyDE, Query Expansion, and Agentic RAG.',
+    what: 'The full pipeline assembled: the query is embedded, relevant MDN documentation chunks are retrieved via ANN vector search, and the conversation history is summarized using Couchbase AI Data Plane\'s built-in ai_summary() SQL++ function (summarization runs inside the database). All of this is injected into the prompt before streaming the LLM response token-by-token. To understand each component individually, explore the RAG row — Embeddings, Chunking, Ingestion, Reranking, HyDE, Query Expansion, and Agentic RAG.',
     how: [
       'User query → embedding → cache check',
       'Cache miss: store user message in Couchbase',
-      'Summarize conversation history via Capella ai_summary() SQL++ function',
+      'Summarize conversation history via Couchbase AI Data Plane ai_summary() SQL++ function',
       'ANN vector search on MDN documentation collection',
       'Inject summary + top-k doc chunks into prompt',
       'LLM streams response token-by-token',
@@ -1592,11 +1592,11 @@ async def get_conversation_history(session_id: str, limit: int = 20):
     ],
     limitations: [
       'Retrieval quality depends on the indexed corpus (MDN docs only)',
-      'ai_summary() requires the query_external_access role on Capella',
+      'ai_summary() requires the query_external_access role on Couchbase AI Data Plane',
       'Streaming + caching means the full response must complete before caching',
       'Cache hits bypass retrieval — stale if docs are updated',
     ],
-    stack: ['LLM + Embedding model', 'Couchbase SQL++ ANN vector search (MDN docs)', 'Couchbase KV (conversation history)', 'Capella AI ai_summary() SQL++ function', 'Semantic cache', 'Streaming (SSE)'],
+    stack: ['LLM + Embedding model', 'Couchbase SQL++ ANN vector search (MDN docs)', 'Couchbase KV (conversation history)', 'Couchbase AI Data Plane ai_summary() SQL++ function', 'Semantic cache', 'Streaming (SSE)'],
     questions: [
       'What is Couchbase Vector Search?',
       'How do I create a vector index in Couchbase?',
@@ -1623,7 +1623,7 @@ doc_context = "\\n\\n".join(
     f"[{d['filepath']}]\\n{d['content']}" for d in docs
 )
 
-# Summarise conversation history using Capella ai_summary()
+# Summarise conversation history using Couchbase AI Data Plane ai_summary()
 history_summary = await summarize_conversation(session_id)
 
 prompt = (
@@ -1672,10 +1672,10 @@ return StreamingResponse(generate_and_store(), media_type="text/plain")`,
 # score is L2 distance — lower = more similar`,
       },
       {
-        title: 'backend/services/couchbase_service.py — Capella ai_summary()',
+        title: 'backend/services/couchbase_service.py — Couchbase AI Data Plane ai_summary()',
         language: 'python',
         code: `async def summarize_conversation(session_id: str) -> str:
-    """Use Capella's built-in ai_summary() to condense history.
+    """Use Couchbase AI Data Plane's built-in ai_summary() to condense history.
     ai_summary() runs inside the database — no extra LLM call needed."""
     result = cluster.query(
         f"""
@@ -2463,30 +2463,30 @@ if (blocked_at === 'input') {
       },
     ],
   },
-  'capella-intro': {
-    title: 'Capella AI Functions — Introduction',
+  'ai-data-plane-intro': {
+    title: 'Couchbase AI Data Plane — Introduction',
     subtitle: 'What they are, which DIY patterns they replace, and how to use them',
     color: CB_ACCENT,
     icon: '🗄️',
-    what: 'Capella AI Functions expose LLM capabilities as SQL++ built-in functions. Instead of embedding → search → LLM call → parse in application code, you write a single SELECT statement. The query engine calls the configured LLM provider internally and returns the result as a field in the row — alongside your document data, in one round trip.',
+    what: 'Couchbase AI Data Plane exposes LLM capabilities as SQL++ built-in functions. Instead of embedding → search → LLM call → parse in application code, you write a single SELECT statement. The query engine calls the configured LLM provider internally and returns the result as a field in the row — alongside your document data, in one round trip.',
     how: [
-      'Configure an LLM provider once in the Capella UI (OpenAI, Bedrock, Vertex…)',
+      'Configure an LLM provider once in the Couchbase AI Data Plane UI (OpenAI, Bedrock, Vertex…)',
       'Call default:ai_summary(), default:ai_completion(), etc. in any SQL++ query',
       'Results come back as fields in the result set — no extra HTTP calls from your app',
       'Works in SELECT, UPDATE, and INSERT — including bulk enrichment over entire collections',
       'Requires query_external_access role on the database user',
     ],
     limitations: [
-      'Capella-only — not available on self-managed Couchbase Server',
+      'Available only in Couchbase AI Data Plane — not available on self-managed Couchbase Server',
       'Each function requires the corresponding AI Function to be enabled on the cluster',
-      'LLM provider and credentials are managed in Capella, not in application code',
-      'Counts against Capella AI quota, separate from direct LLM API usage',
+      'LLM provider and credentials are managed in Couchbase AI Data Plane, not in application code',
+      'Counts against Couchbase AI Data Plane quota, separate from direct LLM API usage',
     ],
-    stack: ['Couchbase Capella AI Functions', 'SQL++', 'FastAPI'],
+    stack: ['Couchbase AI Data Plane', 'SQL++', 'FastAPI'],
     questions: [
       'Which DIY pattern from earlier in the lab does ai_similarity() replace?',
       'What application code is eliminated when you use ai_completion() instead of calling OpenAI directly?',
-      'When would you still call an LLM API directly rather than using Capella AI Functions?',
+      'When would you still call an LLM API directly rather than using Couchbase AI Data Plane?',
     ],
     snippets: [
       {
@@ -2497,7 +2497,7 @@ vec = openai.embeddings.create(input=query, model="text-embedding-3-small").data
 hits = scope.search("idx", VectorSearch.from_vector_query(VectorQuery("embedding", vec)))
 answer = openai.chat.completions.create(model="gpt-4o-mini", messages=[...]).choices[0].message.content
 
-# Capella: one SQL++ query
+# Couchbase AI Data Plane: one SQL++ query
 rows = list(cluster.query("""
     SELECT default:ai_completion({
         "prompt": CONCAT("Context: ", d.text, "\\nQuestion: ", $q),
@@ -2535,29 +2535,29 @@ default:ai_corrected_grammar()   Fix spelling, grammar, punctuation`,
       },
     ],
   },
-  'capella-service': {
+  'ai-data-plane-service': {
     title: 'AI Data Plane',
-    subtitle: 'DIY Python vs Capella SQL++ — three AI scenarios side by side',
+    subtitle: 'DIY Python vs Couchbase AI Data Plane SQL++ — three AI scenarios side by side',
     color: CB_ACCENT,
     icon: '🗄️',
-    what: 'This tab compares two implementation approaches for three common AI patterns: Semantic Cache, RAG Pipeline, and Content Moderation. The DIY column shows a typical Python + OpenAI implementation. The Capella column shows the same result achieved with a single SQL++ query using Capella AI Functions — no extra API calls, no vector store setup, no application-side orchestration.',
+    what: 'This tab compares two implementation approaches for three common AI patterns: Semantic Cache, RAG Pipeline, and Content Moderation. The DIY column shows a typical Python + OpenAI implementation. The Couchbase AI Data Plane column shows the same result achieved with a single SQL++ query using Couchbase AI Data Plane — no extra API calls, no vector store setup, no application-side orchestration.',
     how: [
       'Select a scenario (Semantic Cache, RAG Pipeline, or Content Moderation)',
       'Enter a query or text and click Run',
       'Backend executes both approaches and returns timing + results',
       'DIY column: Python calls OpenAI + Couchbase SDK separately',
-      'Capella column: single SQL++ query with ai_similarity() / ai_completion() / ai_classification()',
+      'Couchbase AI Data Plane column: single SQL++ query with ai_similarity() / ai_completion() / ai_classification()',
     ],
     limitations: [
-      'Capella AI Functions require the relevant functions to be enabled on the cluster',
+      'Couchbase AI Data Plane requires the relevant functions to be enabled on the cluster',
       'Requires the query_external_access role on the database user',
-      'Not available on self-managed Couchbase Server — Capella only',
-      'Mock mode returns simulated timings when Capella is not configured',
+      'Not available on self-managed Couchbase Server — Couchbase AI Data Plane only',
+      'Mock mode returns simulated timings when Couchbase AI Data Plane is not configured',
     ],
-    stack: ['Couchbase Capella AI Functions', 'ai_similarity() / ai_completion() / ai_classification()', 'FastAPI', 'React'],
+    stack: ['Couchbase AI Data Plane', 'ai_similarity() / ai_completion() / ai_classification()', 'FastAPI', 'React'],
     questions: [
-      'Which scenario shows the biggest latency difference between DIY and Capella?',
-      'What application code is eliminated when using Capella AI Functions?',
+      'Which scenario shows the biggest latency difference between DIY and Couchbase AI Data Plane?',
+      'What application code is eliminated when using Couchbase AI Data Plane?',
       'How does ai_similarity() replace a Python embedding + ANN search pipeline?',
     ],
     snippets: [
@@ -2591,7 +2591,7 @@ response = openai.chat.completions.create(
 collection.upsert(key, {"query": query, "embedding": embedding, "response": response})`,
       },
       {
-        title: 'Capella Semantic Cache — SQL++',
+        title: 'Couchbase AI Data Plane Semantic Cache — SQL++',
         language: 'sql',
         code: `-- Single query: similarity search + conditional LLM call
 SELECT
@@ -2633,7 +2633,7 @@ answer = openai.chat.completions.create(
 ).choices[0].message.content`,
       },
       {
-        title: 'Capella RAG Pipeline — SQL++',
+        title: 'Couchbase AI Data Plane RAG Pipeline — SQL++',
         language: 'sql',
         code: `-- Retrieve chunks and generate answer in one query
 SELECT default:ai_completion({
@@ -2657,26 +2657,26 @@ FROM (
       },
     ],
   },
-  'capella-summarise': {
-    title: 'Capella AI Summarisation',
+  'ai-data-plane-summarise': {
+    title: 'Couchbase AI Data Plane Summarisation',
     subtitle: 'default:ai_summary() — summarisation runs inside the database as a SQL++ query',
     color: CB_ACCENT,
     icon: '🗄️',
-    what: 'Couchbase Capella AI Functions expose LLM capabilities as SQL++ built-in functions. Calling default:ai_summary() sends text to the configured LLM (any supported provider) from inside the query engine — the backend issues a single SQL++ SELECT and gets a summary back. No extra HTTP call to an LLM API, and no server-side endpoint or SDK integration to deploy — the function is just SQL.',
+    what: 'Couchbase AI Data Plane exposes LLM capabilities as SQL++ built-in functions. Calling default:ai_summary() sends text to the configured LLM (any supported provider) from inside the query engine — the backend issues a single SQL++ SELECT and gets a summary back. No extra HTTP call to an LLM API, and no server-side endpoint or SDK integration to deploy — the function is just SQL.',
     how: [
-      'Text submitted → POST /api/capella-summarise',
+      'Text submitted → POST /api/ai-data-plane-summarise',
       'Backend issues: SELECT default:ai_summary({"text": $text, "max_words": $n}) AS result',
-      'Capella query engine calls the configured LLM internally',
+      'Couchbase AI Data Plane query engine calls the configured LLM internally',
       'Summary returned in the SQL++ result row',
-      'Backend returns {"summary": "...", "source": "capella_ai_summary"}',
+      'Backend returns {"summary": "...", "source": "ai_data_plane_ai_summary"}',
     ],
     limitations: [
-      'Requires the Summarization AI Function to be enabled on the Capella cluster',
+      'Requires the Summarization AI Function to be enabled on the Couchbase AI Data Plane cluster',
       'Requires the query_external_access role on the database user',
-      'LLM provider and credentials are configured in Capella, not in application code',
-      'Not available on self-managed Couchbase Server — Capella only',
+      'LLM provider and credentials are configured in Couchbase AI Data Plane, not in application code',
+      'Not available on self-managed Couchbase Server — Couchbase AI Data Plane only',
     ],
-    stack: ['Couchbase Capella AI Functions', 'default:ai_summary() SQL++ built-in', 'FastAPI'],
+    stack: ['Couchbase AI Data Plane', 'default:ai_summary() SQL++ built-in', 'FastAPI'],
     questions: [
       { label: 'Paste any article or documentation paragraph', text: null },
       { label: 'Try adjusting max_words to 40 vs 200', text: null },
@@ -2731,13 +2731,13 @@ summary = rows[0]["result"][0]["response"]
       {
         title: 'ai_summary() vs OpenAI — when to use each',
         language: 'text',
-        code: `Capella ai_summary()                  OpenAI chat.completions
+        code: `Couchbase AI Data Plane ai_summary()                  OpenAI chat.completions
 --------------------------------------  --------------------------------------
 Runs inside the database                Runs outside — data leaves Couchbase
 No extra API call from your app         Requires your app to call OpenAI
 Ideal for bulk/batch enrichment         Ideal for interactive, custom prompts
 Fixed summarisation behaviour           Full prompt control
-Counts against Capella AI quota         Counts against OpenAI quota
+Counts against Couchbase AI Data Plane quota         Counts against OpenAI quota
 Available in SQL++ queries & indexes    Not available in SQL++
 
 Use ai_summary() when:
@@ -2751,26 +2751,26 @@ Use OpenAI directly when:
       },
     ],
   },
-  'capella-sentiment': {
-    title: 'Capella AI Sentiment',
+  'ai-data-plane-sentiment': {
+    title: 'Couchbase AI Data Plane Sentiment',
     subtitle: 'default:ai_sentiment() — sentiment analysis runs inside the database as a SQL++ query',
     color: CB_ACCENT,
     icon: '🗄️',
     what: 'Like ai_summary(), the ai_sentiment() function is a SQL++ built-in that runs inside the Couchbase query engine. It returns a sentiment label (positive / negative / neutral / mixed), a confidence score, and an explanation — all from a single SELECT statement. No extra HTTP call to an LLM API, and no server-side endpoint or SDK integration to deploy. You can even run it over an entire collection in one query to enrich stored documents at query time.',
     how: [
-      'Text submitted → POST /api/capella-sentiment',
+      'Text submitted → POST /api/ai-data-plane-sentiment',
       'Backend issues: SELECT default:ai_sentiment({"text": $text}) AS result',
-      'Capella query engine calls the configured LLM internally',
+      'Couchbase AI Data Plane query engine calls the configured LLM internally',
       'Sentiment label, score, and explanation returned in the result row',
       'Backend returns {"sentiment": "...", "sentiment_score": 0.91, "explanation": "..."}',
     ],
     limitations: [
-      'Requires the Sentiment Analysis AI Function to be enabled on the Capella cluster',
+      'Requires the Sentiment Analysis AI Function to be enabled on the Couchbase AI Data Plane cluster',
       'Requires the query_external_access role on the database user',
       'Score scale and label vocabulary depend on the configured LLM',
-      'Not available on self-managed Couchbase Server — Capella only',
+      'Not available on self-managed Couchbase Server — Couchbase AI Data Plane only',
     ],
-    stack: ['Couchbase Capella AI Functions', 'default:ai_sentiment() SQL++ built-in', 'FastAPI'],
+    stack: ['Couchbase AI Data Plane', 'default:ai_sentiment() SQL++ built-in', 'FastAPI'],
     questions: [
       'Apple announced record quarterly earnings today.',
       'I absolutely loved the new restaurant — the pasta was incredible but the service was slow.',
@@ -2797,7 +2797,7 @@ return {
     "sentiment":       result.get("sentiment", "unknown"),
     "sentiment_score": result.get("score", 0.0),
     "explanation":     result.get("explanation", ""),
-    "source":          "capella_ai_sentiment",
+    "source":          "ai_data_plane_ai_sentiment",
 }`,
       },
       {
@@ -2837,14 +2837,14 @@ ORDER BY sentiment.score DESC;`,
       },
     ],
   },
-  'capella-classification': {
-    title: 'Capella AI Classification',
+  'ai-data-plane-classification': {
+    title: 'Couchbase AI Data Plane Classification',
     subtitle: 'default:ai_classification() — classify text into custom labels from inside SQL++',
     color: CB_ACCENT, icon: '🗄️',
-    what: 'ai_classification() assigns text to one of your custom labels using an LLM running inside the Couchbase Capella query engine. You define the labels — sentiment, topic, intent, priority, or any domain-specific taxonomy. No application code needed: the classification runs as part of a SQL++ SELECT or UPDATE.',
+    what: 'ai_classification() assigns text to one of your custom labels using an LLM running inside the Couchbase AI Data Plane query engine. You define the labels — sentiment, topic, intent, priority, or any domain-specific taxonomy. No application code needed: the classification runs as part of a SQL++ SELECT or UPDATE.',
     how: ['User provides text and a list of labels', 'SQL++ calls ai_classification({text, labels})', 'Returns the winning label and a confidence score', 'Can be used in UPDATE to enrich documents in bulk'],
-    limitations: ['Labels should be mutually exclusive for best results', 'More than 8 labels may reduce accuracy', 'Requires Capella AI Functions to be enabled on the cluster'],
-    stack: ['Couchbase Capella ai_classification()', 'SQL++', 'FastAPI', 'React'],
+    limitations: ['Labels should be mutually exclusive for best results', 'More than 8 labels may reduce accuracy', 'Requires Couchbase AI Data Plane to be enabled on the cluster'],
+    stack: ['Couchbase AI Data Plane ai_classification()', 'SQL++', 'FastAPI', 'React'],
     questions: [
       { label: 'Try "The product is amazing!" with positive/negative/neutral', text: 'The product is amazing!' },
       'Add a custom label like "sarcastic" — does it classify correctly?',
@@ -2881,14 +2881,14 @@ Tips:
     ],
   },
 
-  'capella-extraction': {
-    title: 'Capella AI Extraction',
+  'ai-data-plane-extraction': {
+    title: 'Couchbase AI Data Plane Extraction',
     subtitle: 'default:ai_extraction() — extract named entities from text inside SQL++',
     color: CB_ACCENT, icon: '🗄️',
     what: 'ai_extraction() finds named entities in text — persons, locations, organisations, dates, and any custom entity type you define. It runs inside the Couchbase query engine, so you can extract entities from stored documents without moving data to an application layer.',
     how: ['User provides text and a list of entity types', 'SQL++ calls ai_extraction({text, labels})', 'Returns a list of {label, text} pairs for each found entity'],
-    limitations: ['Accuracy depends on entity type clarity — "person" works better than "human"', 'Overlapping entities (e.g. a person who is also an org name) may be missed', 'Requires Capella AI Functions to be enabled'],
-    stack: ['Couchbase Capella ai_extraction()', 'SQL++', 'FastAPI', 'React'],
+    limitations: ['Accuracy depends on entity type clarity — "person" works better than "human"', 'Overlapping entities (e.g. a person who is also an org name) may be missed', 'Requires Couchbase AI Data Plane to be enabled'],
+    stack: ['Couchbase AI Data Plane ai_extraction()', 'SQL++', 'FastAPI', 'React'],
     questions: ['Try a sentence with multiple entity types — are all found?', 'Add a custom label like "product" — does it extract product names?', 'What happens with ambiguous entities (e.g. "Apple" as company vs fruit)?'],
     snippets: [
       { title: 'ai_extraction() SQL++', language: 'sql', code: `SELECT default:ai_extraction({
@@ -2931,14 +2931,14 @@ Use traditional NER when:
     ],
   },
 
-  'capella-translation': {
-    title: 'Capella AI Translation',
+  'ai-data-plane-translation': {
+    title: 'Couchbase AI Data Plane Translation',
     subtitle: 'default:ai_translation() — translate text to any language from inside SQL++',
     color: CB_ACCENT, icon: '🗄️',
     what: 'ai_translation() translates text to a target language from inside a SQL++ query. This means you can translate stored documents, user-generated content, or query results without extracting data to an application layer. Useful for multilingual content pipelines.',
     how: ['User provides text and a target language', 'SQL++ calls ai_translation({text, to_language})', 'Returns the translated text'],
-    limitations: ['Translation quality depends on the underlying LLM — may not match specialised translation APIs for rare languages', 'Very long texts may be truncated', 'Requires Capella AI Functions to be enabled'],
-    stack: ['Couchbase Capella ai_translation()', 'SQL++', 'FastAPI', 'React'],
+    limitations: ['Translation quality depends on the underlying LLM — may not match specialised translation APIs for rare languages', 'Very long texts may be truncated', 'Requires Couchbase AI Data Plane to be enabled'],
+    stack: ['Couchbase AI Data Plane ai_translation()', 'SQL++', 'FastAPI', 'React'],
     questions: [
       { label: 'Translate "Hello, how can I help you?" to Japanese', text: 'Hello, how can I help you?' },
       'Try a technical sentence — does the terminology translate correctly?',
@@ -2969,14 +2969,14 @@ The function accepts any language the underlying LLM supports.` },
     ],
   },
 
-  'capella-masking': {
-    title: 'Capella AI Masking',
+  'ai-data-plane-masking': {
+    title: 'Couchbase AI Data Plane Masking',
     subtitle: 'default:ai_masked() — replace PII with placeholders before data leaves the database',
     color: CB_ACCENT, icon: '🗄️',
     what: 'ai_masked() replaces personally identifiable information (PII) with neutral placeholders ([PERSON], [EMAIL], [PHONE], etc.) from inside a SQL++ query. This means sensitive data can be masked before it is returned to the application layer — useful for GDPR compliance, audit logging, and safe data exports.',
     how: ['User provides text and a list of PII types to mask', 'SQL++ calls ai_masked({text, labels})', 'Returns the text with matching PII replaced by [LABEL] placeholders'],
-    limitations: ['Masking is not reversible — the original values are replaced', 'Context-dependent PII (e.g. a name that is also a common word) may be missed', 'Requires Capella AI Functions to be enabled'],
-    stack: ['Couchbase Capella ai_masked()', 'SQL++', 'FastAPI', 'React'],
+    limitations: ['Masking is not reversible — the original values are replaced', 'Context-dependent PII (e.g. a name that is also a common word) may be missed', 'Requires Couchbase AI Data Plane to be enabled'],
+    stack: ['Couchbase AI Data Plane ai_masked()', 'SQL++', 'FastAPI', 'React'],
     questions: ['Mask an email address — is it replaced correctly?', 'Try a sentence with a person name and phone number', 'What happens if you uncheck "person" — does the name remain?'],
     snippets: [
       { title: 'ai_masked() SQL++', language: 'sql', code: `SELECT default:ai_masked({
@@ -3014,14 +3014,14 @@ LIMIT 50;` },
     ],
   },
 
-  'capella-similarity': {
-    title: 'Capella AI Similarity',
+  'ai-data-plane-similarity': {
+    title: 'Couchbase AI Data Plane Similarity',
     subtitle: 'default:ai_similarity() — semantic similarity score between two texts, inside SQL++',
     color: CB_ACCENT, icon: '🗄️',
     what: 'ai_similarity() returns a semantic similarity score (0–1) between two texts, computed inside the Couchbase query engine. This tab also runs the same pair through embedding cosine similarity so you can compare the two approaches. Use cases include near-duplicate detection, FAQ matching, and content deduplication.',
     how: ['User provides two texts', 'SQL++ calls ai_similarity({text1, text2})', 'Backend also computes cosine similarity via embeddings for comparison', 'Both scores shown side by side'],
-    limitations: ['Score scale may differ from cosine similarity — they are not directly comparable', 'Very short texts (< 5 words) may produce unreliable scores', 'Requires Capella AI Functions to be enabled'],
-    stack: ['Couchbase Capella ai_similarity()', 'OpenAI Embeddings API', 'SQL++', 'FastAPI', 'React'],
+    limitations: ['Score scale may differ from cosine similarity — they are not directly comparable', 'Very short texts (< 5 words) may produce unreliable scores', 'Requires Couchbase AI Data Plane to be enabled'],
+    stack: ['Couchbase AI Data Plane ai_similarity()', 'OpenAI Embeddings API', 'SQL++', 'FastAPI', 'React'],
     questions: ['Compare two paraphrases — do both methods agree?', 'Compare completely unrelated sentences — what score do you get?', 'Compare a question with its answer — is the score high or low?'],
     snippets: [
       { title: 'ai_similarity() SQL++', language: 'sql', code: `SELECT default:ai_similarity({
@@ -3060,14 +3060,14 @@ Use cosine similarity + ANN for:
     ],
   },
 
-  'capella-completion': {
-    title: 'Capella AI Completion',
+  'ai-data-plane-completion': {
+    title: 'Couchbase AI Data Plane Completion',
     subtitle: 'default:ai_completion() — run any custom LLM prompt from inside SQL++',
     color: CB_ACCENT, icon: '🗄️',
-    what: 'ai_completion() is the escape hatch in the Capella AI Functions suite. It accepts a system_prompt and user_prompt and returns the LLM response — all from inside a SQL++ query. Use it for tasks not covered by the other AI Functions: custom summarisation, Q&A over stored documents, content generation, or any arbitrary LLM task.',
+    what: 'ai_completion() is the escape hatch in the Couchbase AI Data Plane suite. It accepts a system_prompt and user_prompt and returns the LLM response — all from inside a SQL++ query. Use it for tasks not covered by the other AI Functions: custom summarisation, Q&A over stored documents, content generation, or any arbitrary LLM task.',
     how: ['User provides a system prompt and user prompt', 'SQL++ calls ai_completion({system_prompt, user_prompt})', 'Returns the LLM response text'],
-    limitations: ['No streaming — response is returned as a complete string', 'Token limits apply — very long prompts may be truncated', 'Requires Capella AI Functions to be enabled'],
-    stack: ['Couchbase Capella ai_completion()', 'SQL++', 'FastAPI', 'React'],
+    limitations: ['No streaming — response is returned as a complete string', 'Token limits apply — very long prompts may be truncated', 'Requires Couchbase AI Data Plane to be enabled'],
+    stack: ['Couchbase AI Data Plane ai_completion()', 'SQL++', 'FastAPI', 'React'],
     questions: ['Try the "Q&A over document" preset — does it answer correctly?', 'Write a custom system prompt for a specific task', 'How does ai_completion() differ from ai_summary()?'],
     snippets: [
       { title: 'ai_completion() SQL++', language: 'sql', code: `SELECT default:ai_completion({
@@ -3091,7 +3091,7 @@ Data stays in the database      Data travels to app layer
 No extra API call from app      Requires OpenAI API call
 Runs at query time              Runs at application time
 Fixed prompt structure          Full prompt control
-Counts against Capella quota    Counts against OpenAI quota
+Counts against Couchbase AI Data Plane quota    Counts against OpenAI quota
 No streaming                    Streaming available
 
 Use ai_completion() when:
@@ -3105,14 +3105,14 @@ Use application-side when:
     ],
   },
 
-  'capella-grammar': {
-    title: 'Capella AI Grammar',
+  'ai-data-plane-grammar': {
+    title: 'Couchbase AI Data Plane Grammar',
     subtitle: 'default:ai_corrected_grammar() — fix grammar errors from inside SQL++',
     color: CB_ACCENT, icon: '🗄️',
     what: 'ai_corrected_grammar() corrects grammar, spelling, and punctuation errors in text from inside a SQL++ query. Useful for cleaning user-generated content before storage or display. This tab shows the original and corrected text side by side with changed words highlighted.',
     how: ['User provides text with grammar errors', 'SQL++ calls ai_corrected_grammar({text})', 'Returns the corrected text', 'Changed words are highlighted in the diff view'],
-    limitations: ['Preserves meaning but may rephrase slightly — not a pure grammar checker', 'Very informal or dialect text may be over-corrected', 'Requires Capella AI Functions to be enabled'],
-    stack: ['Couchbase Capella ai_corrected_grammar()', 'SQL++', 'FastAPI', 'React'],
+    limitations: ['Preserves meaning but may rephrase slightly — not a pure grammar checker', 'Very informal or dialect text may be over-corrected', 'Requires Couchbase AI Data Plane to be enabled'],
+    stack: ['Couchbase AI Data Plane ai_corrected_grammar()', 'SQL++', 'FastAPI', 'React'],
     questions: [
       { label: 'Try "their going to the store" — what gets corrected?', text: 'their going to the store' },
       'Try a sentence with multiple errors — are all fixed?',
@@ -3151,14 +3151,14 @@ Skip it for:
     ],
   },
 
-  'capella-model-service': {
-    title: 'Capella Model Service',
+  'ai-data-plane-model-service': {
+    title: 'Couchbase AI Data Plane Model Service',
     subtitle: 'LLM gateway with guardrails, semantic cache, provider routing, and rate limiting',
     color: CB_ACCENT,
     icon: '🗄️',
-    what: 'The Capella Model Service is a managed LLM gateway that sits between your application and any LLM provider. It adds guardrails, semantic caching, rate limiting, and observability to every request — configured once in the Capella UI, applied transparently to all calls. Your application calls one endpoint regardless of which provider is configured behind it.',
+    what: 'The Couchbase AI Data Plane Model Service is a managed LLM gateway that sits between your application and any LLM provider. It adds guardrails, semantic caching, rate limiting, and observability to every request — configured once in the Couchbase AI Data Plane UI, applied transparently to all calls. Your application calls one endpoint regardless of which provider is configured behind it.',
     how: [
-      'Configure an LLM provider (OpenAI, Bedrock, Vertex AI, Capella-hosted) in the Capella UI',
+      'Configure an LLM provider (OpenAI, Bedrock, Vertex AI, Couchbase AI Data Plane-hosted) in the Couchbase AI Data Plane UI',
       'Enable capabilities: guardrails, semantic cache, rate limits, observability',
       'Your application calls the Model Service endpoint — same interface for all providers',
       'Guardrails classify input and output; blocked requests return a structured error',
@@ -3166,12 +3166,12 @@ Skip it for:
       'Rate limits are enforced per user or globally before requests reach the provider',
     ],
     limitations: [
-      'Capella-only — not available on self-managed Couchbase Server',
+      'Available only in Couchbase AI Data Plane — not available on self-managed Couchbase Server',
       'Guardrail latency adds ~100–300ms per request (two LLM classification calls)',
       'Semantic cache requires a similarity threshold — tune carefully to avoid false hits',
       'Provider switching requires re-testing prompts that rely on model-specific behaviour',
     ],
-    stack: ['Couchbase Capella Model Service', 'FastAPI', 'React'],
+    stack: ['Couchbase AI Data Plane Model Service', 'FastAPI', 'React'],
     questions: [
       'Try a harmful message through the Guardrails demo — which gate blocks it?',
       'Send the same question twice through the Semantic Cache demo — does the second hit the cache?',
@@ -3190,7 +3190,7 @@ output_check = await classify(response, "output")
 return response if output_check["safe"] else "[blocked]"
 
 # Model Service: zero extra code
-response = await capella_model_service.complete(prompt=message)
+response = await ai_data_plane_model_service.complete(prompt=message)
 # guardrails applied automatically`,
       },
       {
@@ -3205,7 +3205,7 @@ await store(query, vec, resp)
 return resp
 
 # Model Service: zero extra code
-response = await capella_model_service.complete(prompt=query)
+response = await ai_data_plane_model_service.complete(prompt=query)
 # cache checked and populated automatically`,
       },
       {
@@ -3214,18 +3214,18 @@ response = await capella_model_service.complete(prompt=query)
         code: `Your App
   │
   ▼
-Capella Model Service
+Couchbase AI Data Plane Model Service
   ├── 🛡️  Input guardrail  (classify → block or pass)
   ├── ⚡  Semantic cache   (similar query? return cached)
   ├── 🪙  Rate limiter     (over budget? return 429)
-  ├── 🔌  Provider router  (OpenAI / Bedrock / Vertex / Capella)
+  ├── 🔌  Provider router  (OpenAI / Bedrock / Vertex / Couchbase AI Data Plane)
   └── 📊  Observability    (latency, tokens, cost, errors)
   │
   ▼
 LLM Provider
   │
   ▼
-Capella Model Service
+Couchbase AI Data Plane Model Service
   ├── 🛡️  Output guardrail (classify → block or pass)
   └── ⚡  Cache store      (store response for future hits)
   │
@@ -3235,23 +3235,23 @@ Your App`,
     ],
   },
 
-  'capella-ingestion': {
-    title: 'Capella Ingestion Pipeline',
+  'ai-data-plane-ingestion': {
+    title: 'Couchbase AI Data Plane Ingestion Pipeline',
     subtitle: 'UI-driven chunk → embed → store → index workflow — no application code required',
     color: CB_ACCENT,
     icon: '🗄️',
-    what: 'The AI Data Plane ingestion workflow replaces the entire DIY pipeline — chunking, embedding, storing, and vector index creation — with a UI-driven configuration. Connect a data source (Capella collection, S3, web URL, or file upload), choose a chunking strategy and embedding model, select a target collection, and run. Capella handles the rest, including creating the vector search index automatically.',
+    what: 'The AI Data Plane ingestion workflow replaces the entire DIY pipeline — chunking, embedding, storing, and vector index creation — with a UI-driven configuration. Connect a data source (Couchbase AI Data Plane collection, S3, web URL, or file upload), choose a chunking strategy and embedding model, select a target collection, and run. Couchbase AI Data Plane handles the rest, including creating the vector search index automatically.',
     how: [
-      'Choose a data source: existing Capella collection, S3 bucket, web URL, or file upload',
+      'Choose a data source: existing Couchbase AI Data Plane collection, S3 bucket, web URL, or file upload',
       'Configure chunking: strategy (fixed, sentence, paragraph, semantic), size, and overlap',
-      'Select an embedding model: OpenAI, AWS Bedrock Titan, or a Capella-hosted model',
+      'Select an embedding model: OpenAI, AWS Bedrock Titan, or a Couchbase AI Data Plane-hosted model',
       'Set the target bucket, scope, and collection in Couchbase',
-      'Run the workflow — Capella chunks, embeds, stores, and creates the vector index',
+      'Run the workflow — Couchbase AI Data Plane chunks, embeds, stores, and creates the vector index',
       'Schedule recurring runs or trigger on data change events',
     ],
     limitations: [
-      'Capella-only — not available on self-managed Couchbase Server',
-      'S3 source requires AWS credentials configured in Capella',
+      'Available only in Couchbase AI Data Plane — not available on self-managed Couchbase Server',
+      'S3 source requires AWS credentials configured in Couchbase AI Data Plane',
       'Very large collections may take minutes to hours to process',
       'Chunking strategy affects retrieval quality — fixed-size is fastest, semantic is most accurate',
       'The auto-created vector index name must be noted for use in application queries',
@@ -3261,7 +3261,7 @@ Your App`,
       'Run the DIY pipeline — how many lines of code does it take to chunk, embed, and store?',
       'What happens to retrieval quality when you change chunk size from 150 to 50 words?',
       'Which data source would you use to keep a Couchbase collection in sync with a PDF library in S3?',
-      'What does the Capella workflow create automatically that you have to write SQL++ for in the DIY approach?',
+      'What does the Couchbase AI Data Plane workflow create automatically that you have to write SQL++ for in the DIY approach?',
     ],
     snippets: [
       {
@@ -3295,9 +3295,9 @@ cluster.query("""
 """)`,
       },
       {
-        title: 'Capella workflow — what it replaces',
+        title: 'Couchbase AI Data Plane workflow — what it replaces',
         language: 'text',
-        code: `Step              DIY                          Capella Workflow
+        code: `Step              DIY                          Couchbase AI Data Plane Workflow
 ────────────────────────────────────────────────────────────────
 Chunking          Custom split function          UI config (strategy + size)
 Embedding         Call embedding API per chunk   Managed, batched, retried
@@ -3306,7 +3306,7 @@ Vector index      CREATE VECTOR INDEX SQL++      Auto-created after run
 Scheduling        Cron job or manual trigger     Built-in scheduler
 Monitoring        Custom logging                 Progress UI + error reporting
 Re-ingestion      Re-run your script             Re-run or schedule workflow
-Multi-source      Separate code per source       S3 / Capella / URL / upload`,
+Multi-source      Separate code per source       S3 / Couchbase AI Data Plane / URL / upload`,
       },
       {
         title: 'After ingestion — query the vector index',
@@ -3318,7 +3318,7 @@ from couchbase.options import SearchOptions
 embedding = await get_embedding(user_question)
 
 results = scope.search(
-    "doc_vector_idx",   # index auto-created by Capella workflow
+    "doc_vector_idx",   # index auto-created by Couchbase AI Data Plane workflow
     VectorSearch.from_vector_query(
         VectorQuery("vector", embedding, num_candidates=10)
     ),
@@ -3429,7 +3429,7 @@ async def handle_rag_and_reply(question, response_url, user_id):
     questions: [
       'What is Couchbase Vector Search?',
       'How do I store embeddings in Couchbase?',
-      'How does Capella AI Data Plane work?',
+      'How does Couchbase AI Data Plane Data Plane work?',
     ],
   },
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import './AppCapellaModelService.css'
-import CapellaDiyBanner from './components/CapellaDiyBanner'
+import './AppAiDataPlaneModelService.css'
+import AiDataPlaneDiyBanner from './components/AiDataPlaneDiyBanner'
 
 // ── Feature definitions ────────────────────────────────────────────────────
 
@@ -49,7 +49,7 @@ const FEATURES = [
     tagline: 'Switch LLM providers without changing application code',
     description:
       'The Model Service abstracts the LLM provider. Configure OpenAI, AWS Bedrock, Google ' +
-      'Vertex AI, or Capella-hosted models in the Capella UI — your application always calls ' +
+      'Vertex AI, or Couchbase AI Data Plane-hosted models in the Couchbase AI Data Plane UI — your application always calls ' +
       'the same endpoint. Switch providers, run A/B tests, or add fallback models without ' +
       'touching application code or redeploying.',
     inputLabel: 'Prompt (sent to the currently configured provider)',
@@ -185,7 +185,7 @@ function ArchDiagram() {
         <div className="cms-arch-box cms-arch-box--app">Your App</div>
         <div className="cms-arch-arrow">→</div>
         <div className="cms-arch-gateway">
-          <div className="cms-arch-gateway-label">Capella Model Service</div>
+          <div className="cms-arch-gateway-label">Couchbase AI Data Plane Model Service</div>
           <div className="cms-arch-gateway-features">
             <span>🛡️ Guardrails</span>
             <span>⚡ Semantic Cache</span>
@@ -198,7 +198,7 @@ function ArchDiagram() {
           <div className="cms-arch-provider">OpenAI</div>
           <div className="cms-arch-provider">Bedrock</div>
           <div className="cms-arch-provider">Vertex AI</div>
-          <div className="cms-arch-provider">Capella</div>
+          <div className="cms-arch-provider">Couchbase AI Data Plane</div>
         </div>
       </div>
       <p className="cms-arch-note">
@@ -211,7 +211,7 @@ function ArchDiagram() {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export default function AppCapellaModelService({ featureId } = {}) {
+export default function AppAiDataPlaneModelService({ featureId } = {}) {
   const [activeId, setActiveId] = useState(featureId || 'guardrails')
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -256,7 +256,7 @@ export default function AppCapellaModelService({ featureId } = {}) {
 
   return (
     <div className="cms-root">
-      <CapellaDiyBanner
+      <AiDataPlaneDiyBanner
         diyTab={feature.diyTab}
         diyLabel={feature.diyLabel}
         replaces={feature.replaces}
@@ -318,17 +318,17 @@ export default function AppCapellaModelService({ featureId } = {}) {
             </div>
           )}
 
-          {/* DIY vs Capella comparison */}
+          {/* DIY vs Couchbase AI Data Plane comparison */}
           <div className="cms-compare">
-            <div className="cms-compare-title">DIY vs Capella Model Service</div>
+            <div className="cms-compare-title">DIY vs Couchbase AI Data Plane Model Service</div>
             <div className="cms-compare-cols">
               <div className="cms-compare-col cms-compare-col--diy">
                 <div className="cms-compare-col-header">🐍 DIY</div>
                 <CompareContent featureId={featureId || activeId} side="diy" />
               </div>
-              <div className="cms-compare-col cms-compare-col--capella">
-                <div className="cms-compare-col-header">🗄️ Capella Model Service</div>
-                <CompareContent featureId={featureId || activeId} side="capella" />
+              <div className="cms-compare-col cms-compare-col--ai_data_plane">
+                <div className="cms-compare-col-header">🗄️ Couchbase AI Data Plane Model Service</div>
+                <CompareContent featureId={featureId || activeId} side="ai_data_plane" />
               </div>
             </div>
           </div>
@@ -338,7 +338,7 @@ export default function AppCapellaModelService({ featureId } = {}) {
   )
 }
 
-// ── DIY vs Capella comparison content ─────────────────────────────────────
+// ── DIY vs Couchbase AI Data Plane comparison content ─────────────────────────────────────
 
 const COMPARE_CONTENT = {
   guardrails: {
@@ -369,7 +369,7 @@ response = await generate_response(message)
 output_check = await classify(response, "output")
 return response if output_check["safe"] else "[blocked]"`,
     },
-    capella: {
+    ai_data_plane: {
       steps: [
         'Enable Guardrails in AI Data Plane UI',
         'Configure input/output policies (categories, thresholds)',
@@ -378,10 +378,10 @@ return response if output_check["safe"] else "[blocked]"`,
       ],
       code: `# No classifier code in your application.
 # The Model Service handles it transparently.
-response = await capella_model_service.complete(
+response = await ai_data_plane_model_service.complete(
     prompt=message,
     # guardrails applied automatically based on
-    # the policy configured in the Capella UI
+    # the policy configured in the Couchbase AI Data Plane UI
 )`,
     },
   },
@@ -414,7 +414,7 @@ collection.upsert(key, {"query":query,
     "embedding":vec, "response":response})
 return response`,
     },
-    capella: {
+    ai_data_plane: {
       steps: [
         'Enable Semantic Cache in AI Data Plane UI',
         'Set similarity threshold and TTL',
@@ -424,7 +424,7 @@ return response`,
       code: `# No cache code in your application.
 # The Model Service checks and populates the
 # cache transparently on every request.
-response = await capella_model_service.complete(
+response = await ai_data_plane_model_service.complete(
     prompt=query,
     # cache checked automatically
 )`,
@@ -457,18 +457,18 @@ from vertexai.generative_models import GenerativeModel
 model = GenerativeModel("gemini-1.5-flash")
 resp = model.generate_content(prompt)`,
     },
-    capella: {
+    ai_data_plane: {
       steps: [
-        'Configure provider + credentials once in Capella UI',
+        'Configure provider + credentials once in Couchbase AI Data Plane UI',
         'Call the Model Service endpoint — provider-agnostic',
         'Switch providers in the UI with no code changes',
         'Add fallback models in the UI with no code changes',
       ],
       code: `# One endpoint, any provider.
 # Switch OpenAI → Bedrock → Vertex in the UI.
-response = await capella_model_service.complete(
+response = await ai_data_plane_model_service.complete(
     prompt=message,
-    # provider configured in Capella UI
+    # provider configured in Couchbase AI Data Plane UI
 )`,
     },
   },
@@ -497,16 +497,16 @@ async def chat(request, body):
         raise HTTPException(429, "Token budget exceeded")
     # ... generate response`,
     },
-    capella: {
+    ai_data_plane: {
       steps: [
-        'Set per-user and global rate limits in Capella UI',
+        'Set per-user and global rate limits in Couchbase AI Data Plane UI',
         'Set token budgets per application or user tier',
         'Call the Model Service endpoint — limits enforced automatically',
         'Structured 429 responses returned when limits are hit',
       ],
       code: `# No rate limiting code in your application.
 # Limits are enforced at the Model Service gateway.
-response = await capella_model_service.complete(
+response = await ai_data_plane_model_service.complete(
     prompt=message,
     user_id=current_user.id,
     # rate limits applied automatically

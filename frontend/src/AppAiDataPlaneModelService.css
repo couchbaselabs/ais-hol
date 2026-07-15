@@ -295,7 +295,7 @@
   flex-direction: column;
 }
 .cms-compare-col--diy    { border-right: 1px solid #e9ecef; }
-.cms-compare-col--capella { background: #f0f7ff; }
+.cms-compare-col--ai_data_plane { background: #f0f7ff; }
 
 .cms-compare-col-header {
   padding: 0.5rem 0.75rem;
@@ -304,7 +304,7 @@
   border-bottom: 1px solid #e9ecef;
   color: #495057;
 }
-.cms-compare-col--capella .cms-compare-col-header { color: #1971c2; }
+.cms-compare-col--ai_data_plane .cms-compare-col-header { color: #1971c2; }
 
 .cms-compare-content {
   padding: 0.75rem;
@@ -332,7 +332,7 @@
   color: #212529;
   line-height: 1.55;
 }
-.cms-compare-col--capella .cms-compare-code {
+.cms-compare-col--ai_data_plane .cms-compare-code {
   background: #edf2ff;
   border-color: #bac8ff;
   color: #1971c2;

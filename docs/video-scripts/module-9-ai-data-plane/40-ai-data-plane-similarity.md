@@ -1,13 +1,13 @@
-# Capella AI Similarity
+# Couchbase AI Data Plane Similarity
 
-**Module:** Capella AI Functions | **Level:** Advanced
-**Runtime:** ~6 min | **Tab:** `capella-similarity`
+**Module:** Couchbase AI Data Plane | **Level:** Advanced
+**Runtime:** ~6 min | **Tab:** `ai-data-plane-similarity`
 
 ---
 
 ## Hook
 
-> 🎬 **SHOW:** Capella AI Similarity tab open, two text inputs side by side, similarity score display area empty.
+> 🎬 **SHOW:** Couchbase AI Data Plane Similarity tab open, two text inputs side by side, similarity score display area empty.
 
 Semantic similarity — how alike two pieces of text are in *meaning*, not just in words — is the foundation of deduplication, plagiarism detection, FAQ matching, and recommendation systems. `ai_similarity()` computes a similarity score between two texts as a SQL++ built-in. No embedding pipeline, no vector index — just a function call.
 
@@ -31,7 +31,7 @@ For near-duplicate detection, join a collection with itself and filter by high s
 
 ## Demo Walkthrough
 
-> 🎬 **SHOW:** Capella AI Similarity tab, both text inputs empty.
+> 🎬 **SHOW:** Couchbase AI Data Plane Similarity tab, both text inputs empty.
 
 1. Text 1: *"The cat sat on the mat."* Text 2: *"A feline was resting on a rug."* Submit.
 
@@ -59,7 +59,7 @@ For near-duplicate detection, join a collection with itself and filter by high s
 
 ## Code Deep-Dive
 
-> 🎬 **SHOW:** `backend/main.py`, scrolled to `/api/capella-similarity`. Highlight the SQL++ query.
+> 🎬 **SHOW:** `backend/main.py`, scrolled to `/api/ai-data-plane-similarity`. Highlight the SQL++ query.
 
 ```python
 sql = """
@@ -80,7 +80,7 @@ rows = list(
 result = rows[0]["result"][0]
 return {
     "score":  result.get("score", 0.0),
-    "source": "capella_ai_similarity",
+    "source": "ai_data_plane_ai_similarity",
 }
 ```
 
@@ -116,6 +116,6 @@ The `a.id < b.id` condition ensures each pair is compared exactly once. Without 
 
 ## What's Next
 
-> 🎬 **SHOW:** Sidebar — highlight the next tab `capella-completion`.
+> 🎬 **SHOW:** Sidebar — highlight the next tab `ai-data-plane-completion`.
 
-Next: Capella AI Completion — running custom LLM prompts inside the database using `ai_completion()`.
+Next: Couchbase AI Data Plane Completion — running custom LLM prompts inside the database using `ai_completion()`.

@@ -1234,7 +1234,7 @@ async def query(body: QueryRequest):
 
         return StreamingResponse(from_cache(), media_type="text/plain; charset=utf-8")
 
-    # Exercise 4: store user message and summarize history via Capella AI Functions
+    # Exercise 4: store user message and summarize history via Couchbase AI Data Plane
     await add_message(session_id, body.q, "user")
     formatted_history = await summarize_conversation(session_id)
 
@@ -1484,16 +1484,16 @@ async def voice_speak(body: VoiceSpeakRequest):
 
 
 # ---------------------------------------------------------------------------
-# Capella AI Functions — summarisation and sentiment analysis
+# Couchbase AI Data Plane — summarisation and sentiment analysis
 # ---------------------------------------------------------------------------
 
 
-class CapellaSummariseRequest(BaseModel):
+class AiDataPlaneSummariseRequest(BaseModel):
     text: str
     max_words: int = 150
 
 
-class CapellaSentimentRequest(BaseModel):
+class AiDataPlaneSentimentRequest(BaseModel):
     text: str
 
 
@@ -2156,13 +2156,13 @@ async def guardrails_demo(body: GuardrailsRequest):
     }
 
 
-@app.post("/api/capella-summarise")
-async def capella_summarise(body: CapellaSummariseRequest):
-    """Summarise text using Couchbase Capella's built-in ai_summary() SQL++ function.
+@app.post("/api/ai-data-plane-summarise")
+async def ai_data_plane_summarise(body: AiDataPlaneSummariseRequest):
+    """Summarise text using Couchbase AI Data Plane's built-in ai_summary() SQL++ function.
 
     The summarisation runs inside the database — no extra LLM API call from
     the backend. Requires the Summarization AI Function to be enabled on the
-    Capella cluster (AI Services → AI Functions → Summarization).
+    Couchbase AI Data Plane cluster (Couchbase AI Data Plane → AI Functions → Summarization).
     """
     if not body.text.strip():
         raise HTTPException(status_code=400, detail="text is required.")
@@ -2172,10 +2172,10 @@ async def capella_summarise(body: CapellaSummariseRequest):
         return {
             "summary": (
                 f"[Mock] This {word_count}-word passage covers key ideas and concepts. "
-                "In a real Capella cluster, default:ai_summary() runs the summarisation "
+                "In a real Couchbase AI Data Plane cluster, default:ai_summary() runs the summarisation "
                 "inside the database using the configured LLM — no extra API call needed."
             ),
-            "source": "capella_ai_summary",
+            "source": "ai_data_plane_ai_summary",
         }
 
     from services.conversation_service import _get_cluster
@@ -2197,18 +2197,18 @@ async def capella_summarise(body: CapellaSummariseRequest):
             ).rows()
         )
         summary = rows[0]["result"][0]["response"]
-        return {"summary": summary, "source": "capella_ai_summary"}
+        return {"summary": summary, "source": "ai_data_plane_ai_summary"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"ai_summary() failed: {e}")
 
 
-@app.post("/api/capella-sentiment")
-async def capella_sentiment(body: CapellaSentimentRequest):
-    """Analyse sentiment using Couchbase Capella's built-in ai_sentiment() SQL++ function.
+@app.post("/api/ai-data-plane-sentiment")
+async def ai_data_plane_sentiment(body: AiDataPlaneSentimentRequest):
+    """Analyse sentiment using Couchbase AI Data Plane's built-in ai_sentiment() SQL++ function.
 
     The analysis runs inside the database — no extra LLM API call from the
     backend. Requires the Sentiment Analysis AI Function to be enabled on the
-    Capella cluster (AI Services → AI Functions → Sentiment Analysis).
+    Couchbase AI Data Plane cluster (Couchbase AI Data Plane → AI Functions → Sentiment Analysis).
     """
     if not body.text.strip():
         raise HTTPException(status_code=400, detail="text is required.")
@@ -2228,10 +2228,10 @@ async def capella_sentiment(body: CapellaSentimentRequest):
             "sentiment_score": score,
             "explanation":     (
                 f"[Mock] Detected {sentiment} tone based on keyword matching. "
-                "In a real Capella cluster, default:ai_sentiment() runs inside "
+                "In a real Couchbase AI Data Plane cluster, default:ai_sentiment() runs inside "
                 "the database using the configured LLM."
             ),
-            "source": "capella_ai_sentiment",
+            "source": "ai_data_plane_ai_sentiment",
         }
 
     from services.conversation_service import _get_cluster
@@ -2255,59 +2255,59 @@ async def capella_sentiment(body: CapellaSentimentRequest):
             "sentiment":       result.get("sentiment", "unknown"),
             "sentiment_score": result.get("score", 0.0),
             "explanation":     result.get("explanation", ""),
-            "source":          "capella_ai_sentiment",
+            "source":          "ai_data_plane_ai_sentiment",
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"ai_sentiment() failed: {e}")
 
 
 # ---------------------------------------------------------------------------
-# Capella AI Functions — additional functions
+# Couchbase AI Data Plane — additional functions
 # ---------------------------------------------------------------------------
 
-def _capella_cluster():
+def _ai_data_plane_cluster():
     """Return a Couchbase cluster connection, or raise if unavailable."""
     from services.conversation_service import _get_cluster
     from couchbase.options import QueryOptions
     return _get_cluster(), QueryOptions
 
 
-class CapellaTextRequest(BaseModel):
+class AiDataPlaneTextRequest(BaseModel):
     text: str = Field(..., max_length=_MAX_TEXT)
 
 
-class CapellaClassificationRequest(BaseModel):
+class AiDataPlaneClassificationRequest(BaseModel):
     text: str = Field(..., max_length=_MAX_TEXT)
     labels: list[str] = ["positive", "negative", "neutral"]
 
 
-class CapellaExtractionRequest(BaseModel):
+class AiDataPlaneExtractionRequest(BaseModel):
     text: str = Field(..., max_length=_MAX_TEXT)
     labels: list[str] = ["person", "location", "organization", "date"]
 
 
-class CapellaTranslationRequest(BaseModel):
+class AiDataPlaneTranslationRequest(BaseModel):
     text: str = Field(..., max_length=_MAX_TEXT)
     to_language: str = "French"
 
 
-class CapellaMaskingRequest(BaseModel):
+class AiDataPlaneMaskingRequest(BaseModel):
     text: str = Field(..., max_length=_MAX_TEXT)
     labels: list[str] = ["person", "email", "phone", "location"]
 
 
-class CapellaSimilarityRequest(BaseModel):
+class AiDataPlaneSimilarityRequest(BaseModel):
     text1: str
     text2: str
 
 
-class CapellaCompletionRequest(BaseModel):
+class AiDataPlaneCompletionRequest(BaseModel):
     system_prompt: str = "You are a helpful assistant."
     user_prompt: str
 
 
-@app.post("/api/capella-classification")
-async def capella_classification(body: CapellaClassificationRequest):
+@app.post("/api/ai-data-plane-classification")
+async def ai_data_plane_classification(body: AiDataPlaneClassificationRequest):
     """Classify text into user-defined categories using ai_classification()."""
     if not body.text.strip():
         raise HTTPException(status_code=400, detail="text is required")
@@ -2327,19 +2327,19 @@ async def capella_classification(body: CapellaClassificationRequest):
         }
 
     try:
-        cluster, QueryOptions = _capella_cluster()
+        cluster, QueryOptions = _ai_data_plane_cluster()
         sql = 'SELECT default:ai_classification({"text": $text, "labels": $labels}) AS result'
         rows = list(cluster.query(sql, QueryOptions(named_parameters={"text": body.text, "labels": labels})).rows())
         result = rows[0]["result"][0]
         return {"classification": result.get("classification"), "score": result.get("score", 0.0),
-                "labels": labels, "source": "capella_ai_classification",
+                "labels": labels, "source": "ai_data_plane_ai_classification",
                 "sql": sql.replace("$text", f'"{body.text[:60]}"').replace("$labels", str(labels))}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"ai_classification() failed: {e}")
 
 
-@app.post("/api/capella-extraction")
-async def capella_extraction(body: CapellaExtractionRequest):
+@app.post("/api/ai-data-plane-extraction")
+async def ai_data_plane_extraction(body: AiDataPlaneExtractionRequest):
     """Extract named entities using ai_extraction()."""
     if not body.text.strip():
         raise HTTPException(status_code=400, detail="text is required")
@@ -2360,18 +2360,18 @@ async def capella_extraction(body: CapellaExtractionRequest):
                 "sql": f'SELECT default:ai_extraction({{"text": $text, "labels": {labels}}}) AS result'}
 
     try:
-        cluster, QueryOptions = _capella_cluster()
+        cluster, QueryOptions = _ai_data_plane_cluster()
         sql = 'SELECT default:ai_extraction({"text": $text, "labels": $labels}) AS result'
         rows = list(cluster.query(sql, QueryOptions(named_parameters={"text": body.text, "labels": labels})).rows())
         entities = rows[0]["result"][0].get("entities", [])
-        return {"entities": entities, "labels": labels, "source": "capella_ai_extraction",
+        return {"entities": entities, "labels": labels, "source": "ai_data_plane_ai_extraction",
                 "sql": sql}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"ai_extraction() failed: {e}")
 
 
-@app.post("/api/capella-translation")
-async def capella_translation(body: CapellaTranslationRequest):
+@app.post("/api/ai-data-plane-translation")
+async def ai_data_plane_translation(body: AiDataPlaneTranslationRequest):
     """Translate text using ai_translation()."""
     if not body.text.strip():
         raise HTTPException(status_code=400, detail="text is required")
@@ -2385,18 +2385,18 @@ async def capella_translation(body: CapellaTranslationRequest):
         }
 
     try:
-        cluster, QueryOptions = _capella_cluster()
+        cluster, QueryOptions = _ai_data_plane_cluster()
         sql = 'SELECT default:ai_translation({"text": $text, "to_language": $lang}) AS result'
         rows = list(cluster.query(sql, QueryOptions(named_parameters={"text": body.text, "lang": body.to_language})).rows())
         result = rows[0]["result"][0]
         return {"translation": result.get("translation", ""), "to_language": body.to_language,
-                "source": "capella_ai_translation", "sql": sql}
+                "source": "ai_data_plane_ai_translation", "sql": sql}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"ai_translation() failed: {e}")
 
 
-@app.post("/api/capella-masking")
-async def capella_masking(body: CapellaMaskingRequest):
+@app.post("/api/ai-data-plane-masking")
+async def ai_data_plane_masking(body: AiDataPlaneMaskingRequest):
     """Mask PII using ai_masked()."""
     if not body.text.strip():
         raise HTTPException(status_code=400, detail="text is required")
@@ -2415,18 +2415,18 @@ async def capella_masking(body: CapellaMaskingRequest):
                 "sql": f'SELECT default:ai_masked({{"text": $text, "labels": {labels}}}) AS result'}
 
     try:
-        cluster, QueryOptions = _capella_cluster()
+        cluster, QueryOptions = _ai_data_plane_cluster()
         sql = 'SELECT default:ai_masked({"text": $text, "labels": $labels}) AS result'
         rows = list(cluster.query(sql, QueryOptions(named_parameters={"text": body.text, "labels": labels})).rows())
         result = rows[0]["result"][0]
         return {"masked": result.get("masked_text", ""), "original": body.text,
-                "labels": labels, "source": "capella_ai_masked", "sql": sql}
+                "labels": labels, "source": "ai_data_plane_ai_masked", "sql": sql}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"ai_masked() failed: {e}")
 
 
-@app.post("/api/capella-similarity")
-async def capella_similarity(body: CapellaSimilarityRequest):
+@app.post("/api/ai-data-plane-similarity")
+async def ai_data_plane_similarity(body: AiDataPlaneSimilarityRequest):
     """Compute semantic similarity between two texts using ai_similarity()."""
     if not body.text1.strip() or not body.text2.strip():
         raise HTTPException(status_code=400, detail="text1 and text2 are required")
@@ -2455,18 +2455,18 @@ async def capella_similarity(body: CapellaSimilarityRequest):
                 "sql": 'SELECT default:ai_similarity({"text1": $t1, "text2": $t2}) AS result'}
 
     try:
-        cluster, QueryOptions = _capella_cluster()
+        cluster, QueryOptions = _ai_data_plane_cluster()
         sql = 'SELECT default:ai_similarity({"text1": $t1, "text2": $t2}) AS result'
         rows = list(cluster.query(sql, QueryOptions(named_parameters={"t1": body.text1, "t2": body.text2})).rows())
         result = rows[0]["result"][0]
         return {"similarity": result.get("similarity", 0.0), "cosine": cosine_score,
-                "source": "capella_ai_similarity", "sql": sql}
+                "source": "ai_data_plane_ai_similarity", "sql": sql}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"ai_similarity() failed: {e}")
 
 
-@app.post("/api/capella-completion")
-async def capella_completion(body: CapellaCompletionRequest):
+@app.post("/api/ai-data-plane-completion")
+async def ai_data_plane_completion(body: AiDataPlaneCompletionRequest):
     """Run a custom LLM prompt inside the database using ai_completion()."""
     if not body.user_prompt.strip():
         raise HTTPException(status_code=400, detail="user_prompt is required")
@@ -2479,18 +2479,18 @@ async def capella_completion(body: CapellaCompletionRequest):
         }
 
     try:
-        cluster, QueryOptions = _capella_cluster()
+        cluster, QueryOptions = _ai_data_plane_cluster()
         sql = 'SELECT default:ai_completion({"system_prompt": $sys, "user_prompt": $usr}) AS result'
         rows = list(cluster.query(sql, QueryOptions(named_parameters={
             "sys": body.system_prompt, "usr": body.user_prompt})).rows())
         result = rows[0]["result"][0]
-        return {"completion": result.get("response", ""), "source": "capella_ai_completion", "sql": sql}
+        return {"completion": result.get("response", ""), "source": "ai_data_plane_ai_completion", "sql": sql}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"ai_completion() failed: {e}")
 
 
-@app.post("/api/capella-grammar")
-async def capella_grammar(body: CapellaTextRequest):
+@app.post("/api/ai-data-plane-grammar")
+async def ai_data_plane_grammar(body: AiDataPlaneTextRequest):
     """Correct grammar using ai_corrected_grammar()."""
     if not body.text.strip():
         raise HTTPException(status_code=400, detail="text is required")
@@ -2506,12 +2506,12 @@ async def capella_grammar(body: CapellaTextRequest):
                 "sql": 'SELECT default:ai_corrected_grammar({"text": $text}) AS result'}
 
     try:
-        cluster, QueryOptions = _capella_cluster()
+        cluster, QueryOptions = _ai_data_plane_cluster()
         sql = 'SELECT default:ai_corrected_grammar({"text": $text}) AS result'
         rows = list(cluster.query(sql, QueryOptions(named_parameters={"text": body.text})).rows())
         result = rows[0]["result"][0]
         return {"corrected": result.get("corrected_text", ""), "original": body.text,
-                "source": "capella_ai_corrected_grammar", "sql": sql}
+                "source": "ai_data_plane_ai_corrected_grammar", "sql": sql}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"ai_corrected_grammar() failed: {e}")
 
@@ -4326,7 +4326,7 @@ async def vector_search_compare(body: VectorSearchCompareRequest):
         fts_error = str(e)
     fts_ms = round((_time.perf_counter() - t0) * 1000)
 
-    # ── GSI vector search (requires Couchbase Server 8.0+ / not available on Capella) ──
+    # ── GSI vector search (requires Couchbase Server 8.0+ / not available on Couchbase AI Data Plane) ──
     gsi_results = []
     gsi_error = None
     t0 = _time.perf_counter()
@@ -4352,7 +4352,7 @@ async def vector_search_compare(body: VectorSearchCompareRequest):
     except Exception as e:
         err = str(e)
         if "reserved word" in err or "syntax error" in err or "index not found" in err.lower():
-            gsi_error = "Not available on this cluster. CREATE VECTOR INDEX (GSI) requires Couchbase Server 8.0+ and is not supported on Capella managed clusters."
+            gsi_error = "Not available on this cluster. CREATE VECTOR INDEX (GSI) requires Couchbase Server 8.0+ and is not supported on Couchbase AI Data Plane managed clusters."
         else:
             gsi_error = err
     gsi_ms = round((_time.perf_counter() - t0) * 1000)
@@ -4826,21 +4826,21 @@ if os.path.isdir(_STATIC_DIR):
 
 
 # ---------------------------------------------------------------------------
-# AI Data Plane — "DIY vs Capella" comparison tab
+# AI Data Plane — "DIY vs Couchbase AI Data Plane" comparison tab
 #
 # Three scenarios, each running the hand-rolled Python approach and the
-# Capella SQL++ approach side-by-side and returning both results + timings.
+# Couchbase AI Data Plane SQL++ approach side-by-side and returning both results + timings.
 # ---------------------------------------------------------------------------
 
-class CapellaServiceRequest(BaseModel):
+class AiDataPlaneServiceRequest(BaseModel):
     scenario: str   # "cache" | "rag" | "moderation"
     text: str = Field("", max_length=_MAX_MSG)
     query: str = Field("", max_length=_MAX_MSG)
 
 
-@app.post("/api/capella-service")
-async def capella_service(body: CapellaServiceRequest):
-    """Run a DIY approach and a Capella AI approach side-by-side.
+@app.post("/api/ai-data-plane-service")
+async def ai_data_plane_service(body: AiDataPlaneServiceRequest):
+    """Run a DIY approach and a Couchbase AI Data Plane approach side-by-side.
 
     Returns timing and result for both so the UI can show the comparison.
     """
@@ -4888,7 +4888,7 @@ async def capella_service(body: CapellaServiceRequest):
                 diy_result = f"Error: {e}"
         diy_ms = round((_t.perf_counter() - diy_start) * 1000)
 
-        # Capella: ai_similarity() checks cache inline in SQL++
+        # Couchbase AI Data Plane: ai_similarity() checks cache inline in SQL++
         cap_start = _t.perf_counter()
         cap_steps = [
             "1. Single SQL++ query with ai_similarity() + ai_completion()",
@@ -4897,7 +4897,7 @@ async def capella_service(body: CapellaServiceRequest):
         ]
         cap_result = None
         if _MOCK_MODE:
-            cap_result = "[MOCK] Capella ai_similarity() + ai_completion() in one query"
+            cap_result = "[MOCK] Couchbase AI Data Plane ai_similarity() + ai_completion() in one query"
         else:
             try:
                 from services.couchbase_service import _get_cluster
@@ -4910,14 +4910,14 @@ async def capella_service(body: CapellaServiceRequest):
                 rows = list(cluster.query(sql, QueryOptions(named_parameters={"text": text})).rows())
                 cap_result = rows[0]["answer"] if rows else "No result"
             except Exception as e:
-                cap_result = f"Capella unavailable in this environment: {e}"
+                cap_result = f"Couchbase AI Data Plane unavailable in this environment: {e}"
         cap_ms = round((_t.perf_counter() - cap_start) * 1000)
 
         return {
             "scenario": "cache",
             "diy":     {"steps": diy_steps, "result": diy_result, "ms": diy_ms,
                         "api_calls": 3, "loc": 25},
-            "capella": {"steps": cap_steps, "result": cap_result, "ms": cap_ms,
+            "ai_data_plane": {"steps": cap_steps, "result": cap_result, "ms": cap_ms,
                         "api_calls": 0, "loc": 4},
         }
 
@@ -4964,7 +4964,7 @@ async def capella_service(body: CapellaServiceRequest):
         ]
         cap_result = None
         if _MOCK_MODE:
-            cap_result = "[MOCK] Capella inline RAG: ORDER BY ANN_DISTANCE + ai_completion() in one query"
+            cap_result = "[MOCK] Couchbase AI Data Plane inline RAG: ORDER BY ANN_DISTANCE + ai_completion() in one query"
         else:
             try:
                 from services.couchbase_service import _get_cluster
@@ -4986,14 +4986,14 @@ async def capella_service(body: CapellaServiceRequest):
                 rows = list(cluster.query(sql, QueryOptions(named_parameters={"emb": emb})).rows())
                 cap_result = rows[0]["answer"] if rows else "No result"
             except Exception as e:
-                cap_result = f"Capella unavailable in this environment: {e}"
+                cap_result = f"Couchbase AI Data Plane unavailable in this environment: {e}"
         cap_ms = round((_t.perf_counter() - cap_start) * 1000)
 
         return {
             "scenario": "rag",
             "diy":     {"steps": diy_steps, "result": diy_result, "ms": diy_ms,
                         "api_calls": 2, "loc": 20},
-            "capella": {"steps": cap_steps, "result": cap_result, "ms": cap_ms,
+            "ai_data_plane": {"steps": cap_steps, "result": cap_result, "ms": cap_ms,
                         "api_calls": 1, "loc": 6},
         }
 
@@ -5041,7 +5041,7 @@ async def capella_service(body: CapellaServiceRequest):
         ]
         cap_result = None
         if _MOCK_MODE:
-            cap_result = {"label": "safe", "score": 0.97, "source": "capella_ai_classification"}
+            cap_result = {"label": "safe", "score": 0.97, "source": "ai_data_plane_ai_classification"}
         else:
             try:
                 from services.couchbase_service import _get_cluster
@@ -5056,14 +5056,14 @@ async def capella_service(body: CapellaServiceRequest):
                 rows = list(cluster.query(sql, QueryOptions(named_parameters={"text": text})).rows())
                 cap_result = rows[0]["result"][0] if rows else {}
             except Exception as e:
-                cap_result = f"Capella unavailable in this environment: {e}"
+                cap_result = f"Couchbase AI Data Plane unavailable in this environment: {e}"
         cap_ms = round((_t.perf_counter() - cap_start) * 1000)
 
         return {
             "scenario": "moderation",
             "diy":     {"steps": diy_steps, "result": diy_result, "ms": diy_ms,
                         "api_calls": 1, "loc": 12},
-            "capella": {"steps": cap_steps, "result": cap_result, "ms": cap_ms,
+            "ai_data_plane": {"steps": cap_steps, "result": cap_result, "ms": cap_ms,
                         "api_calls": 0, "loc": 5},
         }
 

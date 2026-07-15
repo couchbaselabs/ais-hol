@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import './App.css'
-import './CapellaTab.css'
-import CapellaTab from './CapellaTab'
+import './AiDataPlaneTab.css'
+import AiDataPlaneTab from './AiDataPlaneTab'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
-import CapellaDiyBanner from './components/CapellaDiyBanner'
+import AiDataPlaneDiyBanner from './components/AiDataPlaneDiyBanner'
 
 const EXAMPLES = [
   'their going to the store tomorrow',
@@ -34,7 +34,7 @@ function DiffText({ original, corrected }) {
   )
 }
 
-export default function AppCapellaGrammar() {
+export default function AppAiDataPlaneGrammar() {
   const [text, setText] = useState('')
 
   useInfoPanelQuestion(setText)
@@ -72,9 +72,9 @@ export default function AppCapellaGrammar() {
 
   return (
     <div className="app">
-      <CapellaTab endpoint="/api/capella-grammar" buildBody={() => ({ text })}
+      <AiDataPlaneTab endpoint="/api/ai-data-plane-grammar" buildBody={() => ({ text })}
         renderControls={renderControls} renderResult={renderResult} examples={EXAMPLES}
-        banner={<CapellaDiyBanner diyTab={null} diyLabel={null} replaces="LLM call with grammar correction prompt" />}
+        banner={<AiDataPlaneDiyBanner diyTab={null} diyLabel={null} replaces="LLM call with grammar correction prompt" />}
         placeholder={<div className="cap-placeholder"><p><code>ai_corrected_grammar()</code> fixes grammar errors in text from inside SQL++. Useful for cleaning user-generated content before storage or display. Corrections are highlighted in green.</p></div>} />
     </div>
   )

@@ -195,7 +195,7 @@ export default function AppVectorSearch() {
           <p>Run the same vector query against both search approaches simultaneously.</p>
           <ul>
             <li><strong style={{ color: FTS_COLOR }}>FTS</strong> — uses the Couchbase Search Service. Available since 7.0. Scores are similarity values (higher = better match).</li>
-            <li><strong style={{ color: GSI_COLOR }}>GSI</strong> — uses the Index Service with SQL++ <code>ANN_DISTANCE()</code>. Not available on Capella; expected in Couchbase Server 8.0. Scores are L2 distances (lower = better match).</li>
+            <li><strong style={{ color: GSI_COLOR }}>GSI</strong> — uses the Index Service with SQL++ <code>ANN_DISTANCE()</code>. Not available on Couchbase AI Data Plane; expected in Couchbase Server 8.0. Scores are L2 distances (lower = better match).</li>
           </ul>
         </div>
       )}

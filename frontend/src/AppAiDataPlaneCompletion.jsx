@@ -1,17 +1,17 @@
 import React, { useState } from 'react'
 import './App.css'
-import './CapellaTab.css'
-import CapellaTab from './CapellaTab'
+import './AiDataPlaneTab.css'
+import AiDataPlaneTab from './AiDataPlaneTab'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
-import CapellaDiyBanner from './components/CapellaDiyBanner'
+import AiDataPlaneDiyBanner from './components/AiDataPlaneDiyBanner'
 
 const PRESETS = [
   { label: 'Product description', system: 'You are a product copywriter. Write a compelling 2-sentence product description.', user: 'A wireless ergonomic keyboard with backlit keys and 6-month battery life.' },
   { label: 'Q&A over document', system: 'Answer the question based only on the provided context. Be concise.', user: 'Context: The Fetch API uses Promises and replaces XMLHttpRequest.\n\nQuestion: What does the Fetch API replace?' },
-  { label: 'Summarise in one line', system: 'Summarise the following text in exactly one sentence.', user: 'The Couchbase Capella AI Functions allow developers to run LLM-powered operations directly inside SQL++ queries, eliminating the need to extract data to an application layer for AI processing.' },
+  { label: 'Summarise in one line', system: 'Summarise the following text in exactly one sentence.', user: 'The Couchbase AI Data Plane allow developers to run LLM-powered operations directly inside SQL++ queries, eliminating the need to extract data to an application layer for AI processing.' },
 ]
 
-export default function AppCapellaCompletion() {
+export default function AppAiDataPlaneCompletion() {
   const [system, setSystem] = useState(PRESETS[0].system)
   const [user, setUser]     = useState(PRESETS[0].user)
 
@@ -47,9 +47,9 @@ export default function AppCapellaCompletion() {
 
   return (
     <div className="app">
-      <CapellaTab endpoint="/api/capella-completion" buildBody={() => ({ system_prompt: system, user_prompt: user })}
+      <AiDataPlaneTab endpoint="/api/ai-data-plane-completion" buildBody={() => ({ system_prompt: system, user_prompt: user })}
         renderControls={renderControls} renderResult={renderResult} examples={[]}
-        banner={<CapellaDiyBanner diyTab="rag" diyLabel="RAG Pipeline" replaces="build prompt string → POST to LLM API" />}
+        banner={<AiDataPlaneDiyBanner diyTab="rag" diyLabel="RAG Pipeline" replaces="build prompt string → POST to LLM API" />}
         placeholder={<div className="cap-placeholder"><p><code>ai_completion()</code> is the escape hatch — run any custom system+user prompt from inside SQL++. Use it for tasks not covered by the other AI Functions.</p></div>} />
     </div>
   )

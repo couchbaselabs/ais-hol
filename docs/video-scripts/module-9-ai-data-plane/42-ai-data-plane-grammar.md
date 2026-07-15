@@ -1,13 +1,13 @@
-# Capella AI Grammar
+# Couchbase AI Data Plane Grammar
 
-**Module:** Capella AI Functions | **Level:** Advanced
-**Runtime:** ~6 min | **Tab:** `capella-grammar`
+**Module:** Couchbase AI Data Plane | **Level:** Advanced
+**Runtime:** ~6 min | **Tab:** `ai-data-plane-grammar`
 
 ---
 
 ## Hook
 
-> 🎬 **SHOW:** Capella AI Grammar tab open, text input visible, corrected output panel empty.
+> 🎬 **SHOW:** Couchbase AI Data Plane Grammar tab open, text input visible, corrected output panel empty.
 
 User-generated content — reviews, support tickets, forum posts — is full of spelling mistakes, grammatical errors, and awkward phrasing. Before you run sentiment analysis, classification, or search over this content, cleaning it up improves accuracy. `ai_corrected_grammar()` fixes grammar and spelling inside the database engine, in a single SQL++ query, across your entire collection.
 
@@ -31,7 +31,7 @@ Correcting grammar before running other AI functions improves their accuracy. A 
 
 ## Demo Walkthrough
 
-> 🎬 **SHOW:** Capella AI Grammar tab, text input ready.
+> 🎬 **SHOW:** Couchbase AI Data Plane Grammar tab, text input ready.
 
 1. Enter: *"i recieved the packge yestarday but it was damged and the custmer servise was horible"* Submit.
 
@@ -61,7 +61,7 @@ Correcting grammar before running other AI functions improves their accuracy. A 
 
 ## Code Deep-Dive
 
-> 🎬 **SHOW:** `backend/main.py`, scrolled to `/api/capella-grammar`. Highlight the SQL++ query.
+> 🎬 **SHOW:** `backend/main.py`, scrolled to `/api/ai-data-plane-grammar`. Highlight the SQL++ query.
 
 ```python
 sql = """
@@ -79,7 +79,7 @@ result = rows[0]["result"][0]
 return {
     "corrected": result.get("corrected", body.text),
     "changes":   result.get("changes", []),
-    "source":    "capella_ai_corrected_grammar",
+    "source":    "ai_data_plane_ai_corrected_grammar",
 }
 ```
 
@@ -114,7 +114,7 @@ LIMIT 10
 
 > 🎬 **SHOW:** Highlight the nested function calls — grammar correction feeds directly into sentiment analysis in a single query.
 
-Capella AI Functions compose. The output of `ai_corrected_grammar()` feeds directly into `ai_sentiment()` — all in one SQL++ query, no intermediate storage needed.
+Couchbase AI Data Plane compose. The output of `ai_corrected_grammar()` feeds directly into `ai_sentiment()` — all in one SQL++ query, no intermediate storage needed.
 
 ---
 
@@ -125,7 +125,7 @@ Capella AI Functions compose. The output of `ai_corrected_grammar()` feeds direc
 - `ai_corrected_grammar()` fixes spelling, grammar, punctuation, and capitalisation — preserving meaning, not rewriting.
 - Correct text is returned unchanged — safe to run on all documents.
 - Always store corrections in a new field; preserve the original for provenance.
-- Capella AI Functions compose — pipe the output of one function into another in a single SQL++ query.
+- Couchbase AI Data Plane compose — pipe the output of one function into another in a single SQL++ query.
 - Requires the Grammar Correction AI Function enabled on the cluster and `query_external_access` role.
 
 ---
@@ -136,7 +136,7 @@ Capella AI Functions compose. The output of `ai_corrected_grammar()` feeds direc
 
 You've completed the full curriculum — from a stateless single API call to multi-agent systems, RAG pipelines, voice interfaces, and database-native AI functions.
 
-> 🎬 **SHOW:** Slide — the full learning path: Foundations → Prompting → Pipeline → RAG → Capabilities → Advanced → Production → Production Patterns → Voice → Capella AI.
+> 🎬 **SHOW:** Slide — the full learning path: Foundations → Prompting → Pipeline → RAG → Capabilities → Advanced → Production → Production Patterns → Voice → Couchbase AI Data Plane.
 
 The learning path you followed:
 - **Foundations**: tokens, probabilities, temperature, context limits, parallel requests
@@ -148,7 +148,7 @@ The learning path you followed:
 - **Production**: cost/latency, guardrails
 - **Production Patterns**: retry & fallback, token budget, observability
 - **Voice**: WASM (on-device) and server-side (OpenAI APIs)
-- **Capella AI**: SQL++-native LLM functions — summarisation, sentiment, classification, extraction, translation, masking, similarity, completion, grammar
+- **Couchbase AI Data Plane**: SQL++-native LLM functions — summarisation, sentiment, classification, extraction, translation, masking, similarity, completion, grammar
 
 > 🎬 **SHOW:** Return to the app one final time — Simple Chat tab open.
 

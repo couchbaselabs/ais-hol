@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
-import './AppCapellaSentiment.css'
+import './AppAiDataPlaneSentiment.css'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
-import CapellaDiyBanner from './components/CapellaDiyBanner'
+import AiDataPlaneDiyBanner from './components/AiDataPlaneDiyBanner'
 
 const SENTIMENT_STYLE = {
   positive: { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0', bar: '#22c55e' },
@@ -31,7 +31,7 @@ function ScoreBar({ score, color }) {
   )
 }
 
-export default function AppCapellaSentiment() {
+export default function AppAiDataPlaneSentiment() {
   const [text, setText] = useState('')
   useInfoPanelQuestion(setText)
   useEffect(() => {
@@ -51,7 +51,7 @@ export default function AppCapellaSentiment() {
     setError(null)
     setResult(null)
     try {
-      const res = await fetch('/api/capella-sentiment', {
+      const res = await fetch('/api/ai-data-plane-sentiment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: t }),
@@ -71,28 +71,28 @@ export default function AppCapellaSentiment() {
   const style = result ? (SENTIMENT_STYLE[result.sentiment] || SENTIMENT_STYLE.neutral) : null
 
   return (
-    <div className="app capella-sentiment-app">
-      <CapellaDiyBanner
+    <div className="app ai-data-plane-sentiment-app">
+      <AiDataPlaneDiyBanner
         diyTab="moderation"
         diyLabel="Moderation"
         replaces="OpenAI moderation API call + response parsing"
       />
-      <div className="capella-layout">
+      <div className="ai-data-plane-layout">
         {/* Input */}
-        <div className="capella-input-panel">
-          <div className="capella-panel-header">
+        <div className="ai-data-plane-input-panel">
+          <div className="ai-data-plane-panel-header">
             <h2 className="panel-heading">Input text</h2>
           </div>
           <textarea
-            className="capella-textarea"
+            className="ai-data-plane-textarea"
             value={text}
             onChange={e => setText(e.target.value)}
-            placeholder="Paste any text to analyse sentiment using Capella ai_sentiment()…"
+            placeholder="Paste any text to analyse sentiment using Couchbase AI Data Plane ai_sentiment()…"
             rows={7}
           />
-          <div className="capella-controls">
+          <div className="ai-data-plane-controls">
             <button
-              className="capella-btn capella-btn--primary"
+              className="ai-data-plane-btn ai-data-plane-btn--primary"
               onClick={() => run()}
               disabled={isLoading || !text.trim()}
             >
@@ -100,7 +100,7 @@ export default function AppCapellaSentiment() {
             </button>
           </div>
 
-          <div className="capella-examples">
+          <div className="ai-data-plane-examples">
             <span className="examples-label">Try an example:</span>
             {EXAMPLES.map((ex, i) => (
               <button key={i} className="example-btn" onClick={() => run(ex)}>
@@ -111,23 +111,23 @@ export default function AppCapellaSentiment() {
         </div>
 
         {/* Output */}
-        <div className="capella-output-panel">
-          <div className="capella-panel-header">
+        <div className="ai-data-plane-output-panel">
+          <div className="ai-data-plane-panel-header">
             <h2 className="panel-heading">Sentiment</h2>
-            <span className="capella-badge capella-badge--db">
+            <span className="ai-data-plane-badge ai-data-plane-badge--db">
               Runs inside the database
             </span>
           </div>
 
           {isLoading && (
-            <div className="capella-loading">
-              <div className="capella-spinner" />
+            <div className="ai-data-plane-loading">
+              <div className="ai-data-plane-spinner" />
               Calling <code>default:ai_sentiment()</code>…
             </div>
           )}
-          {error && <div className="capella-error">{error}</div>}
+          {error && <div className="ai-data-plane-error">{error}</div>}
           {!isLoading && !error && result && (
-            <div className="capella-result">
+            <div className="ai-data-plane-result">
               <div
                 className="sentiment-result-badge"
                 style={{ background: style.bg, color: style.color, borderColor: style.border }}
@@ -136,11 +136,11 @@ export default function AppCapellaSentiment() {
               </div>
               <ScoreBar score={result.sentiment_score} color={style.bar} />
               {result.explanation && (
-                <p className="capella-explanation">{result.explanation}</p>
+                <p className="ai-data-plane-explanation">{result.explanation}</p>
               )}
-              <div className="capella-result-footer">
-                <span className="capella-source-badge">
-                  {result.source === 'capella_ai_sentiment'
+              <div className="ai-data-plane-result-footer">
+                <span className="ai-data-plane-source-badge">
+                  {result.source === 'ai_data_plane_ai_sentiment'
                     ? '⚡ default:ai_sentiment()'
                     : result.source}
                 </span>
@@ -148,7 +148,7 @@ export default function AppCapellaSentiment() {
             </div>
           )}
           {!isLoading && !error && !result && (
-            <div className="capella-placeholder">
+            <div className="ai-data-plane-placeholder">
               The sentiment result will appear here. Analysis runs as a SQL++ query
               inside Couchbase — no extra LLM call and no server endpoint to deploy.
             </div>

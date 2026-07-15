@@ -125,7 +125,7 @@
   flex-direction: column;
   background: #fff;
 }
-.cs-column--capella { background: #f0f4ff; }
+.cs-column--ai_data_plane { background: #f0f4ff; }
 
 .cs-column-header {
   display: flex;
@@ -141,7 +141,7 @@
   font-weight: 700;
   color: #1a1a2e;
 }
-.cs-column--capella .cs-column-title { color: #3b5bdb; }
+.cs-column--ai_data_plane .cs-column-title { color: #3b5bdb; }
 
 /* Metrics */
 .cs-metrics {
@@ -213,7 +213,7 @@
   max-height: 180px;
   overflow-y: auto;
 }
-.cs-column--capella .cs-result {
+.cs-column--ai_data_plane .cs-result {
   background: #edf2ff;
   border-color: #bac8ff;
 }

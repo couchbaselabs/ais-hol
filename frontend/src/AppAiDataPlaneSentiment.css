@@ -1,4 +1,4 @@
-/* Sentiment-specific styles — layout comes from AppCapellaSummarise.css */
+/* Sentiment-specific styles — layout comes from AppAiDataPlaneSummarise.css */
 .sentiment-result-badge {
   display: inline-block;
   font-size: 1.1rem;
@@ -27,7 +27,7 @@
   white-space: nowrap;
 }
 
-.capella-explanation {
+.ai-data-plane-explanation {
   font-size: 0.85rem;
   color: #4b5563;
   line-height: 1.6;

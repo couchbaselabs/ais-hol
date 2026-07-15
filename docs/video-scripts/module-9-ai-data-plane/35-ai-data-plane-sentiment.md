@@ -1,15 +1,15 @@
-# Capella AI Sentiment
+# Couchbase AI Data Plane Sentiment
 
-**Module:** Capella AI Functions | **Level:** Advanced
-**Runtime:** ~6 min | **Tab:** `capella-sentiment`
+**Module:** Couchbase AI Data Plane | **Level:** Advanced
+**Runtime:** ~6 min | **Tab:** `ai-data-plane-sentiment`
 
 ---
 
 ## Hook
 
-> 🎬 **SHOW:** Capella AI Sentiment tab open, text input area visible, sentiment result cards area below (empty) showing placeholders for label, score, and explanation.
+> 🎬 **SHOW:** Couchbase AI Data Plane Sentiment tab open, text input area visible, sentiment result cards area below (empty) showing placeholders for label, score, and explanation.
 
-You have a database with a million product reviews. You want to know which ones are positive, which are negative, and which are mixed. The traditional approach: write application code, loop over every document, call an LLM API for each one, store the result. With Capella AI Functions, you write one SQL++ query. The sentiment analysis runs inside the database engine, over every document, without a single line of application code.
+You have a database with a million product reviews. You want to know which ones are positive, which are negative, and which are mixed. The traditional approach: write application code, loop over every document, call an LLM API for each one, store the result. With Couchbase AI Data Plane, you write one SQL++ query. The sentiment analysis runs inside the database engine, over every document, without a single line of application code.
 
 ---
 
@@ -31,7 +31,7 @@ Combine with an UPDATE statement to write the sentiment back to each document �
 
 ## Demo Walkthrough
 
-> 🎬 **SHOW:** Capella AI Sentiment tab, text input ready.
+> 🎬 **SHOW:** Couchbase AI Data Plane Sentiment tab, text input ready.
 
 1. Try a clearly positive text: *"Apple announced record quarterly earnings today, driven by strong iPhone sales in Asia."*
 
@@ -67,7 +67,7 @@ Combine with an UPDATE statement to write the sentiment back to each document �
 
 ## Code Deep-Dive
 
-> 🎬 **SHOW:** Open `backend/main.py`, scrolled to the Capella sentiment endpoint. Highlight the SQL++ query — specifically `default:ai_sentiment()`. Point out there is no `client.chat.completions.create` call.
+> 🎬 **SHOW:** Open `backend/main.py`, scrolled to the Couchbase AI Data Plane sentiment endpoint. Highlight the SQL++ query — specifically `default:ai_sentiment()`. Point out there is no `client.chat.completions.create` call.
 
 The backend issues a SQL++ query — identical pattern to `ai_summary()`:
 
@@ -88,7 +88,7 @@ return {
     "sentiment":       result.get("sentiment", "unknown"),
     "sentiment_score": result.get("score", 0.0),
     "explanation":     result.get("explanation", ""),
-    "source":          "capella_ai_sentiment",
+    "source":          "ai_data_plane_ai_sentiment",
 }
 # The LLM call happens inside Couchbase — no openai.chat.completions here
 ```
@@ -130,7 +130,7 @@ LIMIT 100
 
 You've completed the full curriculum — all 35 tabs, from a stateless single API call to multi-agent systems, RAG pipelines, voice interfaces, and database-native AI functions.
 
-> 🎬 **SHOW:** Slide — the full learning path listed: Foundations → Prompting → Pipeline → RAG → Capabilities → Advanced → Production → Voice → Capella AI.
+> 🎬 **SHOW:** Slide — the full learning path listed: Foundations → Prompting → Pipeline → RAG → Capabilities → Advanced → Production → Voice → Couchbase AI Data Plane.
 
 The learning path you followed:
 - **Foundations**: tokens, probabilities, temperature, context limits
@@ -141,7 +141,7 @@ The learning path you followed:
 - **Advanced**: agentic RAG, multi-agent systems, evaluation, hallucination detection
 - **Production**: cost/latency, guardrails
 - **Voice**: WASM (on-device) and server-side (OpenAI APIs)
-- **Capella AI**: SQL++-native LLM functions
+- **Couchbase AI Data Plane**: SQL++-native LLM functions
 
 > 🎬 **SHOW:** Return to the app one final time — Simple Chat tab open. The beginning of the journey.
 

@@ -95,7 +95,7 @@ client = AsyncOpenAI(
 )
 ```
 
-This means you can swap the entire LLM backend — from OpenAI to Ollama to Azure to Capella AI — without touching application code. The API shape is the same.
+This means you can swap the entire LLM backend — from OpenAI to Ollama to Azure to Couchbase AI Data Plane — without touching application code. The API shape is the same.
 
 > 🎬 **SHOW:** Highlight `temperature=0.7` in the endpoint code.
 

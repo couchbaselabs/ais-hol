@@ -154,6 +154,6 @@ audioElement.play()
 
 ## What's Next
 
-> 🎬 **SHOW:** Click "Capella AI Summarisation" in the sidebar — the first tab of Module 9.
+> 🎬 **SHOW:** Click "Couchbase AI Data Plane Summarisation" in the sidebar — the first tab of Module 9.
 
-You've completed the Voice module. The final module covers Capella AI Functions — LLM capabilities exposed as SQL++ built-in functions that run inside the Couchbase query engine, starting with AI-powered summarisation.
+You've completed the Voice module. The final module covers Couchbase AI Data Plane — LLM capabilities exposed as SQL++ built-in functions that run inside the Couchbase query engine, starting with AI-powered summarisation.

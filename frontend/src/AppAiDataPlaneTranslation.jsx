@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import './App.css'
-import './CapellaTab.css'
-import CapellaTab from './CapellaTab'
+import './AiDataPlaneTab.css'
+import AiDataPlaneTab from './AiDataPlaneTab'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
-import CapellaDiyBanner from './components/CapellaDiyBanner'
+import AiDataPlaneDiyBanner from './components/AiDataPlaneDiyBanner'
 
 const EXAMPLES = [
   'The quick brown fox jumps over the lazy dog.',
@@ -13,7 +13,7 @@ const EXAMPLES = [
 
 const LANGUAGES = ['French','Spanish','German','Italian','Portuguese','Japanese','Chinese','Arabic','Hindi','Korean','Dutch','Polish']
 
-export default function AppCapellaTranslation() {
+export default function AppAiDataPlaneTranslation() {
   const [text, setText]   = useState('')
   const [lang, setLang]   = useState('French')
 
@@ -55,9 +55,9 @@ export default function AppCapellaTranslation() {
 
   return (
     <div className="app">
-      <CapellaTab endpoint="/api/capella-translation" buildBody={() => ({ text, to_language: lang })}
+      <AiDataPlaneTab endpoint="/api/ai-data-plane-translation" buildBody={() => ({ text, to_language: lang })}
         renderControls={renderControls} renderResult={renderResult} examples={EXAMPLES}
-        banner={<CapellaDiyBanner diyTab={null} diyLabel={null} replaces="LLM call with 'translate to X' prompt" />}
+        banner={<AiDataPlaneDiyBanner diyTab={null} diyLabel={null} replaces="LLM call with 'translate to X' prompt" />}
         placeholder={<div className="cap-placeholder"><p><code>ai_translation()</code> translates text to any target language from inside a SQL++ query — no application-side translation library needed.</p></div>} />
     </div>
   )

@@ -1,13 +1,13 @@
-# Capella AI Extraction
+# Couchbase AI Data Plane Extraction
 
-**Module:** Capella AI Functions | **Level:** Advanced
-**Runtime:** ~6 min | **Tab:** `capella-extraction`
+**Module:** Couchbase AI Data Plane | **Level:** Advanced
+**Runtime:** ~6 min | **Tab:** `ai-data-plane-extraction`
 
 ---
 
 ## Hook
 
-> 🎬 **SHOW:** Capella AI Extraction tab open, text input visible, entity types field, result panel showing extracted entities area.
+> 🎬 **SHOW:** Couchbase AI Data Plane Extraction tab open, text input visible, entity types field, result panel showing extracted entities area.
 
 Extracting structured data from unstructured text — names, dates, amounts, addresses, product codes — is one of the most common data engineering tasks. `ai_extraction()` does this inside the database engine. You define the entity types you want, and the function returns a structured object for each document, ready to be stored or queried.
 
@@ -27,7 +27,7 @@ The bulk pattern extracts entities from all unprocessed documents in one query. 
 
 ## Demo Walkthrough
 
-> 🎬 **SHOW:** Capella AI Extraction tab, entity types pre-filled with "person, company, date, amount".
+> 🎬 **SHOW:** Couchbase AI Data Plane Extraction tab, entity types pre-filled with "person, company, date, amount".
 
 1. Enter a contract excerpt: *"This agreement is entered into on March 15, 2024, between Acme Corp and Jane Smith. The total contract value is $50,000."* Submit.
 
@@ -53,7 +53,7 @@ The bulk pattern extracts entities from all unprocessed documents in one query. 
 
 ## Code Deep-Dive
 
-> 🎬 **SHOW:** `backend/main.py`, scrolled to `/api/capella-extraction`. Highlight the SQL++ query.
+> 🎬 **SHOW:** `backend/main.py`, scrolled to `/api/ai-data-plane-extraction`. Highlight the SQL++ query.
 
 ```python
 sql = """
@@ -72,7 +72,7 @@ rows = list(
     ).rows()
 )
 result = rows[0]["result"][0]
-return {"entities": result, "source": "capella_ai_extraction"}
+return {"entities": result, "source": "ai_data_plane_ai_extraction"}
 ```
 
 > 🎬 **SHOW:** Slide — the bulk UPDATE pattern to write extracted entities back to documents.
@@ -108,6 +108,6 @@ After extraction, the entities are first-class document fields. You can index th
 
 ## What's Next
 
-> 🎬 **SHOW:** Sidebar — highlight the next tab `capella-translation`.
+> 🎬 **SHOW:** Sidebar — highlight the next tab `ai-data-plane-translation`.
 
-Next: Capella AI Translation — translating document content into other languages using `ai_translation()`.
+Next: Couchbase AI Data Plane Translation — translating document content into other languages using `ai_translation()`.

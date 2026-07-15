@@ -1,13 +1,13 @@
-# Capella AI Classification
+# Couchbase AI Data Plane Classification
 
-**Module:** Capella AI Functions | **Level:** Advanced
-**Runtime:** ~6 min | **Tab:** `capella-classification`
+**Module:** Couchbase AI Data Plane | **Level:** Advanced
+**Runtime:** ~6 min | **Tab:** `ai-data-plane-classification`
 
 ---
 
 ## Hook
 
-> 🎬 **SHOW:** Capella AI Classification tab open, text input visible, optional categories field, result panel empty.
+> 🎬 **SHOW:** Couchbase AI Data Plane Classification tab open, text input visible, optional categories field, result panel empty.
 
 Classifying documents into categories is a common data enrichment task — tagging support tickets, routing emails, labelling product reviews. With `ai_classification()`, you write one SQL++ query and the classification runs inside the database engine. No application loop, no separate ML pipeline, no ETL job.
 
@@ -37,7 +37,7 @@ LIMIT 100
 
 ## Demo Walkthrough
 
-> 🎬 **SHOW:** Capella AI Classification tab, categories field pre-filled with "billing, technical, general, feedback".
+> 🎬 **SHOW:** Couchbase AI Data Plane Classification tab, categories field pre-filled with "billing, technical, general, feedback".
 
 1. Enter a support ticket: *"My invoice shows a charge I don't recognise from last month."* Submit.
 
@@ -63,7 +63,7 @@ LIMIT 100
 
 ## Code Deep-Dive
 
-> 🎬 **SHOW:** `backend/main.py`, scrolled to `/api/capella-classification`. Highlight the SQL++ query.
+> 🎬 **SHOW:** `backend/main.py`, scrolled to `/api/ai-data-plane-classification`. Highlight the SQL++ query.
 
 ```python
 categories_param = body.categories or []
@@ -86,7 +86,7 @@ result = rows[0]["result"][0]
 return {
     "label":  result.get("label", "unknown"),
     "score":  result.get("score", 0.0),
-    "source": "capella_ai_classification",
+    "source": "ai_data_plane_ai_classification",
 }
 ```
 
@@ -110,6 +110,6 @@ The classification runs inside Couchbase. Your application code issues a SQL++ q
 
 ## What's Next
 
-> 🎬 **SHOW:** Sidebar — highlight the next tab `capella-extraction`.
+> 🎬 **SHOW:** Sidebar — highlight the next tab `ai-data-plane-extraction`.
 
-Next: Capella AI Extraction — pulling structured entities from unstructured text using `ai_extraction()`.
+Next: Couchbase AI Data Plane Extraction — pulling structured entities from unstructured text using `ai_extraction()`.

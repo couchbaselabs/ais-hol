@@ -1,13 +1,13 @@
-# Capella AI Translation
+# Couchbase AI Data Plane Translation
 
-**Module:** Capella AI Functions | **Level:** Advanced
-**Runtime:** ~6 min | **Tab:** `capella-translation`
+**Module:** Couchbase AI Data Plane | **Level:** Advanced
+**Runtime:** ~6 min | **Tab:** `ai-data-plane-translation`
 
 ---
 
 ## Hook
 
-> 🎬 **SHOW:** Capella AI Translation tab open, text input visible, target language selector, translated output panel empty.
+> 🎬 **SHOW:** Couchbase AI Data Plane Translation tab open, text input visible, target language selector, translated output panel empty.
 
 Localising a product database — translating product descriptions, support articles, or user reviews into multiple languages — traditionally requires an ETL pipeline, a translation service integration, and a data sync job. With `ai_translation()`, you write one SQL++ query. The translation runs inside the database, and you can write the result back to the document in the same operation.
 
@@ -27,7 +27,7 @@ The bulk pattern translates all untranslated documents in one query. The result 
 
 ## Demo Walkthrough
 
-> 🎬 **SHOW:** Capella AI Translation tab, target language set to French.
+> 🎬 **SHOW:** Couchbase AI Data Plane Translation tab, target language set to French.
 
 1. Enter: *"The new software update includes performance improvements and bug fixes."* Submit.
 
@@ -53,7 +53,7 @@ The bulk pattern translates all untranslated documents in one query. The result 
 
 ## Code Deep-Dive
 
-> 🎬 **SHOW:** `backend/main.py`, scrolled to `/api/capella-translation`. Highlight the SQL++ query.
+> 🎬 **SHOW:** `backend/main.py`, scrolled to `/api/ai-data-plane-translation`. Highlight the SQL++ query.
 
 ```python
 sql = """
@@ -75,7 +75,7 @@ result = rows[0]["result"][0]
 return {
     "translation":     result.get("translation", ""),
     "source_language": result.get("source_language", "unknown"),
-    "source":          "capella_ai_translation",
+    "source":          "ai_data_plane_ai_translation",
 }
 ```
 
@@ -114,6 +114,6 @@ One UPDATE statement, multiple target languages. Each document gets all translat
 
 ## What's Next
 
-> 🎬 **SHOW:** Sidebar — highlight the next tab `capella-masking`.
+> 🎬 **SHOW:** Sidebar — highlight the next tab `ai-data-plane-masking`.
 
-Next: Capella AI Masking — redacting PII from documents using `ai_masked()` for compliance and privacy.
+Next: Couchbase AI Data Plane Masking — redacting PII from documents using `ai_masked()` for compliance and privacy.

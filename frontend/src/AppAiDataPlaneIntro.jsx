@@ -1,14 +1,14 @@
 import React from 'react'
-import './AppCapellaIntro.css'
+import './AppAiDataPlaneIntro.css'
 
-// Maps each Capella function to the DIY tab it replaces
+// Maps each Couchbase AI Data Plane function to the DIY tab it replaces
 const FUNCTION_MAP = [
   {
     fn: 'ai_summary()',
     replaces: 'summarise',
     replacesLabel: 'Summarisation',
     diy: 'Embed → chunk → LLM call with custom prompt',
-    capella: 'SELECT default:ai_summary({…}) AS result',
+    ai_data_plane: 'SELECT default:ai_summary({…}) AS result',
     icon: '📄',
   },
   {
@@ -16,7 +16,7 @@ const FUNCTION_MAP = [
     replaces: 'moderation',
     replacesLabel: 'Moderation',
     diy: 'POST to OpenAI moderation API + parse response',
-    capella: 'SELECT default:ai_sentiment({…}) AS result',
+    ai_data_plane: 'SELECT default:ai_sentiment({…}) AS result',
     icon: '💬',
   },
   {
@@ -24,7 +24,7 @@ const FUNCTION_MAP = [
     replaces: 'moderation',
     replacesLabel: 'Moderation / Structured Output',
     diy: 'LLM call + JSON parse + label validation',
-    capella: 'SELECT default:ai_classification({…}) AS result',
+    ai_data_plane: 'SELECT default:ai_classification({…}) AS result',
     icon: '🏷️',
   },
   {
@@ -32,7 +32,7 @@ const FUNCTION_MAP = [
     replaces: 'structured',
     replacesLabel: 'Structured Output',
     diy: 'LLM call with JSON schema prompt + parse',
-    capella: 'SELECT default:ai_extraction({…}) AS result',
+    ai_data_plane: 'SELECT default:ai_extraction({…}) AS result',
     icon: '🧩',
   },
   {
@@ -40,7 +40,7 @@ const FUNCTION_MAP = [
     replaces: null,
     replacesLabel: null,
     diy: 'LLM call with "translate to X" prompt',
-    capella: 'SELECT default:ai_translation({…}) AS result',
+    ai_data_plane: 'SELECT default:ai_translation({…}) AS result',
     icon: '🌐',
   },
   {
@@ -48,7 +48,7 @@ const FUNCTION_MAP = [
     replaces: null,
     replacesLabel: null,
     diy: 'Regex + NER model + manual redaction logic',
-    capella: 'SELECT default:ai_masked({…}) AS result',
+    ai_data_plane: 'SELECT default:ai_masked({…}) AS result',
     icon: '🛡️',
   },
   {
@@ -56,7 +56,7 @@ const FUNCTION_MAP = [
     replaces: 'cached',
     replacesLabel: 'Semantic Cache',
     diy: 'Embed query → ANN search → threshold check',
-    capella: 'SELECT default:ai_similarity({…}) AS score',
+    ai_data_plane: 'SELECT default:ai_similarity({…}) AS score',
     icon: '🔢',
   },
   {
@@ -64,7 +64,7 @@ const FUNCTION_MAP = [
     replaces: 'rag',
     replacesLabel: 'RAG Pipeline',
     diy: 'Build prompt string → POST to LLM API',
-    capella: 'SELECT default:ai_completion({…}) AS result',
+    ai_data_plane: 'SELECT default:ai_completion({…}) AS result',
     icon: '🤖',
   },
   {
@@ -72,7 +72,7 @@ const FUNCTION_MAP = [
     replaces: null,
     replacesLabel: null,
     diy: 'LLM call with grammar correction prompt',
-    capella: 'SELECT default:ai_corrected_grammar({…}) AS result',
+    ai_data_plane: 'SELECT default:ai_corrected_grammar({…}) AS result',
     icon: '✏️',
   },
 ]
@@ -185,20 +185,19 @@ function StatBadge({ label, value, good }) {
   )
 }
 
-export default function AppCapellaIntro() {
+export default function AppAiDataPlaneIntro() {
   return (
     <div className="ci-root">
 
       {/* Hero */}
       <div className="ci-hero">
         <div className="ci-hero-text">
-          <h1 className="ci-hero-title">Capella AI Functions</h1>
+          <h1 className="ci-hero-title">Couchbase AI Data Plane</h1>
           <p className="ci-hero-lead">
-            Every AI integration you've built in this lab follows the same pattern:
-            embed → search → call LLM → parse → store. Capella AI Functions collapse
-            that multi-step pipeline into a single SQL++ query that runs inside the
-            database — no extra API calls from your application, no orchestration code
-            to maintain.
+            Couchbase AI Data Plane combines Agent Memory, MCP Server, and Agent
+            Catalog on a JSON-native, memory-first architecture. It lets agents
+            retain context and access data via standard protocols, cutting
+            redundant inference calls while providing visibility via SQL++.
           </p>
         </div>
         <div className="ci-hero-badge">
@@ -215,7 +214,7 @@ export default function AppCapellaIntro() {
             <span className="ci-how-num">1</span>
             <div>
               <strong>Configure once</strong>
-              <p>Connect an LLM provider (OpenAI, Bedrock, Vertex…) in the Capella UI. Your application code never touches API keys or model names.</p>
+              <p>Connect an LLM provider (OpenAI, Bedrock, Vertex…) in the Couchbase AI Data Plane UI. Your application code never touches API keys or model names.</p>
             </div>
           </div>
           <div className="ci-how-card">
@@ -258,7 +257,7 @@ export default function AppCapellaIntro() {
               <div className="ci-ba-arrow">→</div>
               <div className="ci-ba-col ci-ba-col--after">
                 <div className="ci-ba-col-header">
-                  <span>🗄️ Capella SQL++</span>
+                  <span>🗄️ Couchbase AI Data Plane SQL++</span>
                   <div className="ci-ba-stats">
                     <StatBadge label="external API calls" value={ex.afterStats.calls} good={ex.afterStats.calls < ex.beforeStats.calls} />
                     <StatBadge label="lines" value={ex.afterStats.lines} good={ex.afterStats.lines < ex.beforeStats.lines} />
@@ -282,7 +281,7 @@ export default function AppCapellaIntro() {
             <span>Function</span>
             <span>Replaces (DIY tab)</span>
             <span>DIY approach</span>
-            <span>Capella SQL++</span>
+            <span>Couchbase AI Data Plane SQL++</span>
           </div>
           {FUNCTION_MAP.map((f, i) => (
             <div key={i} className="ci-fn-row">
@@ -297,7 +296,7 @@ export default function AppCapellaIntro() {
                 }
               </span>
               <span className="ci-fn-diy">{f.diy}</span>
-              <code className="ci-fn-sql">{f.capella}</code>
+              <code className="ci-fn-sql">{f.ai_data_plane}</code>
             </div>
           ))}
         </div>
@@ -307,7 +306,7 @@ export default function AppCapellaIntro() {
       <section className="ci-section ci-section--last">
         <h2 className="ci-section-title">What's in this module</h2>
         <p className="ci-section-sub">
-          Each tab in this module lets you run a Capella AI Function live and compare
+          Each tab in this module lets you run a Couchbase AI Data Plane Function live and compare
           it to the DIY equivalent you built earlier. Start with{' '}
           <strong>AI Data Plane</strong> for a side-by-side timing comparison,
           then explore individual functions.

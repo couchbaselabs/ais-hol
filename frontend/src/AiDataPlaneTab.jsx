@@ -1,8 +1,8 @@
 /**
- * Shared layout component for all Capella AI Function tabs.
+ * Shared layout component for all Couchbase AI Data Plane Function tabs.
  *
  * Props:
- *   endpoint      – POST endpoint path, e.g. "/api/capella-classification"
+ *   endpoint      – POST endpoint path, e.g. "/api/ai-data-plane-classification"
  *   buildBody     – fn(inputs) → request body object
  *   renderResult  – fn(result) → JSX
  *   renderControls– fn(inputs, setInputs) → JSX (inputs above the run button)
@@ -11,11 +11,11 @@
  *   onQuestion    – optional setter for the primary text input (for InfoPanel)
  */
 import React, { useState } from 'react'
-import './CapellaTab.css'
+import './AiDataPlaneTab.css'
 
 const CB_ACCENT = '#00A3E0'
 
-export default function CapellaTab({
+export default function AiDataPlaneTab({
   endpoint,
   buildBody,
   renderResult,

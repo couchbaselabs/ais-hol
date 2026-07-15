@@ -87,7 +87,7 @@ doc_context = "\n\n".join(
     f"[{d['filepath']}]\n{d['content']}" for d in docs
 )
 
-# Summarise conversation history using Capella ai_summary()
+# Summarise conversation history using Couchbase AI Data Plane ai_summary()
 history_summary = await summarize_conversation(session_id)
 
 prompt = (

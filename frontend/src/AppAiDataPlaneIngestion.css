@@ -250,8 +250,8 @@
   border-radius: 8px;
 }
 
-/* ── Capella workflow view ── */
-.ci2-capella-body {
+/* ── Couchbase AI Data Plane workflow view ── */
+.ci2-ai-data-plane-body {
   flex: 1;
   overflow-y: auto;
   padding: 1.25rem 1.5rem;
@@ -260,21 +260,21 @@
   gap: 1.25rem;
 }
 
-.ci2-capella-intro { max-width: 680px; }
-.ci2-capella-title {
+.ci2-ai-data-plane-intro { max-width: 680px; }
+.ci2-ai-data-plane-title {
   font-size: 1.1rem;
   font-weight: 700;
   color: #1a1a2e;
   margin: 0 0 0.4rem;
 }
-.ci2-capella-desc {
+.ci2-ai-data-plane-desc {
   margin: 0;
   font-size: 0.85rem;
   color: #495057;
   line-height: 1.65;
 }
 
-.ci2-capella-cols {
+.ci2-ai-data-plane-cols {
   display: flex;
   gap: 1.25rem;
   align-items: flex-start;

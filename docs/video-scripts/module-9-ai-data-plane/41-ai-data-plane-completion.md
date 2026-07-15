@@ -1,15 +1,15 @@
-# Capella AI Completion
+# Couchbase AI Data Plane Completion
 
-**Module:** Capella AI Functions | **Level:** Advanced
-**Runtime:** ~6 min | **Tab:** `capella-completion`
+**Module:** Couchbase AI Data Plane | **Level:** Advanced
+**Runtime:** ~6 min | **Tab:** `ai-data-plane-completion`
 
 ---
 
 ## Hook
 
-> 🎬 **SHOW:** Capella AI Completion tab open, prompt template input visible, document context input, completion output panel empty.
+> 🎬 **SHOW:** Couchbase AI Data Plane Completion tab open, prompt template input visible, document context input, completion output panel empty.
 
-Every other Capella AI Function does a specific task — summarise, classify, translate. `ai_completion()` is the general-purpose escape hatch: you provide a custom prompt template, the function injects document data, and the LLM generates a completion. It's the equivalent of `chat.completions.create()` — but running inside the database, over your documents, at query time.
+Every other Couchbase AI Data Plane Function does a specific task — summarise, classify, translate. `ai_completion()` is the general-purpose escape hatch: you provide a custom prompt template, the function injects document data, and the LLM generates a completion. It's the equivalent of `chat.completions.create()` — but running inside the database, over your documents, at query time.
 
 ---
 
@@ -29,7 +29,7 @@ Because the prompt is fully customisable, `ai_completion()` can do anything the 
 
 ## Demo Walkthrough
 
-> 🎬 **SHOW:** Capella AI Completion tab, prompt template field and document context field visible.
+> 🎬 **SHOW:** Couchbase AI Data Plane Completion tab, prompt template field and document context field visible.
 
 1. Prompt: *"Summarise the following text in exactly one sentence, starting with 'This document covers':"* Context: paste a paragraph of technical documentation. Submit.
 
@@ -55,7 +55,7 @@ Because the prompt is fully customisable, `ai_completion()` can do anything the 
 
 ## Code Deep-Dive
 
-> 🎬 **SHOW:** `backend/main.py`, scrolled to `/api/capella-completion`. Highlight the SQL++ query.
+> 🎬 **SHOW:** `backend/main.py`, scrolled to `/api/ai-data-plane-completion`. Highlight the SQL++ query.
 
 ```python
 # Combine prompt template with document context
@@ -75,7 +75,7 @@ rows = list(
 result = rows[0]["result"][0]
 return {
     "completion": result.get("completion", ""),
-    "source":     "capella_ai_completion",
+    "source":     "ai_data_plane_ai_completion",
 }
 ```
 
@@ -105,7 +105,7 @@ SQL++ string concatenation (`||`) lets you build prompts inline from document fi
 
 > 🎬 **SHOW:** Completion output panel with a custom-formatted response.
 
-- `ai_completion()` is the general-purpose Capella AI Function — any prompt, any task.
+- `ai_completion()` is the general-purpose Couchbase AI Data Plane Function — any prompt, any task.
 - Build prompts inline using SQL++ string concatenation (`||`) to inject document fields into templates.
 - Use it for tasks that don't have a dedicated function: custom summarisation, constrained output, data transformation.
 - Combine with vector search (`ORDER BY ANN_DISTANCE`) to retrieve relevant documents and generate answers in one query.
@@ -115,6 +115,6 @@ SQL++ string concatenation (`||`) lets you build prompts inline from document fi
 
 ## What's Next
 
-> 🎬 **SHOW:** Sidebar — highlight the next tab `capella-grammar`.
+> 🎬 **SHOW:** Sidebar — highlight the next tab `ai-data-plane-grammar`.
 
-Next: Capella AI Grammar — correcting grammar and spelling in documents using `ai_corrected_grammar()`.
+Next: Couchbase AI Data Plane Grammar — correcting grammar and spelling in documents using `ai_corrected_grammar()`.

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
-import './AppCapellaService.css'
+import './AppAiDataPlaneService.css'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
-import CapellaDiyBanner from './components/CapellaDiyBanner'
+import AiDataPlaneDiyBanner from './components/AiDataPlaneDiyBanner'
 
 const SCENARIOS = [
   {
@@ -67,9 +67,9 @@ function Column({ title, color, data, loading }) {
         <span className="cs-column-title">{title}</span>
         {data && (
           <div className="cs-metrics">
-            <MetricBadge label="ms" value={data.ms ?? '—'} highlight={color === 'capella'} />
-            <MetricBadge label="API calls" value={data.api_calls ?? '—'} highlight={color === 'capella'} />
-            <MetricBadge label="lines" value={data.loc ?? '—'} highlight={color === 'capella'} />
+            <MetricBadge label="ms" value={data.ms ?? '—'} highlight={color === 'ai_data_plane'} />
+            <MetricBadge label="API calls" value={data.api_calls ?? '—'} highlight={color === 'ai_data_plane'} />
+            <MetricBadge label="lines" value={data.loc ?? '—'} highlight={color === 'ai_data_plane'} />
           </div>
         )}
       </div>
@@ -89,14 +89,14 @@ function Column({ title, color, data, loading }) {
   )
 }
 
-export default function AppCapellaService() {
+export default function AppAiDataPlaneService() {
   const [scenarioId, setScenarioId] = useState('cache')
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
 
-  useInfoPanelQuestion('capella-service')
+  useInfoPanelQuestion('ai-data-plane-service')
 
   const scenario = SCENARIOS.find(s => s.id === scenarioId)
 
@@ -107,7 +107,7 @@ export default function AppCapellaService() {
     try {
       const body = { scenario: scenarioId }
       body[scenario.inputField] = input || scenario.inputPlaceholder
-      const res = await fetch('/api/capella-service', {
+      const res = await fetch('/api/ai-data-plane-service', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -123,7 +123,7 @@ export default function AppCapellaService() {
 
   return (
     <div className="cs-root">
-      <CapellaDiyBanner
+      <AiDataPlaneDiyBanner
         diyTab="cached"
         diyLabel="Semantic Cache"
         replaces="multi-step embed → search → LLM pipeline"
@@ -131,7 +131,7 @@ export default function AppCapellaService() {
       <div className="cs-header">
         <h2 className="cs-title">AI Data Plane — DIY vs SQL++</h2>
         <p className="cs-subtitle">
-          The same task, two approaches. See how Capella AI Functions collapse
+          The same task, two approaches. See how Couchbase AI Data Plane collapses
           multi-step application code into a single database query.
         </p>
       </div>
@@ -174,18 +174,18 @@ export default function AppCapellaService() {
         />
         <div className="cs-vs">VS</div>
         <Column
-          title="🗄️ Capella SQL++"
-          color="capella"
-          data={result?.capella}
+          title="🗄️ Couchbase AI Data Plane SQL++"
+          color="ai_data_plane"
+          data={result?.ai_data_plane}
           loading={loading}
         />
       </div>
 
       {result && (
         <div className="cs-summary">
-          {result.capella.ms < result.diy.ms
-            ? `Capella was ${result.diy.ms - result.capella.ms}ms faster and used ${result.diy.api_calls - result.capella.api_calls} fewer external API call(s).`
-            : `Both approaches returned results. Capella used ${result.diy.api_calls - result.capella.api_calls} fewer external API call(s) and ${result.diy.loc - result.capella.loc} fewer lines of code.`
+          {result.ai_data_plane.ms < result.diy.ms
+            ? `Couchbase AI Data Plane was ${result.diy.ms - result.ai_data_plane.ms}ms faster and used ${result.diy.api_calls - result.ai_data_plane.api_calls} fewer external API call(s).`
+            : `Both approaches returned results. Couchbase AI Data Plane used ${result.diy.api_calls - result.ai_data_plane.api_calls} fewer external API call(s) and ${result.diy.loc - result.ai_data_plane.loc} fewer lines of code.`
           }
         </div>
       )}

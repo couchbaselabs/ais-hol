@@ -14,7 +14,7 @@ const SAMPLE_TEXT = `Couchbase is a distributed NoSQL cloud database that delive
 
 It supports key-value, document, columnar, full-text search, analytics, eventing, and mobile workloads — all in a single platform. Developers can use SQL++ (N1QL), a SQL-compatible query language, to query JSON documents without needing to learn a new paradigm.
 
-The Couchbase Data Platform includes Couchbase Server for the cloud and on-premises, Couchbase Capella as a fully managed DBaaS, and Couchbase Lite for mobile and edge devices. Sync Gateway bridges the gap between mobile and cloud, enabling offline-first applications.
+The Couchbase Data Platform includes Couchbase Server for the cloud and on-premises, Couchbase AI Data Plane as a fully managed DBaaS, and Couchbase Lite for mobile and edge devices. Sync Gateway bridges the gap between mobile and cloud, enabling offline-first applications.
 
 Couchbase AI Data Plane brings vector search, AI Functions, and LLM integrations directly into the database layer. This allows developers to build AI-powered applications without managing separate vector databases or orchestration layers.`
 

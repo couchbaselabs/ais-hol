@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import './AppCapellaIngestion.css'
-import CapellaDiyBanner from './components/CapellaDiyBanner'
+import './AppAiDataPlaneIngestion.css'
+import AiDataPlaneDiyBanner from './components/AiDataPlaneDiyBanner'
 
 const EXAMPLE_DOCS = [
   {
@@ -21,16 +21,16 @@ const EXAMPLE_DOCS = [
 ]
 
 const SOURCES = [
-  { id: 'capella', icon: '🗄️', label: 'Capella collection', desc: 'Vectorise existing documents already in Couchbase' },
+  { id: 'ai_data_plane', icon: '🗄️', label: 'Couchbase AI Data Plane collection', desc: 'Vectorise existing documents already in Couchbase' },
   { id: 's3',      icon: '☁️', label: 'S3 bucket',          desc: 'Ingest PDFs, DOCX, HTML from Amazon S3' },
   { id: 'url',     icon: '🌐', label: 'Web URL',             desc: 'Crawl and ingest web pages' },
   { id: 'upload',  icon: '📄', label: 'File upload',         desc: 'Upload PDFs or documents directly' },
 ]
 
 const WORKFLOW_STEPS = [
-  { icon: '📂', label: 'Source',    desc: 'Choose data source: Capella collection, S3, URL, or file upload' },
+  { icon: '📂', label: 'Source',    desc: 'Choose data source: Couchbase AI Data Plane collection, S3, URL, or file upload' },
   { icon: '✂️', label: 'Chunk',     desc: 'Configure chunk size, overlap, and splitting strategy' },
-  { icon: '🔢', label: 'Embed',     desc: 'Select embedding model (OpenAI, Bedrock, Capella-hosted)' },
+  { icon: '🔢', label: 'Embed',     desc: 'Select embedding model (OpenAI, Bedrock, Couchbase AI Data Plane-hosted)' },
   { icon: '🗄️', label: 'Store',     desc: 'Target bucket, scope, and collection in Couchbase' },
   { icon: '🔍', label: 'Index',     desc: 'Vector index created automatically — ready for ANN search' },
 ]
@@ -65,8 +65,8 @@ function ChunkCard({ chunk, index }) {
   )
 }
 
-export default function AppCapellaIngestion() {
-  const [mode, setMode] = useState('diy') // 'diy' | 'capella'
+export default function AppAiDataPlaneIngestion() {
+  const [mode, setMode] = useState('diy') // 'diy' | 'ai_data_plane'
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [chunkSize, setChunkSize] = useState(150)
@@ -74,7 +74,7 @@ export default function AppCapellaIngestion() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
-  const [activeSource, setActiveSource] = useState('capella')
+  const [activeSource, setActiveSource] = useState('ai_data_plane')
   const [workflowStep, setWorkflowStep] = useState(null) // null | 0..4
 
   function loadExample(ex) {
@@ -122,7 +122,7 @@ export default function AppCapellaIngestion() {
 
   return (
     <div className="ci2-root">
-      <CapellaDiyBanner
+      <AiDataPlaneDiyBanner
         diyTab="ingestion"
         diyLabel="Ingestion"
         replaces="manual chunk → embed → store pipeline"
@@ -137,10 +137,10 @@ export default function AppCapellaIngestion() {
           🐍 DIY Pipeline
         </button>
         <button
-          className={`ci2-mode-btn ${mode === 'capella' ? 'ci2-mode-btn--active' : ''}`}
-          onClick={() => setMode('capella')}
+          className={`ci2-mode-btn ${mode === 'ai_data_plane' ? 'ci2-mode-btn--active' : ''}`}
+          onClick={() => setMode('ai_data_plane')}
         >
-          🗄️ Capella Workflow
+          🗄️ Couchbase AI Data Plane Workflow
         </button>
       </div>
 
@@ -273,18 +273,18 @@ export default function AppCapellaIngestion() {
           </div>
         </div>
       ) : (
-        /* ── Capella Workflow view ── */
-        <div className="ci2-capella-body">
-          <div className="ci2-capella-intro">
-            <h2 className="ci2-capella-title">AI Data Plane — Ingestion Workflow</h2>
-            <p className="ci2-capella-desc">
-              The Capella ingestion workflow replaces the entire DIY pipeline — chunking,
+        /* ── Couchbase AI Data Plane Workflow view ── */
+        <div className="ci2-ai-data-plane-body">
+          <div className="ci2-ai-data-plane-intro">
+            <h2 className="ci2-ai-data-plane-title">AI Data Plane — Ingestion Workflow</h2>
+            <p className="ci2-ai-data-plane-desc">
+              The Couchbase AI Data Plane ingestion workflow replaces the entire DIY pipeline — chunking,
               embedding, storing, and index creation — with a UI-driven configuration.
               No code to write, no embedding API to call, no vector index to manage.
             </p>
           </div>
 
-          <div className="ci2-capella-cols">
+          <div className="ci2-ai-data-plane-cols">
             {/* Left: workflow builder */}
             <div className="ci2-workflow-panel">
               <div className="ci2-workflow-title">Configure workflow</div>
@@ -321,7 +321,7 @@ export default function AppCapellaIngestion() {
               <div className="ci2-workflow-section">
                 <div className="ci2-workflow-section-label">3. Embedding model</div>
                 <div className="ci2-workflow-options">
-                  {['OpenAI text-embedding-3-small', 'OpenAI text-embedding-3-large', 'Capella-hosted model', 'AWS Bedrock Titan'].map((opt, i) => (
+                  {['OpenAI text-embedding-3-small', 'OpenAI text-embedding-3-large', 'Couchbase AI Data Plane-hosted model', 'AWS Bedrock Titan'].map((opt, i) => (
                     <label key={i} className="ci2-workflow-radio">
                       <input type="radio" name="embed" defaultChecked={i === 0} />
                       {opt}
@@ -383,13 +383,13 @@ export default function AppCapellaIngestion() {
 
               {/* Comparison */}
               <div className="ci2-compare-box">
-                <div className="ci2-compare-box-title">What Capella replaces</div>
+                <div className="ci2-compare-box-title">What Couchbase AI Data Plane replaces</div>
                 <table className="ci2-compare-table">
                   <thead>
                     <tr>
                       <th>Step</th>
                       <th>DIY</th>
-                      <th>Capella</th>
+                      <th>Couchbase AI Data Plane</th>
                     </tr>
                   </thead>
                   <tbody>

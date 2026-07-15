@@ -1,5 +1,5 @@
-/* Shared layout for Capella AI tabs */
-.capella-layout {
+/* Shared layout for Couchbase AI Data Plane tabs */
+.ai-data-plane-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
@@ -9,13 +9,13 @@
 }
 
 @media (max-width: 800px) {
-  .capella-layout {
+  .ai-data-plane-layout {
     grid-template-columns: 1fr;
   }
 }
 
-.capella-input-panel,
-.capella-output-panel {
+.ai-data-plane-input-panel,
+.ai-data-plane-output-panel {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -25,14 +25,14 @@
   padding: 1rem;
 }
 
-.capella-panel-header {
+.ai-data-plane-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
 }
 
-.capella-textarea {
+.ai-data-plane-textarea {
   width: 100%;
   resize: vertical;
   border: 1px solid #d1d5db;
@@ -44,20 +44,20 @@
   color: #111827;
   box-sizing: border-box;
 }
-.capella-textarea:focus {
+.ai-data-plane-textarea:focus {
   outline: none;
   border-color: #6366f1;
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
 }
 
-.capella-controls {
+.ai-data-plane-controls {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
 
-.capella-label {
+.ai-data-plane-label {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -65,7 +65,7 @@
   color: #6b7280;
 }
 
-.capella-number {
+.ai-data-plane-number {
   width: 70px;
   border: 1px solid #d1d5db;
   border-radius: 5px;
@@ -73,7 +73,7 @@
   font-size: 0.875rem;
 }
 
-.capella-btn {
+.ai-data-plane-btn {
   padding: 0.45rem 1.1rem;
   border-radius: 6px;
   font-size: 0.875rem;
@@ -82,19 +82,19 @@
   border: none;
   transition: background 0.15s;
 }
-.capella-btn--primary {
+.ai-data-plane-btn--primary {
   background: #6366f1;
   color: #fff;
 }
-.capella-btn--primary:hover:not(:disabled) {
+.ai-data-plane-btn--primary:hover:not(:disabled) {
   background: #4f46e5;
 }
-.capella-btn:disabled {
+.ai-data-plane-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.capella-examples {
+.ai-data-plane-examples {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -125,20 +125,20 @@
 }
 
 /* Badge */
-.capella-badge {
+.ai-data-plane-badge {
   font-size: 0.7rem;
   font-weight: 600;
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
   white-space: nowrap;
 }
-.capella-badge--db {
+.ai-data-plane-badge--db {
   background: #ede9fe;
   color: #5b21b6;
 }
 
 /* Loading */
-.capella-loading {
+.ai-data-plane-loading {
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -146,7 +146,7 @@
   font-size: 0.875rem;
   padding: 1rem 0;
 }
-.capella-spinner {
+.ai-data-plane-spinner {
   width: 16px;
   height: 16px;
   border: 2px solid #e5e7eb;
@@ -158,7 +158,7 @@
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Error */
-.capella-error {
+.ai-data-plane-error {
   background: #fef2f2;
   border: 1px solid #fecaca;
   color: #991b1b;
@@ -168,25 +168,25 @@
 }
 
 /* Result */
-.capella-result {
+.ai-data-plane-result {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
-.capella-result-text {
+.ai-data-plane-result-text {
   font-size: 0.9rem;
   line-height: 1.65;
   color: #111827;
   margin: 0;
 }
-.capella-result-footer {
+.ai-data-plane-result-footer {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding-top: 0.5rem;
   border-top: 1px solid #f3f4f6;
 }
-.capella-source-badge {
+.ai-data-plane-source-badge {
   font-size: 0.75rem;
   font-weight: 600;
   color: #5b21b6;
@@ -196,7 +196,7 @@
 }
 
 /* Placeholder */
-.capella-placeholder {
+.ai-data-plane-placeholder {
   color: #9ca3af;
   font-size: 0.875rem;
   line-height: 1.6;

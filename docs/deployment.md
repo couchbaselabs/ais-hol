@@ -1,6 +1,6 @@
 # Production Deployment Guide
 
-This guide covers deploying the AI Services HOL on a Linux server with Nginx as a reverse proxy.
+This guide covers deploying the Couchbase AI Data Plane HOL on a Linux server with Nginx as a reverse proxy.
 
 ## Prerequisites
 
@@ -8,7 +8,7 @@ This guide covers deploying the AI Services HOL on a Linux server with Nginx as 
 - Python 3.11–3.13
 - Node.js 18+
 - Nginx
-- A running Couchbase Capella cluster (or self-managed Couchbase 7.6+)
+- A running Couchbase AI Data Plane cluster (or self-managed Couchbase 7.6+)
 - An OpenAI-compatible API key (OpenAI, Azure OpenAI, or AI Data Plane)
 
 ---

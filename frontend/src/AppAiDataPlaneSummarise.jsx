@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
-import './AppCapellaSummarise.css'
+import './AppAiDataPlaneSummarise.css'
 import { useInfoPanelQuestion } from './hooks/useInfoPanelQuestion'
-import CapellaDiyBanner from './components/CapellaDiyBanner'
+import AiDataPlaneDiyBanner from './components/AiDataPlaneDiyBanner'
 
 const EXAMPLES = [
   `The World Wide Web was invented by Tim Berners-Lee at CERN in 1989. It opened to the public in 1991 and has since become the world's dominant software platform. Documents are accessed via HTTP using URLs, and web pages are written in HTML. CSS and JavaScript are the other two core technologies of the web. As of 2023, 98.7% of websites use JavaScript on the client side.`,
@@ -10,7 +10,7 @@ const EXAMPLES = [
   `CSS (Cascading Style Sheets) is a style sheet language used for describing the presentation of a document written in HTML. CSS is designed to enable the separation of presentation and content, including layout, colors, and fonts. This separation improves content accessibility and provides more flexibility in the specification of presentation characteristics.`,
 ]
 
-export default function AppCapellaSummarise() {
+export default function AppAiDataPlaneSummarise() {
   const [text, setText] = useState('')
   useInfoPanelQuestion(setText)
   useEffect(() => {
@@ -31,7 +31,7 @@ export default function AppCapellaSummarise() {
     setError(null)
     setResult(null)
     try {
-      const res = await fetch('/api/capella-summarise', {
+      const res = await fetch('/api/ai-data-plane-summarise', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: t, max_words: maxWords }),
@@ -51,33 +51,33 @@ export default function AppCapellaSummarise() {
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0
 
   return (
-    <div className="app capella-summarise-app">
-      <CapellaDiyBanner
+    <div className="app ai-data-plane-summarise-app">
+      <AiDataPlaneDiyBanner
         diyTab="summarise"
         diyLabel="Summarisation"
         replaces="map-reduce LLM summarisation pipeline"
       />
-      <div className="capella-layout">
+      <div className="ai-data-plane-layout">
         {/* Input */}
-        <div className="capella-input-panel">
-          <div className="capella-panel-header">
+        <div className="ai-data-plane-input-panel">
+          <div className="ai-data-plane-panel-header">
             <h2 className="panel-heading">Input text</h2>
             <span className="word-count">{wordCount.toLocaleString()} words</span>
           </div>
           <textarea
-            className="capella-textarea"
+            className="ai-data-plane-textarea"
             value={text}
             onChange={e => setText(e.target.value)}
-            placeholder="Paste any text to summarise using Capella ai_summary()…"
+            placeholder="Paste any text to summarise using Couchbase AI Data Plane ai_summary()…"
             rows={7}
           />
 
-          <div className="capella-controls">
-            <label className="capella-label">
+          <div className="ai-data-plane-controls">
+            <label className="ai-data-plane-label">
               Max words in summary
               <input
                 type="number"
-                className="capella-number"
+                className="ai-data-plane-number"
                 value={maxWords}
                 min={20}
                 max={500}
@@ -85,7 +85,7 @@ export default function AppCapellaSummarise() {
               />
             </label>
             <button
-              className="capella-btn capella-btn--primary"
+              className="ai-data-plane-btn ai-data-plane-btn--primary"
               onClick={() => run()}
               disabled={isLoading || !text.trim()}
             >
@@ -93,7 +93,7 @@ export default function AppCapellaSummarise() {
             </button>
           </div>
 
-          <div className="capella-examples">
+          <div className="ai-data-plane-examples">
             <span className="examples-label">Try an example:</span>
             {EXAMPLES.map((ex, i) => (
               <button key={i} className="example-btn" onClick={() => run(ex)}>
@@ -104,27 +104,27 @@ export default function AppCapellaSummarise() {
         </div>
 
         {/* Output */}
-        <div className="capella-output-panel">
-          <div className="capella-panel-header">
+        <div className="ai-data-plane-output-panel">
+          <div className="ai-data-plane-panel-header">
             <h2 className="panel-heading">Summary</h2>
-            <span className="capella-badge capella-badge--db">
+            <span className="ai-data-plane-badge ai-data-plane-badge--db">
               Runs inside the database
             </span>
           </div>
 
           {isLoading && (
-            <div className="capella-loading">
-              <div className="capella-spinner" />
+            <div className="ai-data-plane-loading">
+              <div className="ai-data-plane-spinner" />
               Calling <code>default:ai_summary()</code>…
             </div>
           )}
-          {error && <div className="capella-error">{error}</div>}
+          {error && <div className="ai-data-plane-error">{error}</div>}
           {!isLoading && !error && result && (
-            <div className="capella-result">
-              <p className="capella-result-text">{result.summary}</p>
-              <div className="capella-result-footer">
-                <span className="capella-source-badge">
-                  {result.source === 'capella_ai_summary'
+            <div className="ai-data-plane-result">
+              <p className="ai-data-plane-result-text">{result.summary}</p>
+              <div className="ai-data-plane-result-footer">
+                <span className="ai-data-plane-source-badge">
+                  {result.source === 'ai_data_plane_ai_summary'
                     ? '⚡ default:ai_summary()'
                     : result.source}
                 </span>
@@ -132,7 +132,7 @@ export default function AppCapellaSummarise() {
             </div>
           )}
           {!isLoading && !error && !result && (
-            <div className="capella-placeholder">
+            <div className="ai-data-plane-placeholder">
               The summary will appear here. Summarisation runs as a SQL++ query
               inside Couchbase — no extra LLM call and no server endpoint to deploy.
             </div>

@@ -24,19 +24,19 @@ import AppSlackDeploy        from './AppSlackDeploy'
 import AppAgentCatalogOverview from './AppAgentCatalogOverview'
 import AppAgentCatalogTools from './AppAgentCatalogTools'
 import AppAgentCatalogRuns from './AppAgentCatalogRuns'
-import AppCapellaIntro from './AppCapellaIntro'
-import AppCapellaModelService from './AppCapellaModelService'
-import AppCapellaIngestion from './AppCapellaIngestion'
-import AppCapellaService from './AppCapellaService'
-import AppCapellaSummarise from './AppCapellaSummarise'
-import AppCapellaSentiment from './AppCapellaSentiment'
-import AppCapellaClassification from './AppCapellaClassification'
-import AppCapellaExtraction from './AppCapellaExtraction'
-import AppCapellaTranslation from './AppCapellaTranslation'
-import AppCapellaMasking from './AppCapellaMasking'
-import AppCapellaSimilarity from './AppCapellaSimilarity'
-import AppCapellaCompletion from './AppCapellaCompletion'
-import AppCapellaGrammar from './AppCapellaGrammar'
+import AppAiDataPlaneIntro from './AppAiDataPlaneIntro'
+import AppAiDataPlaneModelService from './AppAiDataPlaneModelService'
+import AppAiDataPlaneIngestion from './AppAiDataPlaneIngestion'
+import AppAiDataPlaneService from './AppAiDataPlaneService'
+import AppAiDataPlaneSummarise from './AppAiDataPlaneSummarise'
+import AppAiDataPlaneSentiment from './AppAiDataPlaneSentiment'
+import AppAiDataPlaneClassification from './AppAiDataPlaneClassification'
+import AppAiDataPlaneExtraction from './AppAiDataPlaneExtraction'
+import AppAiDataPlaneTranslation from './AppAiDataPlaneTranslation'
+import AppAiDataPlaneMasking from './AppAiDataPlaneMasking'
+import AppAiDataPlaneSimilarity from './AppAiDataPlaneSimilarity'
+import AppAiDataPlaneCompletion from './AppAiDataPlaneCompletion'
+import AppAiDataPlaneGrammar from './AppAiDataPlaneGrammar'
 import AppTemperature from './AppTemperature'
 import AppToolCalling from './AppToolCalling'
 import AppContextWindow  from './AppContextWindow'
@@ -115,22 +115,22 @@ function Shell() {
         {activeTab === 'agent-catalog-overview' && <AppAgentCatalogOverview  key="agent-catalog-overview" />}
         {activeTab === 'agent-catalog-tools'    && <AppAgentCatalogTools     key="agent-catalog-tools" />}
         {activeTab === 'agent-catalog-runs'     && <AppAgentCatalogRuns      key="agent-catalog-runs" />}
-        {activeTab === 'capella-intro'          && <AppCapellaIntro          key="capella-intro" />}
-        {activeTab === 'capella-service'        && <AppCapellaService        key="capella-service" />}
-        {activeTab === 'capella-summarise'     && <AppCapellaSummarise     key="capella-summarise" />}
-        {activeTab === 'capella-sentiment'      && <AppCapellaSentiment      key="capella-sentiment" />}
-        {activeTab === 'capella-classification' && <AppCapellaClassification key="capella-classification" />}
-        {activeTab === 'capella-extraction'     && <AppCapellaExtraction     key="capella-extraction" />}
-        {activeTab === 'capella-translation'    && <AppCapellaTranslation    key="capella-translation" />}
-        {activeTab === 'capella-masking'        && <AppCapellaMasking        key="capella-masking" />}
-        {activeTab === 'capella-similarity'     && <AppCapellaSimilarity     key="capella-similarity" />}
-        {activeTab === 'capella-completion'     && <AppCapellaCompletion     key="capella-completion" />}
-        {activeTab === 'capella-grammar'        && <AppCapellaGrammar        key="capella-grammar" />}
-        {activeTab === 'capella-model-guardrails' && <AppCapellaModelService key="capella-model-guardrails" featureId="guardrails" />}
-        {activeTab === 'capella-model-cache'      && <AppCapellaModelService key="capella-model-cache"      featureId="cache" />}
-        {activeTab === 'capella-model-providers'  && <AppCapellaModelService key="capella-model-providers"  featureId="providers" />}
-        {activeTab === 'capella-model-ratelimit'  && <AppCapellaModelService key="capella-model-ratelimit"  featureId="ratelimit" />}
-        {activeTab === 'capella-ingestion'      && <AppCapellaIngestion      key="capella-ingestion" />}
+        {activeTab === 'ai-data-plane-intro'          && <AppAiDataPlaneIntro          key="ai-data-plane-intro" />}
+        {activeTab === 'ai-data-plane-service'        && <AppAiDataPlaneService        key="ai-data-plane-service" />}
+        {activeTab === 'ai-data-plane-summarise'     && <AppAiDataPlaneSummarise     key="ai-data-plane-summarise" />}
+        {activeTab === 'ai-data-plane-sentiment'      && <AppAiDataPlaneSentiment      key="ai-data-plane-sentiment" />}
+        {activeTab === 'ai-data-plane-classification' && <AppAiDataPlaneClassification key="ai-data-plane-classification" />}
+        {activeTab === 'ai-data-plane-extraction'     && <AppAiDataPlaneExtraction     key="ai-data-plane-extraction" />}
+        {activeTab === 'ai-data-plane-translation'    && <AppAiDataPlaneTranslation    key="ai-data-plane-translation" />}
+        {activeTab === 'ai-data-plane-masking'        && <AppAiDataPlaneMasking        key="ai-data-plane-masking" />}
+        {activeTab === 'ai-data-plane-similarity'     && <AppAiDataPlaneSimilarity     key="ai-data-plane-similarity" />}
+        {activeTab === 'ai-data-plane-completion'     && <AppAiDataPlaneCompletion     key="ai-data-plane-completion" />}
+        {activeTab === 'ai-data-plane-grammar'        && <AppAiDataPlaneGrammar        key="ai-data-plane-grammar" />}
+        {activeTab === 'ai-data-plane-model-guardrails' && <AppAiDataPlaneModelService key="ai-data-plane-model-guardrails" featureId="guardrails" />}
+        {activeTab === 'ai-data-plane-model-cache'      && <AppAiDataPlaneModelService key="ai-data-plane-model-cache"      featureId="cache" />}
+        {activeTab === 'ai-data-plane-model-providers'  && <AppAiDataPlaneModelService key="ai-data-plane-model-providers"  featureId="providers" />}
+        {activeTab === 'ai-data-plane-model-ratelimit'  && <AppAiDataPlaneModelService key="ai-data-plane-model-ratelimit"  featureId="ratelimit" />}
+        {activeTab === 'ai-data-plane-ingestion'      && <AppAiDataPlaneIngestion      key="ai-data-plane-ingestion" />}
         {activeTab === 'temperature'       && <AppTemperature      key="temperature"       />}
         {activeTab === 'tool-calling'      && <AppToolCalling      key="tool-calling"      />}
         {activeTab === 'context-window'    && <AppContextWindow    key="context-window"    />}

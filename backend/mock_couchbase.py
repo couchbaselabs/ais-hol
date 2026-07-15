@@ -205,19 +205,19 @@ async def _mock_find_best_faq_collection(query_embedding: list[float]) -> dict |
 # Apply all patches
 # ---------------------------------------------------------------------------
 
-def _mock_capella_summarise(text: str, max_words: int = 150) -> dict:
+def _mock_ai_data_plane_summarise(text: str, max_words: int = 150) -> dict:
     word_count = len(text.split())
     return {
         "summary": (
-            f"[Mock Capella ai_summary()] This {word_count}-word text discusses "
-            "key concepts and ideas. In a real Capella cluster, ai_summary() runs "
+            f"[Mock Couchbase AI Data Plane ai_summary()] This {word_count}-word text discusses "
+            "key concepts and ideas. In a real Couchbase AI Data Plane cluster, ai_summary() runs "
             "inside the database using the configured LLM — no extra API call needed."
         ),
-        "source": "capella_ai_summary",
+        "source": "ai_data_plane_ai_summary",
     }
 
 
-def _mock_capella_sentiment(text: str) -> dict:
+def _mock_ai_data_plane_sentiment(text: str) -> dict:
     text_lower = text.lower()
     positive_words = {"love", "great", "excellent", "good", "happy", "amazing", "wonderful", "fantastic"}
     negative_words = {"hate", "bad", "terrible", "awful", "horrible", "poor", "disappointing", "slow"}
@@ -233,9 +233,9 @@ def _mock_capella_sentiment(text: str) -> dict:
     return {
         "sentiment":       sentiment,
         "sentiment_score": min(score, 0.99),
-        "explanation":     f"[Mock Capella ai_sentiment()] Detected {sentiment} tone. "
+        "explanation":     f"[Mock Couchbase AI Data Plane ai_sentiment()] Detected {sentiment} tone. "
                            "In a real cluster this runs inside the database via SQL++.",
-        "source":          "capella_ai_sentiment",
+        "source":          "ai_data_plane_ai_sentiment",
     }
 
 

@@ -1,13 +1,13 @@
-# Capella AI Masking
+# Couchbase AI Data Plane Masking
 
-**Module:** Capella AI Functions | **Level:** Advanced
-**Runtime:** ~6 min | **Tab:** `capella-masking`
+**Module:** Couchbase AI Data Plane | **Level:** Advanced
+**Runtime:** ~6 min | **Tab:** `ai-data-plane-masking`
 
 ---
 
 ## Hook
 
-> 🎬 **SHOW:** Capella AI Masking tab open, text input visible, mask types selector, masked output panel empty.
+> 🎬 **SHOW:** Couchbase AI Data Plane Masking tab open, text input visible, mask types selector, masked output panel empty.
 
 GDPR, HIPAA, PCI-DSS — compliance regulations require that personally identifiable information is not stored or processed in plain text in certain contexts. `ai_masked()` redacts PII from text inside the database engine. You can create a masked copy of a document for analytics, logging, or sharing — without exposing the original sensitive data.
 
@@ -31,7 +31,7 @@ A common pattern: store the original document with encryption at rest, and store
 
 ## Demo Walkthrough
 
-> 🎬 **SHOW:** Capella AI Masking tab, mask types: person, email, phone, credit_card, ssn.
+> 🎬 **SHOW:** Couchbase AI Data Plane Masking tab, mask types: person, email, phone, credit_card, ssn.
 
 1. Enter: *"Please contact John Smith at john.smith@example.com or call 555-867-5309 to discuss his account."* Submit.
 
@@ -61,7 +61,7 @@ A common pattern: store the original document with encryption at rest, and store
 
 ## Code Deep-Dive
 
-> 🎬 **SHOW:** `backend/main.py`, scrolled to `/api/capella-masking`. Highlight the SQL++ query.
+> 🎬 **SHOW:** `backend/main.py`, scrolled to `/api/ai-data-plane-masking`. Highlight the SQL++ query.
 
 ```python
 sql = """
@@ -83,7 +83,7 @@ result = rows[0]["result"][0]
 return {
     "masked_text":   result.get("masked_text", body.text),
     "entities_found": result.get("entities_found", []),
-    "source":        "capella_ai_masked",
+    "source":        "ai_data_plane_ai_masked",
 }
 ```
 
@@ -124,6 +124,6 @@ The original is never touched. The masked copy lives in a separate collection �
 
 ## What's Next
 
-> 🎬 **SHOW:** Sidebar — highlight the next tab `capella-similarity`.
+> 🎬 **SHOW:** Sidebar — highlight the next tab `ai-data-plane-similarity`.
 
-Next: Capella AI Similarity — computing semantic similarity between two texts using `ai_similarity()`.
+Next: Couchbase AI Data Plane Similarity — computing semantic similarity between two texts using `ai_similarity()`.
