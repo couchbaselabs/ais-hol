@@ -1,0 +1,115 @@
+.bot-overview-root {
+  padding: 1.5rem 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.bot-overview-hero {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid;
+  border-radius: 12px;
+}
+
+.bot-overview-hero-icon { font-size: 2.5rem; flex-shrink: 0; line-height: 1; }
+
+.bot-overview-hero-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+}
+
+.bot-overview-hero-sub {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.bot-overview-section { margin-bottom: 2rem; }
+
+.bot-overview-section-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin: 0 0 1rem;
+}
+
+.bot-overview-arch {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.bot-overview-arch-step {
+  flex: 1;
+  min-width: 110px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.75rem;
+  text-align: center;
+}
+
+.bot-overview-arch-icon { font-size: 1.4rem; margin-bottom: 0.3rem; }
+.bot-overview-arch-label { font-size: 0.78rem; font-weight: 700; color: #111827; margin-bottom: 0.25rem; }
+.bot-overview-arch-desc { font-size: 0.68rem; color: #6b7280; line-height: 1.4; }
+
+.bot-overview-arch-arrow {
+  font-size: 1.2rem;
+  color: #d1d5db;
+  align-self: center;
+  flex-shrink: 0;
+  padding-top: 0.5rem;
+}
+
+.bot-overview-concepts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.75rem;
+}
+
+.bot-overview-concept-card {
+  display: flex;
+  gap: 0.75rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+}
+
+.bot-overview-concept-icon { font-size: 1.3rem; flex-shrink: 0; line-height: 1; padding-top: 0.1rem; }
+.bot-overview-concept-title { font-size: 0.82rem; font-weight: 700; color: #111827; margin-bottom: 0.25rem; }
+.bot-overview-concept-desc { font-size: 0.75rem; color: #6b7280; line-height: 1.45; }
+
+.bot-overview-build-list { display: flex; flex-direction: column; gap: 0.6rem; }
+
+.bot-overview-build-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  font-size: 0.83rem;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.bot-overview-build-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}

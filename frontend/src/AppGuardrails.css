@@ -1,0 +1,74 @@
+.gr-app { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+
+.gr-controls {
+  padding: 0.75rem 1.25rem 0.5rem;
+  background: #fff; border-bottom: 1px solid #e5e7eb;
+  display: flex; flex-direction: column; gap: 0.5rem; flex-shrink: 0;
+}
+.gr-query-row { display: flex; gap: 0.5rem; }
+.gr-input {
+  flex: 1; padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.9rem;
+}
+.gr-input:focus { outline: none; border-color: #00A3E0; box-shadow: 0 0 0 2px rgba(0,163,224,0.15); }
+.gr-run-btn {
+  padding: 0.5rem 1.25rem; background: #00A3E0; color: white;
+  border: none; border-radius: 6px; font-size: 0.875rem; font-weight: 600; cursor: pointer;
+}
+.gr-run-btn:hover:not(:disabled) { background: #0086b8; }
+.gr-run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.gr-examples { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+
+.gr-error { margin: 1rem 1.25rem; padding: 0.6rem 0.75rem; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 6px; font-size: 0.875rem; }
+.gr-loading { padding: 2rem; text-align: center; color: #6b7280; font-size: 0.875rem; }
+
+.gr-result { flex: 1; overflow-y: auto; padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+
+/* Pipeline diagram */
+.gr-pipeline {
+  display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+.gr-gate {
+  display: flex; align-items: center; gap: 0.35rem;
+  padding: 0.3rem 0.65rem; border-radius: 6px;
+  font-size: 0.8rem; font-weight: 600; border: 1px solid;
+}
+.gr-gate--pass  { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.gr-gate--fail  { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.gr-gate--skip  { background: #f9fafb; border-color: #e5e7eb; color: #9ca3af; }
+.gr-gate-icon   { font-size: 0.9rem; }
+.gr-pipeline-arrow { color: #9ca3af; font-size: 1rem; font-weight: 700; }
+.gr-pipeline-arrow--blocked { color: #ef4444; }
+
+/* Check cards */
+.gr-checks { display: flex; flex-direction: column; gap: 0.5rem; }
+.gr-check {
+  border: 1px solid; border-radius: 8px; padding: 0.65rem 0.75rem;
+}
+.gr-check-header {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.3rem;
+}
+.gr-check-label { font-size: 0.78rem; font-weight: 700; color: #374151; }
+.gr-check-category {
+  font-size: 0.72rem; font-weight: 700; padding: 0.1rem 0.45rem;
+  border-radius: 999px; text-transform: uppercase;
+}
+.gr-check-conf { font-size: 0.72rem; color: #6b7280; margin-left: auto; }
+.gr-blocked-badge {
+  font-size: 0.68rem; font-weight: 800; background: #ef4444; color: white;
+  padding: 0.1rem 0.45rem; border-radius: 999px; letter-spacing: 0.05em;
+}
+.gr-check-reason { font-size: 0.82rem; color: #374151; margin: 0; line-height: 1.5; }
+
+/* Final output */
+.gr-final {
+  border: 1px solid; border-radius: 8px; padding: 0.75rem;
+}
+.gr-final--ok     { background: #f0f9ff; border-color: #bae6fd; }
+.gr-final--blocked { background: #fef2f2; border-color: #fecaca; }
+.gr-final-label { font-size: 0.78rem; font-weight: 700; color: #374151; margin-bottom: 0.4rem; }
+.gr-final-text { font-size: 0.875rem; line-height: 1.6; color: #111827; margin: 0; }
+
+.gr-placeholder { padding: 2rem 1.5rem; color: #9ca3af; font-size: 0.875rem; line-height: 1.6; max-width: 500px; }

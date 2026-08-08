@@ -1,77 +1,30 @@
 .header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #00152A 0%, #1a3a5c 100%);
   color: white;
-  padding: 1rem 2rem;
+  padding: 0.6rem 1.5rem;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  flex-shrink: 0;
 }
 
-.header-content h1 {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.header-content p {
-  margin: 0.25rem 0 0 0;
-  font-size: 0.9rem;
-  opacity: 0.9;
-}
-
-.header-content {
+.header-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
 }
 
 .header-title h1 {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 1.15rem;
+  font-weight: 700;
 }
 
 .header-title p {
-  margin: 0.25rem 0 0 0;
-  font-size: 0.9rem;
-  opacity: 0.9;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+  margin: 0.1rem 0 0 0;
+  font-size: 0.78rem;
+  opacity: 0.8;
 }
 
 .header-action {
   display: flex;
   align-items: center;
-}
-
-.header-tabs {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.tab-btn {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  color: white;
-  padding: 0.4rem 1rem;
-  border-radius: 20px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 500;
-  transition: background 0.2s, border-color 0.2s;
-}
-
-.tab-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-.tab-btn--active {
-  background: white;
-  color: #764ba2;
-  border-color: white;
-  font-weight: 600;
 }

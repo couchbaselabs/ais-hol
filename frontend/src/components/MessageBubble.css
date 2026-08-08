@@ -45,6 +45,108 @@
   text-align: left;
 }
 
+/* Source citations */
+.message-citations {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.citations-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 0.2rem;
+}
+
+.citation-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #f0f4ff;
+  color: #3b5bdb;
+  border: 1px solid #c5d0fa;
+  cursor: default;
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+}
+
+.citation-score {
+  font-size: 0.62rem;
+  color: #7c8db5;
+  opacity: 0.8;
+}
+
+.citation-chip--hoverable {
+  cursor: pointer;
+}
+
+.citation-chip--hoverable:hover {
+  background: #e0e8ff;
+  border-color: #7c8db5;
+}
+
+.citation-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 100;
+  width: 320px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #1e1e2e;
+  color: #cdd6f4;
+  font-size: 0.72rem;
+  font-family: ui-monospace, monospace;
+  line-height: 1.5;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  white-space: pre-wrap;
+  word-break: break-word;
+  cursor: text;
+  pointer-events: none;
+}
+
+.citation-chip--hoverable:hover .citation-tooltip {
+  display: block;
+}
+
+/* Faithfulness verdict badge */
+.message-faithfulness {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: default;
+}
+
+.faithfulness-label {
+  letter-spacing: 0.02em;
+}
+
+.faithfulness-score {
+  opacity: 0.75;
+  font-weight: 400;
+}
+
 /* Agent routing badges */
 .message-badge {
   margin-top: 0.4rem;

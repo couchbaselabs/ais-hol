@@ -40,9 +40,32 @@ class MathAgent(agentc_langgraph.agent.ReActAgent):
             config=config,
         )
         final_answer = result["messages"][-1].content
+
+        steps = []
+        for msg in result["messages"]:
+            role = getattr(msg, "type", None) or msg.__class__.__name__.lower()
+            content = msg.content if isinstance(msg.content, str) else str(msg.content)
+            tool_calls = getattr(msg, "tool_calls", [])
+            if tool_calls:
+                for tc in tool_calls:
+                    steps.append({
+                        "type": "tool_call",
+                        "tool": tc.get("name", ""),
+                        "input": tc.get("args", {}),
+                    })
+            elif role == "tool":
+                steps.append({"type": "tool_result", "content": content})
+            elif role == "ai" and content and content != final_answer:
+                steps.append({"type": "thought", "content": content})
+
+        existing_steps = state.get("trace_steps") or []
         return Command(
             goto="__end__",
-            update={"answer": final_answer, "routed_to": "math_agent"},
+            update={
+                "answer": final_answer,
+                "routed_to": "math_agent",
+                "trace_steps": existing_steps + steps,
+            },
         )
 
 

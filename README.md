@@ -7,6 +7,8 @@ Build a RAG (Retrieval-Augmented Generation) chatbot step by step using **Python
 
 You will start with a simple OpenAI chatbot and progressively add vector search, conversation history, and semantic caching — all without switching branches.
 
+Couchbase AI Data Plane combines Agent Memory, MCP Server, and Agent Catalog on a JSON-native, memory-first architecture. It lets agents retain context and access data via standard protocols, cutting redundant inference calls while providing visibility via SQL++.
+
 ---
 
 ## Prerequisites
@@ -14,7 +16,7 @@ You will start with a simple OpenAI chatbot and progressively add vector search,
 - Python 3.11+
 - Node.js 18+ (for the frontend)
 - An [OpenAI API key](https://platform.openai.com/api-keys)
-- A Couchbase Capella account (needed from Exercise 3 onwards)
+- A Couchbase AI Data Plane account (needed from Exercise 3 onwards)
 
 ---
 
@@ -113,11 +115,11 @@ curl 'localhost:5000/api/chat' \
 Before building the RAG app you need chunked documents stored in Couchbase and their vector embeddings generated. This exercise uses two steps:
 
 1. **Import** — use `cbsh` to chunk and import raw markdown into a collection named `documentation` (no embedding yet)
-2. **Vectorize** — use the Capella AI Services vectorization workflow to generate embeddings automatically inside the database
+2. **Vectorize** — use the Couchbase AI Data Plane vectorization workflow to generate embeddings automatically inside the database
 
 > **`cbsh` is pre-installed** by the devcontainer `postCreateCommand` — no manual install needed. Run all `cbsh` commands from the **repository root** so that `scripts/` paths resolve correctly.
 
-### Step 1 — Set up Couchbase Capella
+### Step 1 — Set up Couchbase AI Data Plane
 
 1. Sign up at [cloud.couchbase.com/signup](https://cloud.couchbase.com/signup)
 2. Create a cluster (Couchbase Server 8.0+, Search Service and Eventing Service enabled)
@@ -139,7 +141,7 @@ We will start by configuring your org and API key, `yourOrgIdentifier` can be wh
 ```
 version = 1
 
-[[capella-organization]]
+[[ai-data-plane-organization]]
 identifier = "yourOrgIdentifier"
 access-key = "yourAccessKey"
 secret-key = "yourSecretKey"
@@ -173,11 +175,11 @@ You should see the Couchbase Shell prompt:
 >
 ```
 
-### Step 2.3: Register Your Capella Cluster
+### Step 2.3: Register Your Couchbase AI Data Plane Cluster
 
 You'll now tell Couchbase Shell how to connect to your cloud cluster by providing the connection string, username, and password you created earlier.
 
-Select the Capella project you will be working on:
+Select the Couchbase AI Data Plane project you will be working on:
 
 ```nushell
 # List all your projects
@@ -216,7 +218,7 @@ The following command allows you to register the cluster:
 ```nushell
 # Register your cluster
 ( clusters get $cluster_name | cb-env register $cluster_name $in."connection string"
-  --capella-organization "yourOrgIdentifier"
+  --ai-data-plane-organization "yourOrgIdentifier"
   --project (projects | $in.0.name)
   --default-bucket shared
   --default-scope public
@@ -264,12 +266,12 @@ import_markdown_no_embed scripts/content/files/en-us/glossary1/ "glossary" "a gl
 
 This reads all markdown files, chunks them, assigns a content hash as document ID, and upserts into the `documentation` collection. No OpenAI calls are made.
 
-### Step 4 — Vectorize with Capella AI Services
+### Step 4 — Vectorize with Couchbase AI Data Plane
 
-Now use the Capella AI Services vectorization workflow to generate embeddings for all documents in `documentation` and create a vector search index automatically.
+Now use the Couchbase AI Data Plane vectorization workflow to generate embeddings for all documents in `documentation` and create a vector search index automatically.
 
-1. In Capella, go to **AI Services → Workflows → Create New Workflow**
-2. Click **Data from Capella**
+1. In Couchbase AI Data Plane, go to **Couchbase AI Data Plane → Workflows → Create New Workflow**
+2. Click **Data from Couchbase AI Data Plane**
 3. Give the workflow a name and click **Setup Workflow**
 4. Under **Data Source**, select your cluster, then:
    - Bucket: `shared`
@@ -278,14 +280,14 @@ Now use the Capella AI Services vectorization workflow to generate embeddings fo
 5. Under **Source Fields**, click **Map all source fields to a single vector field**
    - Set the **Vector Field** name to `vector`
 6. Click **Next**
-7. Under **Embedding Model**, click **Capella Model**
+7. Under **Embedding Model**, click **Couchbase AI Data Plane Model**
    - Select your available embedding model
    - Add your API key ID and Token
 8. Click **Next**, verify the configuration, then click **Run Workflow**
 
 The workflow generates a `vector` field on every document in `documentation` and creates a vector search index. Wait for the workflow status to show all documents processed before moving to Exercise 3.
 
-See: [Vectorize Structured Data from Capella](https://docs.couchbase.com/ai/build/vectorization-service/vectorize-structured-data-capella.html)
+See: [Vectorize Structured Data from Couchbase AI Data Plane](https://docs.couchbase.com/ai/build/vectorization-service/vectorize-structured-data-ai-data-plane.html)
 
 ### Step 5 — Update your backend environment
 
@@ -295,7 +297,7 @@ Add to `backend/.env`:
 COUCHBASE_SEARCH_INDEX_NAME=<index-name-created-by-the-workflow>
 ```
 
-The index name is shown in the Capella AI Services workflow detail page after the workflow completes.
+The index name is shown in the Couchbase AI Data Plane workflow detail page after the workflow completes.
 
 ### Step 6 — Create a Primary Index for the documentation collection
 
@@ -337,7 +339,7 @@ async def get_embedding(text: str) -> list[float]:
 
 In `backend/services/couchbase_service.py`:
 
-> The Capella AI Services workflow creates a **SQL++ GSI vector index** (not an FTS index). Query it using `ORDER BY ANN_DISTANCE()` via SQL++, not `scope.search()`.
+> The Couchbase AI Data Plane workflow creates a **SQL++ GSI vector index** (not an FTS index). Query it using `ORDER BY ANN_DISTANCE()` via SQL++, not `scope.search()`.
 
 ```python
 async def get_relevant_documents(embedding: list[float], name: str | None = None) -> list[dict]:
@@ -432,7 +434,7 @@ Every message is stored in Couchbase so the model can answer follow-up questions
 
 ### Step 1 — Create the conversations collection
 
-In Couchbase Capella Query Workbench:
+In Couchbase AI Data Plane Query Workbench:
 
 ```sql
 CREATE COLLECTION `shared`.`_default`.`conversations`;
@@ -570,24 +572,24 @@ async def clear_history(body: ClearRequest):
 
 Now you can try the conversation feature in the RAG chat. For instance tell your name in a first message, and then ask what is your name.
 
-### Step 5 — Summarize conversation history with Capella AI Functions
+### Step 5 — Summarize conversation history with Couchbase AI Data Plane
 
-Instead of passing raw message history to the prompt, use Couchbase Capella's built-in
+Instead of passing raw message history to the prompt, use Couchbase AI Data Plane's built-in
 `ai_summary` SQL++ function to compress it. The summarization runs **inside the database**
 — no extra API call from the backend is needed.
 
 #### Prerequisites
 
-Enable the **Summarization** AI Function on your Capella cluster:
+Enable the **Summarization** AI Function on your Couchbase AI Data Plane cluster:
 
-1. In Capella, go to **AI Services → AI Functions**
+1. In Couchbase AI Data Plane, go to **Couchbase AI Data Plane → AI Functions**
 2. Click **Enable AI Functions**
 3. Select **Summarization** and click **Next**
-4. Choose your LLM model (OpenAI, Bedrock, or Capella Model Service) and configure credentials
+4. Choose your LLM model (OpenAI, Bedrock, or Couchbase AI Data Plane Model Service) and configure credentials
 5. Select your operational cluster and click **Complete Setup**
 6. Wait for the status to show **Healthy** before proceeding
 
-See: [Capella AI Functions — Summarization](https://docs.couchbase.com/ai/build/ai-functions.html#summarization)
+See: [Couchbase AI Data Plane — Summarization](https://docs.couchbase.com/ai/build/ai-functions.html#summarization)
 
 #### Implement `summarize_conversation`
 
@@ -644,7 +646,7 @@ Restart the backend and try in the **RAG Chat** tab:
 2. Ask: _"What was my previous question?"_
 3. Ask: _"Can you explain that in simpler terms?"_
 
-Check the Capella Query Workbench to see the `ai_summary` function being called.
+Check the Couchbase AI Data Plane Query Workbench to see the `ai_summary` function being called.
 
 ---
 
@@ -656,12 +658,12 @@ Semantically similar queries are served from cache without calling OpenAI, reduc
 
 ### Step 1 — Create the cache bucket, collection and vector index
 
-In Couchbase Capella:
+In Couchbase AI Data Plane:
 
 1. Create a new bucket named `semantic_cache`
 2. Inside it, create a collection named `semantic` in the `_default` scope
 3. Create a primary index on this collection
-4. Create a SQL++ vector index on the collection. In the Capella **Query** tab run:
+4. Create a SQL++ vector index on the collection. In the Couchbase AI Data Plane **Query** tab run:
 
 ```sql
 CREATE VECTOR INDEX `semantic_cache_vector_idx`
@@ -821,6 +823,73 @@ npm run dev
 ```
 
 The app runs at [http://localhost:3000](http://localhost:3000).
+
+---
+
+## Running without API keys (mock mode)
+
+A local mock server implements the OpenAI wire protocol and an in-memory
+Couchbase stub so every demo tab works without any credentials.
+
+**Terminal 1 — mock OpenAI server**
+```bash
+cd backend
+eval $(poetry env activate)
+python mock_openai.py          # listens on http://localhost:9999
+```
+
+**Terminal 2 — main backend in mock mode**
+```bash
+cd backend
+eval $(poetry env activate)
+cp .env.mock .env              # use mock env (overwrites .env — keep a backup)
+uvicorn main:app --reload --port 5000
+```
+
+**Terminal 3 — frontend**
+```bash
+cd frontend
+npm run dev
+```
+
+What works in mock mode:
+
+| Tab | Status | Notes |
+|---|---|---|
+| Simple Chat | ✅ | Echoes message with canned prefix |
+| Streaming | ✅ | Streams word-by-word with 20 ms delay |
+| + Cache | ✅ | In-memory cache; second identical query returns cache hit |
+| + Memory | ✅ | In-memory conversation history |
+| + RAG | ✅ | Returns 4 stub MDN documents |
+| Multi-Agent | ✅ | Router classifies math/rag/direct; agents return stub answers |
+| Structured Output | ✅ | Returns fixed sentiment/entity JSON |
+| Reranking | ✅ | Stub docs with descending rerank scores |
+| Prompt Engineering | ✅ | Parallel calls all return mock responses |
+| Embeddings Explorer | ✅ | Deterministic unit vectors; similarity matrix works |
+| HyDE | ✅ | Generates mock hypothetical doc; both retrieval paths return stub docs |
+| LLM-as-Judge | ✅ | Returns fixed scores (faithfulness 4, relevance 4, completeness 3) |
+| Summarisation | ✅ | Per-chunk and final summaries are mock text |
+| Token Counter | ✅ | Uses tiktoken locally — no API call needed at all |
+| Metadata Filtering | ✅ | Returns stub docs filtered by mock category/date |
+| Multi-Vector Search | ✅ | Returns stub results for dense + sparse + hybrid modes |
+| Parallel Requests | ✅ | Runs 3 mock completions concurrently |
+| Output Format | ✅ | Returns mock JSON, markdown, and plain text variants |
+| Image Generation | ✅ | Returns `mock: true` notice instead of a real image |
+| Moderation | ✅ | Returns fixed category scores |
+| Retry Demo | ✅ | Simulates transient failures and exponential back-off |
+| Token Budget | ✅ | Counts tokens locally with tiktoken; mock completion returned |
+| Observability | ✅ | Records mock traces in-memory; trace list endpoint works |
+| Couchbase AI Data Plane Classification | ✅ | Heuristic label returned without a real DB connection |
+| Couchbase AI Data Plane Extraction | ✅ | Regex-based entity extraction fallback |
+| Couchbase AI Data Plane Translation | ✅ | Returns `[MOCK TRANSLATION]` prefix response |
+| Couchbase AI Data Plane Masking | ✅ | Regex PII masking applied locally |
+| Couchbase AI Data Plane Similarity | ✅ | Returns fixed similarity score (0.87) |
+| Couchbase AI Data Plane Completion | ✅ | Returns mock completion text |
+| Couchbase AI Data Plane Grammar | ✅ | Returns lightly corrected mock text |
+
+> **Note:** Embeddings in mock mode are deterministic but not semantically
+> meaningful. Cosine similarity scores in the Embeddings Explorer will not
+> reflect real semantic relationships.
 
 - **Simple Chat tab** — Exercise 1 chatbot
 - **RAG Chat tab** — Exercises 3–5 RAG application
@@ -1027,11 +1096,11 @@ User message
 
 Create an S3 bucket (or use an existing one). Upload one or more FAQ PDFs, each representing a distinct topic. Choose a short snake_case name for each (e.g. `hr_policy`, `product_manual`) — this will become the Couchbase collection name.
 
-### Step 2 — Ingest PDFs with Capella AI Services (S3 workflow)
+### Step 2 — Ingest PDFs with Couchbase AI Data Plane (S3 workflow)
 
 For each FAQ PDF:
 
-1. In Capella, go to **AI Services → Workflows → Create New Workflow**
+1. In Couchbase AI Data Plane, go to **Couchbase AI Data Plane → Workflows → Create New Workflow**
 2. Click **Data from S3**
 3. Give the workflow a name and click **Start Workflow**
 4. Under **Data Source**, configure:
@@ -1048,7 +1117,7 @@ For each FAQ PDF:
 
 Wait for the workflow to complete. Each document in the collection will have `content` and `vector` fields.
 
-> **Rename the vector index after the workflow completes.** The Capella workflow creates a vector index with an auto-generated name. Rename it to `shared.public.<collection_name>_vector_idx` (e.g. `shared.public.hr_policy_vector_idx`) so the `hybrid_faq_search` tool can find it. You can rename it in the Capella Search UI or via `cbsh`:
+> **Rename the vector index after the workflow completes.** The Couchbase AI Data Plane workflow creates a vector index with an auto-generated name. Rename it to `shared.public.<collection_name>_vector_idx` (e.g. `shared.public.hr_policy_vector_idx`) so the `hybrid_faq_search` tool can find it. You can rename it in the Couchbase AI Data Plane Search UI or via `cbsh`:
 >
 > ```
 > search index update shared.public.<auto-generated-name> --new-name shared.public.hr_policy_vector_idx

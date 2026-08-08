@@ -1,0 +1,75 @@
+.code-block {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 0.72rem;
+  line-height: 1.55;
+}
+
+.code-block-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #1a1a2e;
+  padding: 0.35rem 0.65rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.code-block-title {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #a5b4fc;
+  flex: 1;
+  font-family: monospace;
+}
+
+.code-block-lang {
+  font-size: 0.62rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.code-copy-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  color: #9ca3af;
+  font-size: 0.65rem;
+  padding: 0.15rem 0.45rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.code-copy-btn:hover { background: rgba(255,255,255,0.15); color: #e5e7eb; }
+
+.code-copy-btn--floating {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  z-index: 2;
+}
+
+.code-pre {
+  margin: 0 !important;
+  padding: 0.65rem 0.5rem 0.65rem 0 !important;
+  overflow-x: auto;
+  border-radius: 0 !important;
+  font-size: 0.72rem !important;
+  line-height: 1.55 !important;
+}
+
+.code-line-no {
+  display: inline-block;
+  width: 2.2rem;
+  text-align: right;
+  padding-right: 0.75rem;
+  color: rgba(255,255,255,0.2);
+  user-select: none;
+  font-size: 0.65rem;
+}
+
+/* Scrollbar */
+.code-pre::-webkit-scrollbar { height: 4px; }
+.code-pre::-webkit-scrollbar-track { background: transparent; }
+.code-pre::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }

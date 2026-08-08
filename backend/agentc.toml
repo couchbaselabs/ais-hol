@@ -6,7 +6,7 @@
 # are read from AGENT_CATALOG_* environment variables in .env — not set here.
 
 [agentc.init]
-bucket = "shared"
+bucket = "aisholshared"
 
 [agentc.publish]
-bucket = "shared"
+bucket = "aisholshared"

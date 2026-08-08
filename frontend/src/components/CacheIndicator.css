@@ -1,0 +1,21 @@
+.cache-indicator {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  margin-top: 0.35rem;
+  letter-spacing: 0.03em;
+}
+
+.cache-indicator--hit {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.cache-indicator--miss {
+  background: #ede9fe;
+  color: #5b21b6;
+  border: 1px solid #c4b5fd;
+}

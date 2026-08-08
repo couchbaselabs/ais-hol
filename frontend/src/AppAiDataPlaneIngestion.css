@@ -1,0 +1,478 @@
+.ci2-root {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #f8f9fa;
+}
+
+/* ── Mode toggle ── */
+.ci2-mode-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #dee2e6;
+  background: #fff;
+  flex-shrink: 0;
+}
+.ci2-mode-btn {
+  padding: 0.6rem 1.25rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #6c757d;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.ci2-mode-btn:hover { color: #212529; }
+.ci2-mode-btn--active {
+  color: #00A3E0;
+  border-bottom-color: #00A3E0;
+  font-weight: 700;
+}
+
+/* ── DIY body ── */
+.ci2-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.ci2-input-panel {
+  width: 340px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem;
+  border-right: 1px solid #dee2e6;
+  background: #fff;
+  overflow-y: auto;
+}
+
+.ci2-output-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.ci2-panel-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #adb5bd;
+}
+
+/* ── Examples ── */
+.ci2-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.ci2-example-btn {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  background: #f8f9fa;
+  font-size: 0.72rem;
+  cursor: pointer;
+  color: #495057;
+  transition: background 0.1s;
+}
+.ci2-example-btn:hover { background: #e9ecef; }
+
+/* ── Inputs ── */
+.ci2-text-input {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  outline: none;
+}
+.ci2-text-input:focus { border-color: #00A3E0; }
+
+.ci2-textarea {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  resize: vertical;
+  outline: none;
+  line-height: 1.5;
+  font-family: inherit;
+}
+.ci2-textarea:focus { border-color: #00A3E0; }
+
+.ci2-params {
+  display: flex;
+  gap: 0.75rem;
+}
+.ci2-param-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  color: #495057;
+  flex: 1;
+}
+.ci2-param-input {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  width: 100%;
+}
+
+.ci2-run-btn {
+  padding: 0.5rem 1rem;
+  background: #00A3E0;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ci2-run-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.ci2-error { font-size: 0.78rem; color: #b91c1c; }
+
+/* ── Pipeline steps ── */
+.ci2-pipeline-steps {
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+}
+.ci2-pipeline-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.75rem 0.5rem;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-right: none;
+  text-align: center;
+}
+.ci2-pipeline-step:last-child { border-right: 1px solid #dee2e6; border-radius: 0 6px 6px 0; }
+.ci2-pipeline-step:first-child { border-radius: 6px 0 0 6px; }
+.ci2-pipeline-step--done { background: #f0fdf4; border-color: #bbf7d0; }
+.ci2-pipeline-icon { font-size: 1.25rem; }
+.ci2-pipeline-label { font-size: 0.78rem; font-weight: 700; color: #1a1a2e; }
+.ci2-pipeline-desc { font-size: 0.65rem; color: #6c757d; line-height: 1.4; }
+
+/* ── Stats ── */
+.ci2-stats {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.ci2-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.4rem 0.75rem;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  min-width: 60px;
+}
+.ci2-stat--ok  { background: #f0fdf4; border-color: #bbf7d0; }
+.ci2-stat--warn { background: #fffbeb; border-color: #fde68a; }
+.ci2-stat-value { font-size: 1rem; font-weight: 700; color: #1a1a2e; }
+.ci2-stat-label { font-size: 0.62rem; color: #868e96; text-transform: uppercase; letter-spacing: 0.05em; }
+
+.ci2-store-note {
+  padding: 0.5rem 0.75rem;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  color: #92400e;
+}
+
+/* ── Chunks ── */
+.ci2-chunks-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #adb5bd;
+}
+.ci2-chunks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.ci2-chunk {
+  padding: 0.6rem 0.75rem;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+}
+.ci2-chunk-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+  flex-wrap: wrap;
+}
+.ci2-chunk-num { font-size: 0.72rem; font-weight: 700; color: #1a1a2e; }
+.ci2-chunk-words {
+  font-size: 0.68rem;
+  color: #868e96;
+  background: #f1f3f5;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+}
+.ci2-chunk-vec {
+  font-size: 0.62rem;
+  color: #00A3E0;
+  font-family: monospace;
+  background: #e7f5ff;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+}
+.ci2-chunk-text { font-size: 0.75rem; color: #495057; line-height: 1.5; }
+
+.ci2-placeholder {
+  padding: 2rem;
+  text-align: center;
+  font-size: 0.82rem;
+  color: #adb5bd;
+  background: #fff;
+  border: 1px dashed #dee2e6;
+  border-radius: 8px;
+}
+
+/* ── Couchbase AI Data Plane workflow view ── */
+.ci2-ai-data-plane-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.ci2-ai-data-plane-intro { max-width: 680px; }
+.ci2-ai-data-plane-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 0.4rem;
+}
+.ci2-ai-data-plane-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #495057;
+  line-height: 1.65;
+}
+
+.ci2-ai-data-plane-cols {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+}
+
+/* ── Workflow panel ── */
+.ci2-workflow-panel {
+  width: 340px;
+  flex-shrink: 0;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.ci2-workflow-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #495057;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.ci2-workflow-section { display: flex; flex-direction: column; gap: 0.4rem; }
+.ci2-workflow-section-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.ci2-source-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+}
+.ci2-source-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  background: #f8f9fa;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s;
+}
+.ci2-source-btn:hover { border-color: #adb5bd; }
+.ci2-source-btn--active { border-color: #00A3E0; background: #e7f5ff; }
+.ci2-source-icon { font-size: 1rem; }
+.ci2-source-label { font-size: 0.75rem; font-weight: 600; color: #1a1a2e; }
+.ci2-source-desc { font-size: 0.65rem; color: #6c757d; line-height: 1.3; }
+
+.ci2-workflow-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.ci2-workflow-radio {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: #495057;
+  cursor: pointer;
+}
+
+.ci2-workflow-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.ci2-workflow-input {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  color: #6c757d;
+  background: #f8f9fa;
+}
+
+.ci2-workflow-run-btn {
+  padding: 0.55rem 1rem;
+  background: #00A3E0;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 0.25rem;
+}
+.ci2-workflow-run-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── Workflow progress ── */
+.ci2-workflow-progress {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ci2-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+.ci2-step--active {
+  border-color: #00A3E0;
+  background: #e7f5ff;
+  box-shadow: 0 0 0 2px #00A3E022;
+}
+.ci2-step--done {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+.ci2-step-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+.ci2-step--done .ci2-step-icon { color: #2f9e44; font-weight: 700; }
+.ci2-step-body { flex: 1; }
+.ci2-step-label { font-size: 0.82rem; font-weight: 600; color: #1a1a2e; }
+.ci2-step-desc { font-size: 0.75rem; color: #6c757d; margin-top: 0.1rem; }
+
+.ci2-workflow-done {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+}
+.ci2-workflow-done-icon {
+  font-size: 1.25rem;
+  color: #2f9e44;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.ci2-workflow-done-title { font-size: 0.875rem; font-weight: 700; color: #2f9e44; }
+.ci2-workflow-done-desc { font-size: 0.78rem; color: #166534; margin-top: 0.15rem; line-height: 1.5; }
+
+.ci2-workflow-idle {
+  padding: 1.5rem;
+  text-align: center;
+  font-size: 0.82rem;
+  color: #adb5bd;
+  background: #fff;
+  border: 1px dashed #dee2e6;
+  border-radius: 8px;
+}
+
+/* ── Comparison table ── */
+.ci2-compare-box {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+.ci2-compare-box-title {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6c757d;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+.ci2-compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+.ci2-compare-table th {
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  font-weight: 700;
+  color: #6c757d;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+.ci2-compare-table td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid #f1f3f5;
+  color: #495057;
+}
+.ci2-compare-table tr:last-child td { border-bottom: none; }
+.ci2-compare-diy { color: #6c757d; }
+.ci2-compare-cap { color: #2f9e44; font-weight: 500; }

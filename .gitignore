@@ -44,6 +44,9 @@ jspm_packages/
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
+# Agent Catalog model cache (downloaded at index time)
+backend/.model-cache/
+
 # TypeScript cache
 *.tsbuildinfo
 
@@ -138,3 +141,6 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 scripts/content/files/en-us/glossary1/**/*.json
+-e 
+# Runtime trace file
+backend/traces.jsonl

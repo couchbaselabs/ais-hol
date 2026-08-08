@@ -1,0 +1,127 @@
+.fewshot-app { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+
+.fewshot-layout {
+  display: flex;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.fewshot-left {
+  flex: 0 0 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;
+}
+
+.fewshot-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.fewshot-section { display: flex; flex-direction: column; gap: 0.4rem; }
+
+.fewshot-section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fewshot-presets { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.fewshot-preset-btn {
+  padding: 0.25rem 0.65rem;
+  border: 1px solid #d1d5db; border-radius: 20px;
+  background: #f9fafb; color: #6b7280;
+  font-size: 0.78rem; cursor: pointer;
+}
+.fewshot-preset-btn--active { background: #e0f5ff; border-color: #00A3E0; color: #0c4a6e; font-weight: 600; }
+
+.fewshot-task-input {
+  width: 100%; box-sizing: border-box;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db; border-radius: 6px;
+  font-size: 0.82rem; font-family: inherit; resize: vertical; line-height: 1.5;
+}
+.fewshot-task-input:focus { outline: none; border-color: #00A3E0; box-shadow: 0 0 0 2px rgba(0,163,224,0.15); }
+
+.fewshot-add-btn {
+  padding: 0.1rem 0.5rem;
+  border: 1px solid #d1d5db; border-radius: 4px;
+  background: #f9fafb; color: #374151;
+  font-size: 0.72rem; cursor: pointer;
+}
+.fewshot-add-btn:hover { background: #e0f5ff; border-color: #00A3E0; }
+
+.fewshot-examples-list { display: flex; flex-direction: column; gap: 0.35rem; }
+.fewshot-example-row { display: flex; align-items: center; gap: 0.35rem; }
+.fewshot-ex-input, .fewshot-ex-output {
+  flex: 1; padding: 0.35rem 0.5rem;
+  border: 1px solid #e5e7eb; border-radius: 5px;
+  font-size: 0.78rem; font-family: inherit;
+}
+.fewshot-ex-input:focus, .fewshot-ex-output:focus { outline: none; border-color: #00A3E0; }
+.fewshot-arrow { color: #9ca3af; font-size: 0.8rem; flex-shrink: 0; }
+.fewshot-remove-btn {
+  background: none; border: none; color: #9ca3af;
+  cursor: pointer; font-size: 0.75rem; padding: 0.2rem;
+}
+.fewshot-remove-btn:hover { color: #ef4444; }
+
+.fewshot-run-row { display: flex; gap: 0.5rem; }
+.fewshot-run-input {
+  flex: 1; padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db; border-radius: 6px;
+  font-size: 0.875rem; font-family: inherit;
+}
+.fewshot-run-input:focus { outline: none; border-color: #00A3E0; box-shadow: 0 0 0 2px rgba(0,163,224,0.15); }
+.fewshot-run-btn {
+  padding: 0.5rem 1.25rem;
+  background: #00A3E0; color: #fff;
+  border: none; border-radius: 6px;
+  font-size: 0.875rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.fewshot-run-btn:hover:not(:disabled) { background: #0086b8; }
+.fewshot-run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.fewshot-input-examples { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.25rem; }
+
+.fewshot-error {
+  padding: 0.6rem 0.75rem;
+  background: #fef2f2; border: 1px solid #fecaca;
+  color: #991b1b; border-radius: 6px; font-size: 0.875rem;
+}
+.fewshot-loading { color: #6b7280; font-size: 0.875rem; }
+
+.fewshot-results { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.fewshot-result-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  border-left-width: 3px;
+}
+.fewshot-result-card--zero { border-left-color: #9ca3af; }
+.fewshot-result-card--few  { border-left-color: #00A3E0; }
+
+.fewshot-result-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 0.5rem;
+}
+.fewshot-result-label { font-size: 0.8rem; font-weight: 700; color: #111827; }
+.fewshot-result-meta  { font-size: 0.72rem; color: #9ca3af; }
+.fewshot-result-text  { margin: 0; font-size: 0.875rem; line-height: 1.6; color: #374151; white-space: pre-wrap; }
+
+.fewshot-placeholder { color: #9ca3af; font-size: 0.875rem; line-height: 1.6; }

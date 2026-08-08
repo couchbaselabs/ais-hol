@@ -1,0 +1,246 @@
+.embeddings-app {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.embeddings-controls {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1rem 1.5rem 0.75rem;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+/* Phrase inputs */
+.phrase-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.phrase-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.phrase-input {
+  width: 130px;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  color: #111827;
+  transition: border-color 0.15s;
+}
+
+.phrase-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.1);
+}
+
+.phrase-remove {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.25rem;
+  line-height: 1;
+}
+.phrase-remove:hover { color: #ef4444; }
+
+.phrase-add {
+  background: none;
+  border: 1px dashed #d1d5db;
+  border-radius: 6px;
+  color: #6b7280;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.65rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.phrase-add:hover { border-color: #6366f1; color: #6366f1; }
+
+/* Actions */
+.embeddings-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.embed-btn {
+  background: #6366f1;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.embed-btn:hover:not(:disabled) { background: #4f46e5; }
+.embed-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.preset-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.preset-list-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+}
+
+.example-btn {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  color: #374151;
+  cursor: pointer;
+  font-style: italic;
+  transition: background 0.15s;
+}
+.example-btn:hover { background: #f3f4f6; }
+
+/* Results */
+.embeddings-results {
+  display: flex;
+  gap: 2rem;
+  padding: 1.25rem 1.5rem;
+  flex: 1;
+  overflow-y: auto;
+  flex-wrap: wrap;
+}
+
+.embed-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.embed-col-heading {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.embed-dim {
+  font-size: 0.68rem;
+  color: #9ca3af;
+  font-weight: 400;
+  font-family: monospace;
+}
+
+/* Similarity matrix */
+.matrix-wrap {
+  overflow-x: auto;
+}
+
+.sim-matrix {
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.matrix-label {
+  padding: 0.3rem 0.5rem;
+  color: #374151;
+  font-weight: 600;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.matrix-label--col {
+  text-align: center;
+  writing-mode: horizontal-tb;
+}
+
+.matrix-label--row {
+  text-align: right;
+}
+
+.matrix-cell {
+  width: 52px;
+  height: 36px;
+  text-align: center;
+  font-family: monospace;
+  font-size: 0.72rem;
+  color: #111827;
+  border: 1px solid rgba(255,255,255,0.4);
+  transition: filter 0.1s;
+}
+.matrix-cell:hover { filter: brightness(0.9); }
+
+/* Legend */
+.sim-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.68rem;
+  color: #9ca3af;
+}
+
+.legend-bar {
+  flex: 1;
+  max-width: 120px;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, rgb(255,80,80), rgb(0,200,80));
+}
+
+/* Scatter */
+.scatter-canvas {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+  max-width: 100%;
+}
+
+.pca-note {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #9ca3af;
+  line-height: 1.5;
+  max-width: 420px;
+}
+
+/* States */
+.embed-placeholder {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  text-align: center;
+  padding: 3rem 0;
+}
+
+.embed-error {
+  font-size: 0.85rem;
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 1.5rem 0;
+}

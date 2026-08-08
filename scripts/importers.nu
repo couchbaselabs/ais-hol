@@ -30,7 +30,7 @@ export def import_markdown_no_embed [
     --tenant: string = "public"
 ] {
     # Chunk markdown files and import raw text into Couchbase — no embedding.
-    # Embeddings are generated later by the Capella AI Services vectorization workflow.
+    # Embeddings are generated later by the Couchbase AI Data Plane vectorization workflow.
     let chunked_files = (cd $path; ls **/*.md | each { |f| $f.name | open | markdown-chunker | insert filepath $f.name | insert name $name }) | flatten
     let filtered_chunked_files = $chunked_files | filter { |f| $f.content | hash sha256 | doc get | get cas | $in.0 == 0 }
     let chunks_with_ids = $filtered_chunked_files | each { |c| $c | insert id ($c.content | hash sha256) }

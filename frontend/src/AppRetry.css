@@ -1,0 +1,96 @@
+.retry-app { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+
+.retry-controls {
+  padding: 0.75rem 1.25rem 0.5rem;
+  background: #fff; border-bottom: 1px solid #e5e7eb;
+  display: flex; flex-direction: column; gap: 0.5rem; flex-shrink: 0;
+}
+.retry-query-row { display: flex; gap: 0.5rem; }
+.retry-input {
+  flex: 1; padding: 0.45rem 0.75rem;
+  border: 1px solid #d1d5db; border-radius: 6px;
+  font-size: 0.875rem; font-family: inherit;
+}
+.retry-input:focus { outline: none; border-color: #00A3E0; box-shadow: 0 0 0 2px rgba(0,163,224,0.15); }
+.retry-run-btn {
+  padding: 0.45rem 1.1rem; background: #00A3E0; color: #fff;
+  border: none; border-radius: 6px; font-size: 0.875rem; font-weight: 600; cursor: pointer;
+}
+.retry-run-btn:hover:not(:disabled) { background: #0086b8; }
+.retry-run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.retry-options { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+.retry-option-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.retry-option-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; }
+.retry-option-btns { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.retry-opt-btn {
+  padding: 0.28rem 0.65rem; border: 1px solid #d1d5db; border-radius: 20px;
+  background: #f9fafb; color: #6b7280; font-size: 0.75rem; cursor: pointer;
+}
+.retry-opt-btn:hover { border-color: #9ca3af; color: #374151; }
+.retry-opt-btn--active { background: #eff6ff; border-color: #00A3E0; color: #00A3E0; font-weight: 600; }
+
+.retry-examples { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+
+.retry-error {
+  margin: 0.75rem 1.25rem; padding: 0.6rem 0.75rem;
+  background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
+  border-radius: 6px; font-size: 0.875rem;
+}
+
+.retry-body {
+  flex: 1; overflow-y: auto; padding: 0.75rem 1.25rem 1rem;
+  display: flex; flex-direction: column; gap: 0.6rem;
+}
+
+.retry-summary {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.6rem 0.875rem; border-radius: 8px;
+  font-size: 0.875rem; font-weight: 500;
+}
+.retry-summary--ok   { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
+.retry-summary--fail { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+.retry-summary-icon { font-size: 1rem; }
+
+.retry-section-label {
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: #94a3b8;
+}
+
+.retry-attempts { display: flex; flex-direction: column; gap: 0.4rem; }
+
+.retry-attempt {
+  display: flex; gap: 0.6rem; align-items: flex-start;
+  padding: 0.5rem 0.75rem;
+  background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px;
+}
+.retry-attempt--fallback { background: #faf5ff; border-color: #e9d5ff; }
+
+.retry-attempt-num {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.65rem; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.retry-attempt-body { flex: 1; display: flex; flex-direction: column; gap: 0.2rem; }
+.retry-attempt-header { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.retry-attempt-model { font-size: 0.75rem; font-family: monospace; color: #374151; }
+.retry-fallback-badge {
+  font-size: 0.6rem; padding: 0.1rem 0.35rem;
+  background: #ede9fe; color: #7c3aed; border-radius: 20px; font-weight: 600;
+}
+.retry-attempt-outcome { font-size: 0.75rem; font-weight: 600; }
+.retry-attempt-ms { font-size: 0.65rem; color: #94a3b8; font-family: monospace; margin-left: auto; }
+.retry-attempt-delay { font-size: 0.7rem; color: #d97706; }
+.retry-attempt-error { font-size: 0.72rem; color: #dc2626; font-style: italic; }
+
+.retry-response {
+  padding: 0.75rem 0.875rem;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+  font-size: 0.875rem; color: #1e293b; line-height: 1.6;
+}
+
+.retry-placeholder {
+  padding: 1.5rem 1.25rem; color: #6b7280; font-size: 0.875rem; line-height: 1.7; max-width: 560px;
+}
+.retry-placeholder ul { margin: 0.5rem 0 0 1rem; padding: 0; }
+.retry-placeholder li { margin-bottom: 0.4rem; }

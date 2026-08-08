@@ -1,0 +1,109 @@
+.obs-app { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+
+.obs-controls {
+  padding: 0.75rem 1.25rem 0.5rem;
+  background: #fff; border-bottom: 1px solid #e5e7eb;
+  display: flex; flex-direction: column; gap: 0.4rem; flex-shrink: 0;
+}
+.obs-query-row { display: flex; gap: 0.5rem; }
+.obs-input {
+  flex: 1; padding: 0.45rem 0.75rem;
+  border: 1px solid #d1d5db; border-radius: 6px;
+  font-size: 0.875rem; font-family: inherit;
+}
+.obs-input:focus { outline: none; border-color: #00A3E0; box-shadow: 0 0 0 2px rgba(0,163,224,0.15); }
+.obs-send-btn {
+  padding: 0.45rem 1.1rem; background: #00A3E0; color: #fff;
+  border: none; border-radius: 6px; font-size: 0.875rem; font-weight: 600; cursor: pointer;
+}
+.obs-send-btn:hover:not(:disabled) { background: #0086b8; }
+.obs-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.obs-examples { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+
+.obs-session-row { font-size: 0.72rem; color: #94a3b8; }
+.obs-session-row code { font-size: 0.72rem; background: #f1f5f9; padding: 0.1rem 0.3rem; border-radius: 3px; }
+
+.obs-error {
+  margin: 0.5rem 1.25rem; padding: 0.5rem 0.75rem;
+  background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
+  border-radius: 6px; font-size: 0.82rem;
+}
+
+/* ── Last response ────────────────────────────────────────────────────────── */
+.obs-last-response {
+  margin: 0.5rem 1.25rem 0;
+  padding: 0.6rem 0.875rem;
+  background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px;
+  flex-shrink: 0;
+}
+.obs-last-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #15803d; margin-bottom: 0.2rem; }
+.obs-last-text  { font-size: 0.82rem; color: #1e293b; line-height: 1.5; }
+.obs-last-meta  { font-size: 0.65rem; color: #64748b; font-family: monospace; margin-top: 0.3rem; }
+
+/* ── Trace section ───────────────────────────────────────────────────────── */
+.obs-trace-section {
+  flex: 1; overflow: hidden;
+  display: flex; flex-direction: column;
+  margin: 0.5rem 1.25rem 0.75rem;
+  border: 1px solid #e5e7eb; border-radius: 8px;
+  background: #fff;
+}
+
+.obs-trace-header {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  background: #f8fafc; border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+.obs-trace-title { font-size: 0.8rem; font-weight: 700; color: #374151; flex: 1; }
+.obs-trace-totals { display: flex; gap: 0.35rem; }
+.obs-total-pill {
+  font-size: 0.65rem; padding: 0.15rem 0.45rem;
+  background: #f1f5f9; border-radius: 20px; color: #475569;
+}
+.obs-total-pill--cost { background: #fef9c3; color: #854d0e; font-weight: 600; }
+.obs-clear-btn {
+  font-size: 0.72rem; padding: 0.2rem 0.5rem;
+  background: none; border: 1px solid #d1d5db; border-radius: 5px;
+  color: #6b7280; cursor: pointer;
+}
+.obs-clear-btn:hover { border-color: #dc2626; color: #dc2626; }
+
+.obs-empty { padding: 1rem; font-size: 0.82rem; color: #94a3b8; }
+
+.obs-table-wrap { flex: 1; overflow: auto; }
+
+.obs-table {
+  width: 100%; border-collapse: collapse; font-size: 0.75rem;
+}
+.obs-th {
+  padding: 0.35rem 0.6rem; text-align: left;
+  font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.04em; color: #94a3b8;
+  background: #f8fafc; border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap; position: sticky; top: 0;
+}
+.obs-th--num  { text-align: right; }
+.obs-th--cost { text-align: right; }
+
+.obs-tr { border-bottom: 1px solid #f1f5f9; }
+.obs-tr:hover { background: #f8fafc; }
+.obs-tr--error { background: #fef2f2; }
+
+.obs-td { padding: 0.35rem 0.6rem; color: #374151; white-space: nowrap; }
+.obs-td--id      { font-family: monospace; color: #94a3b8; }
+.obs-td--session { font-family: monospace; color: #7c3aed; }
+.obs-td--model   { font-family: monospace; font-size: 0.68rem; }
+.obs-td--hash    { font-family: monospace; color: #64748b; }
+.obs-td--num     { text-align: right; font-family: monospace; }
+.obs-td--cost    { text-align: right; font-family: monospace; color: #854d0e; }
+.obs-td--status  { text-align: center; }
+
+.obs-slow { color: #dc2626; font-weight: 700; }
+
+.obs-badge {
+  font-size: 0.6rem; padding: 0.1rem 0.35rem; border-radius: 20px; font-weight: 700;
+}
+.obs-badge--ok    { background: #dcfce7; color: #15803d; }
+.obs-badge--error { background: #fef2f2; color: #991b1b; }

@@ -62,17 +62,41 @@ class FaqSearchAgent(agentc_langgraph.agent.ReActAgent):
         config: langchain_core.runnables.RunnableConfig,
     ) -> Command:
         agent = self.create_react_agent(span)
+
+        history = state.get("conversation_history") or []
+        messages = history + [("user", state["message"])]
+
         result = await agent.ainvoke(
-            {"messages": [("user", state["message"])], "is_last_step": False, "previous_node": None},
+            {"messages": messages, "is_last_step": False, "previous_node": None},
             config=config,
         )
         final_answer = result["messages"][-1].content
+
+        steps = []
+        for msg in result["messages"]:
+            role = getattr(msg, "type", None) or msg.__class__.__name__.lower()
+            content = msg.content if isinstance(msg.content, str) else str(msg.content)
+            tool_calls = getattr(msg, "tool_calls", [])
+            if tool_calls:
+                for tc in tool_calls:
+                    steps.append({
+                        "type": "tool_call",
+                        "tool": tc.get("name", ""),
+                        "input": tc.get("args", {}),
+                    })
+            elif role == "tool":
+                steps.append({"type": "tool_result", "content": content})
+            elif role == "ai" and content and content != final_answer:
+                steps.append({"type": "thought", "content": content})
+
+        existing_steps = state.get("trace_steps") or []
         return Command(
             goto="__end__",
             update={
                 "answer": final_answer,
                 "routed_to": "faq_search_agent",
                 "faq_collection": state.get("faq_collection"),
+                "trace_steps": existing_steps + steps,
             },
         )
 

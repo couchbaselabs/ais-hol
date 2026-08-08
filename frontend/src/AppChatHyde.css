@@ -1,0 +1,246 @@
+.hyde-app {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.hyde-query-bar {
+  display: flex;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem 0.5rem;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.hyde-input {
+  flex: 1;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  color: #111827;
+  transition: border-color 0.15s;
+}
+.hyde-input:focus { outline: none; border-color: #0891b2; box-shadow: 0 0 0 3px rgba(8,145,178,0.1); }
+
+.hyde-btn {
+  background: #0891b2;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 1.25rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.hyde-btn:hover:not(:disabled) { background: #0e7490; }
+.hyde-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.hyde-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.5rem 1.5rem 0.75rem;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.example-btn {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.78rem;
+  color: #374151;
+  cursor: pointer;
+  font-style: italic;
+  transition: background 0.15s;
+}
+.example-btn:hover { background: #f3f4f6; }
+
+/* Layout */
+.hyde-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 1.5rem 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Hypothetical doc */
+.hyde-hyp-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.hyp-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #9ca3af;
+}
+
+.hyp-doc {
+  margin: 0;
+  background: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  border-radius: 0 8px 8px 0;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  color: #111827;
+  line-height: 1.65;
+  font-style: italic;
+}
+
+/* Comparison */
+.hyde-comparison {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.hyde-vs {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #9ca3af;
+  padding-top: 1.5rem;
+  flex-shrink: 0;
+}
+
+.hyde-doc-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.hyde-col-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 2px solid;
+  margin-bottom: 0.1rem;
+}
+
+.hyde-stage {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.hyde-doc-count {
+  font-size: 0.68rem;
+  color: #9ca3af;
+}
+
+/* Doc card */
+.hyde-doc-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.hyde-doc-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.hyde-rank {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.hyde-filepath {
+  flex: 1;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #374151;
+  font-family: monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hyde-score {
+  font-size: 0.72rem;
+  color: #9ca3af;
+  font-family: monospace;
+  flex-shrink: 0;
+}
+
+.hyde-expand {
+  font-size: 0.65rem;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.hyde-doc-content {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #6b7280;
+  line-height: 1.5;
+  border-top: 1px solid #f3f4f6;
+  padding-top: 0.35rem;
+}
+
+/* Answer */
+.hyde-answer {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.hyde-answer-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #059669;
+}
+
+.hyde-answer-text {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #111827;
+  line-height: 1.65;
+}
+
+/* States */
+.hyde-placeholder {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  text-align: center;
+  padding: 3rem 0;
+}
+
+.hyde-error {
+  font-size: 0.85rem;
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 1.5rem 0;
+}

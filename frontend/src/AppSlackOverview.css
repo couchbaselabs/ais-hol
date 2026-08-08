@@ -1,0 +1,156 @@
+.slack-root {
+  padding: 1.5rem 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+  font-family: inherit;
+}
+
+/* Hero */
+.slack-hero {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+  padding: 1.25rem 1.5rem;
+  background: #f9f0fa;
+  border: 1px solid #e8d5ea;
+  border-radius: 12px;
+}
+
+.slack-hero-icon { flex-shrink: 0; }
+
+.slack-hero-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #4A154B;
+  margin: 0 0 0.25rem;
+}
+
+.slack-hero-sub {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Sections */
+.slack-section { margin-bottom: 2rem; }
+
+.slack-section-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #4A154B;
+  margin: 0 0 1rem;
+}
+
+/* Architecture flow */
+.slack-arch {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.slack-arch-step {
+  flex: 1;
+  min-width: 120px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.75rem;
+  text-align: center;
+}
+
+.slack-arch-icon { font-size: 1.5rem; margin-bottom: 0.3rem; }
+
+.slack-arch-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 0.3rem;
+}
+
+.slack-arch-desc {
+  font-size: 0.7rem;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.slack-arch-arrow {
+  font-size: 1.2rem;
+  color: #d1d5db;
+  align-self: center;
+  flex-shrink: 0;
+  padding-top: 0.5rem;
+}
+
+/* Concepts grid */
+.slack-concepts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.75rem;
+}
+
+.slack-concept-card {
+  display: flex;
+  gap: 0.75rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+}
+
+.slack-concept-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+  line-height: 1;
+  padding-top: 0.1rem;
+}
+
+.slack-concept-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 0.25rem;
+}
+
+.slack-concept-desc {
+  font-size: 0.75rem;
+  color: #6b7280;
+  line-height: 1.45;
+}
+
+/* What you'll build */
+.slack-build-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.slack-build-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  font-size: 0.83rem;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.slack-build-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: #4A154B;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}

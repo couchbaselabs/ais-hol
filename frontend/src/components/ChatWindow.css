@@ -12,10 +12,37 @@
   background-color: #f8f9fa;
 }
 
-.input-form {
-  padding: 1rem;
+.chat-examples {
+  padding: 0.5rem 1rem 0;
   background-color: white;
   border-top: 1px solid #e9ecef;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.chat-examples__label {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-weight: 500;
+  white-space: nowrap;
+  padding-top: 0.3rem;
+}
+
+.chat-examples__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.input-form {
+  padding: 0.6rem 1rem 1rem;
+  background-color: white;
 }
 
 .input-container {
