@@ -29,6 +29,7 @@ import math
 import os
 import time
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -304,6 +305,22 @@ async def list_models():
 @app.get("/health")
 async def health():
     return {"status": "ok", "server": "mock-openai"}
+
+
+@app.get("/key/info")
+async def key_info():
+    """Mock LiteLLM virtual-key self-lookup, for the header budget widget."""
+    reset_at = datetime.now(timezone.utc) + timedelta(hours=6)
+    return JSONResponse({
+        "key": "mock-virtual-key",
+        "info": {
+            "key_alias": "workshop-mock-key",
+            "spend": 1.85,
+            "max_budget": 5.0,
+            "budget_duration": "24h",
+            "budget_reset_at": reset_at.isoformat(),
+        },
+    })
 
 
 # ---------------------------------------------------------------------------

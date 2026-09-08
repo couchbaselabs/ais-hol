@@ -207,6 +207,76 @@ async def health():
 
 
 # ---------------------------------------------------------------------------
+# LiteLLM virtual key budget — daily budget, remaining spend, and reset time
+# for the configured INFERENCE_MODEL_API_KEY.
+# ---------------------------------------------------------------------------
+
+_KEY_INFO_CACHE: dict = {"data": None, "fetched_at": 0.0}
+_KEY_INFO_TTL_SECONDS = 60
+
+
+def _litellm_proxy_root() -> str:
+    """Root URL of the LiteLLM proxy, e.g. https://host from https://host/v1.
+
+    Management endpoints like /key/info live on the proxy root, not under /v1.
+    """
+    base = os.environ.get("INFERENCE_MODEL_BASE_URL", "").rstrip("/")
+    if base.endswith("/v1"):
+        base = base[: -len("/v1")]
+    return base
+
+
+@app.get("/api/litellm/key-info")
+async def litellm_key_info():
+    """Report the configured LiteLLM virtual key's daily budget, spend, and reset time.
+
+    Calls the proxy's self-lookup `/key/info` — a virtual key can fetch its own
+    info when passed as the bearer token, no master key required.
+    """
+    import time as _time
+
+    now = _time.time()
+    cached = _KEY_INFO_CACHE["data"]
+    if cached and (now - _KEY_INFO_CACHE["fetched_at"]) < _KEY_INFO_TTL_SECONDS:
+        return cached
+
+    proxy_root = _litellm_proxy_root()
+    api_key = os.environ.get("INFERENCE_MODEL_API_KEY", "")
+    if not proxy_root or not api_key:
+        raise HTTPException(status_code=503, detail="LiteLLM proxy not configured")
+
+    import httpx as _httpx
+    try:
+        async with _httpx.AsyncClient(timeout=8) as hc:
+            resp = await hc.get(
+                f"{proxy_root}/key/info",
+                headers={"Authorization": f"Bearer {api_key}"},
+            )
+            resp.raise_for_status()
+            payload = resp.json()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Could not reach LiteLLM proxy: {e}")
+
+    info = payload.get("info", payload)
+    max_budget = info.get("max_budget")
+    spend = info.get("spend") or 0
+
+    result = {
+        "key_alias": info.get("key_alias"),
+        "max_budget": max_budget,
+        "spend": round(spend, 4) if isinstance(spend, (int, float)) else spend,
+        "remaining": (
+            round(max_budget - spend, 4) if isinstance(max_budget, (int, float)) else None
+        ),
+        "budget_duration": info.get("budget_duration"),
+        "budget_reset_at": info.get("budget_reset_at"),
+    }
+    _KEY_INFO_CACHE["data"] = result
+    _KEY_INFO_CACHE["fetched_at"] = now
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Exercise 1 — Simple Chatbot
 # ---------------------------------------------------------------------------
 
