@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { ORDERED_TAB_IDS } from './curriculum'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import InfoPanel from './components/InfoPanel'
@@ -79,20 +80,51 @@ import {
   AppAgentMemoryComparison,
 } from './AppAgentMemory'
 
+// Resolve the active tab from a URL path, e.g. "/chat" -> "chat".
+// Falls back to "chat" for the root path or any unrecognised path.
+function tabFromPath(pathname) {
+  const id = pathname.replace(/^\//, '')
+  return ORDERED_TAB_IDS.includes(id) ? id : 'chat'
+}
+
 function Shell() {
-  const [activeTab, setActiveTab] = useState('chat')
+  const [activeTab, setActiveTab] = useState(() => tabFromPath(window.location.pathname))
+
+  // Give every tab a real, shareable URL (a permalink) and make the browser's
+  // back/forward buttons move between tabs via the History API.
+  const navigate = useCallback((tabId) => {
+    setActiveTab(tabId)
+    const path = `/${tabId}`
+    if (window.location.pathname !== path) {
+      window.history.pushState({ tab: tabId }, '', path)
+    }
+  }, [])
 
   useEffect(() => {
-    const handler = (e) => setActiveTab(e.detail)
+    // Normalize the initial URL (e.g. "/" or an unknown path) to the resolved
+    // tab's permalink, without adding a history entry.
+    const initial = tabFromPath(window.location.pathname)
+    const path = `/${initial}`
+    if (window.location.pathname !== path) {
+      window.history.replaceState({ tab: initial }, '', path)
+    }
+
+    const onPopState = () => setActiveTab(tabFromPath(window.location.pathname))
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
+  useEffect(() => {
+    const handler = (e) => navigate(e.detail)
     window.addEventListener('shell:navigate', handler)
     return () => window.removeEventListener('shell:navigate', handler)
-  }, [])
+  }, [navigate])
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Header />
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        <Sidebar activeTab={activeTab} onTabChange={navigate} />
         <ErrorBoundary key={activeTab}>
         {activeTab === 'chat'       && <AppChat           key="chat" />}
         {activeTab === 'stream'     && <AppChatStream     key="stream"     />}
@@ -186,7 +218,7 @@ function Shell() {
         {activeTab === 'agent-memory-integration' && <AppAgentMemoryIntegration key="agent-memory-integration" />}
         {activeTab === 'agent-memory-comparison'  && <AppAgentMemoryComparison  key="agent-memory-comparison"  />}
         </ErrorBoundary>
-        <InfoPanel tab={activeTab} onTabChange={setActiveTab} />
+        <InfoPanel tab={activeTab} onTabChange={navigate} />
       </div>
     </div>
   )
